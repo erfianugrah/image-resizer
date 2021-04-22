@@ -1,0 +1,12 @@
+name = "image-resizer"
+type = "javascript"
+
+[env.staging]
+name = "staging-resizer"
+vars = { ENVIRONMENT = "staging" }
+workers_dev = true
+
+[env.prod]
+name = "prod-resizer"
+vars = { ENVIRONMENT = "production" }
+route = "*erfianugrah.com/wp-content/uploads/*"
