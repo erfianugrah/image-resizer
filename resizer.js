@@ -1,8 +1,7 @@
 addEventListener('fetch', event => {
     if (/image-resizing/.test(event.request.headers.get("via"))) {
-        return
+        return event.respondWith(handleRequest(event.request))
     }
-    event.respondWith(handleRequest(event.request))
 })
 
 async function handleRequest(request) {
@@ -33,7 +32,7 @@ const imageDeviceResized = imageDevice.find( ({asset}) => device.has(asset))
 const imageURLResized = imageURL.find( ({asset}) => urlParams.has(asset))
 const image = cache ? imageDeviceResized : imageURLResized
 
-const subRequest = new Request(request)
+const subRequest = new Request(request.url)
 return await fetch(subRequest,
         { cf:
             {
