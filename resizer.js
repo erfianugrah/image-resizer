@@ -1,6 +1,6 @@
 addEventListener('fetch', event => {
     if (/image-resizing/.test(event.request.headers.get("via"))) {
-        return fetch(event.request)/*event.respondWith(handleRequest(event.request))*/
+        return event.respondWith(handleRequest(event.request))
     }
 })
 
@@ -38,6 +38,7 @@ return await fetch(subRequest,
             {
                 cacheKey: cache.key,
                 cacheEverything: true,
+                polish: 'off',
                 cacheTtlByStatus: {
                     '100-199': cache.info,
                     '200-299': cache.ok,
