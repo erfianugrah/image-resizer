@@ -1,6 +1,6 @@
 addEventListener('fetch', event => {
     if (/image-resizing/.test(event.request.headers.get("via"))) {
-        return event.respondWith(handleRequest(event.request))
+        return fetch(event.request)/*event.respondWith(handleRequest(event.request))*/
     }
 })
 
