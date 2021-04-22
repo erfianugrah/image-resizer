@@ -1,7 +1,8 @@
 addEventListener('fetch', event => {
     if (/image-resizing/.test(event.request.headers.get("via"))) {
-    return event.respondWith(handleRequest(event.request))
+        return
     }
+    event.respondWith(handleRequest(event.request))
 })
 
 async function handleRequest(request) {
@@ -26,11 +27,11 @@ const imageURL = [
 ]
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
-const cache = cacheAssets_match ? cacheAssets_match : ''
+// const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
 const imageURLResized = imageURL.find( ({asset}) => urlParams.match(asset))
-const image = cache ? imageDeviceResized : imageURLResized
+const image = cacheAssets_match ? imageDeviceResized : ''
 
 const subRequest = new Request(request.url)
 return await fetch(subRequest,
