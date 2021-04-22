@@ -26,11 +26,11 @@ const imageURL = [
 ]
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
-// const cache = cacheAssets_match ? cacheAssets_match : ''
+const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
 const imageURLResized = imageURL.find( ({asset}) => urlParams.match(asset))
-const image = cacheAssets_match ? imageDeviceResized : ''
+const image = cache ? imageDeviceResized : imageURLResized
 
 const subRequest = new Request(request)
 return await fetch(subRequest,
