@@ -1,18 +1,9 @@
-/*addEventListener('fetch', event => {
-    if (/image-resizing/.test(event.request.headers.get("via"))) {
-        return 
-    }
-    event.respondWith(handleRequest(event.request))
-})
-*/
-
 addEventListener('fetch', event => {
-    if (event.request.headers.has("via") &&
-        event.request.headers.get("via").lastIndexOf("image-resizing-proxy")>0) {
-            return
+    if (/image-resizing/.test(event.request.headers.get("via"))) {
+        return event.respondWith(handleRequest(event.request))
     }
-    event.respondWith(handleRequest(event.request))
 })
+
 async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
