@@ -14,9 +14,9 @@ const cacheAssets = [
 ]
 
 const imageDevice = [
-    {asset: /desktop/, height: 2160, width: 3840, fit: 'scale-down', metadata: 'copyright', quality: 100},
-    {asset: /tablet/, height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 100},
-    {asset: /mobile/, height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 100}
+    {asset: 'desktop', height: 2160, width: 3840, fit: 'scale-down', metadata: 'copyright', quality: 100},
+    {asset: 'tablet', height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 100},
+    {asset: 'mobile', height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 100}
 ]
 
 const imageURL = [
@@ -26,9 +26,9 @@ const imageURL = [
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
-const imageDeviceResized = imageDevice.find( ({asset}) => device.toLowerCase().match(asset))
-const imageURLResized = imageURL.find( ({asset}) => urlParams.toLowerCase().get(asset))
-const image = imageDeviceResized ? imageURLResized : ''
+const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
+const imageURLResized = imageURL.find( ({asset}) => urlParams.match(asset))
+const image = cacheAssets_match ? imageDeviceResized : imageURLResized
 
 return await fetch(request,
         { cf:
