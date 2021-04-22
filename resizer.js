@@ -30,7 +30,7 @@ const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
 const imageURLResized = imageURL.find( ({asset}) => urlParams.match(asset))
-const image = cache ? imageDeviceResized : ''
+const image = cache ? imageDeviceResized : imageURLResized
 
 const subRequest = new Request(request.url)
 return await fetch(subRequest,
