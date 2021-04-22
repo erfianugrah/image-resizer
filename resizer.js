@@ -28,8 +28,8 @@ const imageURL = [
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
-const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
-const imageURLResized = imageURL.find( ({asset}) => urlParams.match(asset))
+const imageDeviceResized = imageDevice.find( ({asset}) => device.has(asset))
+const imageURLResized = imageURL.find( ({asset}) => urlParams.has(asset))
 const image = cache ? imageDeviceResized : imageURLResized
 
 const subRequest = new Request(request)
