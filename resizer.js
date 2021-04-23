@@ -42,7 +42,7 @@ const image = cache ? imageDeviceResized || imageURLResized : ''
 const newResponse = await fetch(subRequest,
         { cf:
             {
-                cacheKey: cache.key,
+                //cacheKey: cache.key,
                 cacheEverything: true,
                 polish: 'off',
                 cacheTtlByStatus: {
