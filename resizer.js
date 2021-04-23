@@ -34,7 +34,7 @@ const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
 //const imageURLResized = imageURL.find( ({asset}) => urlParams.has(asset))
 const image = cache ? imageDeviceResized : ''
 
-await fetch(subRequest,
+const newResponse = await fetch(subRequest,
         { cf:
             {
                 cacheKey: cache.key,
@@ -56,10 +56,10 @@ await fetch(subRequest,
                     }
             },
         })
-        
-const response = new Response(subRequest, subRequest.body)
+
+const response = new Response(newResponse.body, newResponse)
 if (response.ok) {  
     return response
     } else {  
-    return response.redirect(subRequest, 307)}
+    return response.redirect(newResponse, 307)}
 }
