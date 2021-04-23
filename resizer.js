@@ -20,17 +20,17 @@ const imageDeviceOptions = {
     mobile: {height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85}
 }
 
-const height = urlParams.get('height') // ? urlParams.get('height') : ''
-const width = urlParams.get('width') //? urlParams.get('width') : ''
-const fit = urlParams.get('fit') //? urlParams.get('fit') : ''
-const quality = urlParams.get('quality') //? urlParams.get('quality') : ''
-const metadata = urlParams.get('metadata') //? urlParams.get('metadata') : ''
+const height = urlParams.get('height') || undefined
+const width = urlParams.get('width') || undefined
+const fit = urlParams.get('fit') || undefined
+const quality = urlParams.get('quality') || undefined
+const metadata = urlParams.get('metadata') || undefined
 
 const imageURLOptions = { width, height, fit, quality, metadata }
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
-const deviceMatch = imageDeviceOptions[device] || imageDeviceOptions[desktop]
+const deviceMatch = imageDeviceOptions[device]
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : {}
