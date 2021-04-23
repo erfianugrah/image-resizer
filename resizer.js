@@ -14,35 +14,31 @@ const cacheAssets = [
     {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
 ]
 
-const imageDevice = [
-    {asset: 'desktop', height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85},
-    {asset: 'tablet', height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85},
-    {asset: 'mobile', height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85}
-]
+const imageDeviceOptions = {
+    desktop: {height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85},
+    tablet: {height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85},
+    mobile: {height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85}
+}
 
-const height = urlParams.has('height') ? urlParams.get('height') : {}
-const width = urlParams.has('width') ? urlParams.get('width') : {}
-const fit = urlParams.has('fit') ? urlParams.get('fit') : {}
-const quality = urlParams.has('quality') ? urlParams.get('quality') : {}
-const metadata = urlParams.has('metadata') ? urlParams.get('metadata') : {}
+const height = urlParams.has('height') ? urlParams.get('height') : ''
+const width = urlParams.has('width') ? urlParams.get('width') : ''
+const fit = urlParams.has('fit') ? urlParams.get('fit') : ''
+const quality = urlParams.has('quality') ? urlParams.get('quality') : ''
+const metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''
 
-const imageURL = [
-    {asset: 'height', height}, 
-    {asset: 'width', width}, 
-    {asset: 'fit', fit}, 
-    {asset: 'quality', quality}, 
-    {asset: 'metadata', metadata}
-]
+const imageURLOptions = { width, height, fit, quality, metadata }
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
+const deviceMatch = imageDeviceOptions[device]
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : {}
-
-const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
-const imageURLResized = imageURL.find( ({asset}) => urlParams.get(asset))
-const image = cache ? imageDeviceResized || imageURLResized : {}
+/*
+const imageDeviceResized = imageDeviceOptions.find( ({asset}) => device == asset)
+const imageURLResized = imageURLOptions.find( ({asset}) => urlParams.get(asset))
+*/
+const imageResizer = cache ? deviceMatch || imageURLOptions : {}
 
 const newResponse = await fetch(subRequest,
         { cf:
@@ -57,11 +53,11 @@ const newResponse = await fetch(subRequest,
                     '500-599': cache.serverError
                     },
                 image: {
-                    width: image.width,
-                    height: image.height,
-                    fit: image.fit ,
-                    metadata: image.metadata,
-                    quality: image.quality
+                    width: imageResizer.width,
+                    height: imageResizer.height,
+                    fit: imageResizer.fit ,
+                    metadata: imageResizer.metadata,
+                    quality: imageResizer.quality
                     }
             },
         })
