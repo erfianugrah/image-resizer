@@ -11,7 +11,7 @@ const customCacheKey = newRequest.hostname + newRequest.pathname + newRequest.se
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
-    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: -1, redirects: 30, clientError: 10, serverError: 0 },
+    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 1, redirects: 30, clientError: 10, serverError: 0 },
 ]
 
 const imageDevice = [
@@ -47,7 +47,7 @@ const image = cache ? imageURLResized || imageDeviceResized : ''
 const newResponse = await fetch(subRequest,
         { cf:
             {
-                cacheKey: cache.key,
+            //  cacheKey: cache.key,
                 cacheEverything: true,
                 cacheTtlByStatus: {
                     '100-199': cache.info,
