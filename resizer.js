@@ -62,6 +62,7 @@ const response = new Response(newResponse.body, newResponse)
 if (response.ok) {  
     return response
     } else {  
-    return response.redirect(newRequest, 307)}
+    return newRequest
+    }
 //const responseError = response.ok ? response : response.redirect(newRequest, 307)
 }
