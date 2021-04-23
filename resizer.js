@@ -28,11 +28,11 @@ const quality = urlParams.has('quality') ? urlParams.get('quality') : ''
 const metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''
 
 const imageURL = [
-    {asset: height}, 
-    {asset: width}, 
-    {asset: fit}, 
-    {asset: quality}, 
-    {asset: metadata}
+    {asset: 'height', height}, 
+    {asset: 'width', width}, 
+    {asset: 'fit', fit}, 
+    {asset: 'quality', quality}, 
+    {asset: 'metadata', metadata}
 ]
 
 const subRequest = new Request(request)
