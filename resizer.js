@@ -9,7 +9,6 @@ async function handleRequest(request) {
 const newRequest = new URL(request.url)
 const customCacheKey = newRequest.hostname + newRequest.pathname + newRequest.search
 const urlParams = newRequest.searchParams
-//const keys = urlParams.entries()
 
 const cacheAssets = [
     {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
