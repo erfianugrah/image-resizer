@@ -42,7 +42,7 @@ const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
 const imageURLResized = imageURL.find( ({asset}) => urlParams.get(asset))
-const image = cache ? imageURLResized || imageDeviceResized : ''
+const image = cache ? imageDeviceResized : ''
 
 const newResponse = await fetch(subRequest,
         { cf:
@@ -67,6 +67,6 @@ const newResponse = await fetch(subRequest,
         })
 
 const response = new Response(newResponse.body, newResponse)
-const catchResponseError = response.ok ? response : ''
+const catchResponseError = response.ok ? response : request
 return catchResponseError
 }
