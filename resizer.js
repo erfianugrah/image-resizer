@@ -30,7 +30,7 @@ const imageURLOptions = { width, height, fit, quality, metadata }
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
-const deviceMatch = imageDeviceOptions[device || {desktop}]
+const deviceMatch = imageDeviceOptions[device] || {desktop}
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : {}
