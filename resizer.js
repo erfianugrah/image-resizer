@@ -32,7 +32,7 @@ const imageURL = [
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
 
-const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
+const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
