@@ -25,7 +25,7 @@ const imageURL = [
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
-const urlParams = subRequest.searchParams.match(/(height|width|fit|quality|metadata)/)
+const urlParams = subRequest.searchParams.keys.match(/(height|width|fit|quality|metadata)/)
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
