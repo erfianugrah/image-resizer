@@ -21,13 +21,13 @@ const imageDevice = [
     {asset: 'mobile', height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 100}
 ]
 
-const imageURL = [
-    {asset: 'height'}, // = urlParams.has('height') ? urlParams.get('height') : ''},
-    {asset: 'width'}, //= urlParams.has('width') ? urlParams.get('width') : ''},
-    {asset: 'fit'},// = urlParams.has('fit') ? urlParams.get('fit') : ''},
-    {asset: 'quality'}, //= urlParams.has('quality') ? urlParams.get('quality') : ''},
-    {asset: 'metadata'} //= urlParams.has('metadata') ? urlParams.get('metadata') : ''}
-]
+const height = urlParams.has('height') ? urlParams.get('height') : ''
+const width = urlParams.has('width') ? urlParams.get('width') : ''
+const fit = urlParams.has('fit') ? urlParams.get('fit') : ''
+const quality = urlParams.has('quality') ? urlParams.get('quality') : ''
+const metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''
+
+const imageURL = [height, width, fit, quality, metadata]
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
@@ -35,8 +35,8 @@ const device = subRequest.headers.get('cf-device-type')
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
-const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
-const imageURLResized = imageURL.find( ({asset}) => urlParams.get(asset))
+//const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
+const imageURLResized = imageURL.find( ({asset}) => asset))
 const image = cache ? imageURLResized : ''
 console.log(urlParams.get(asset))
 
