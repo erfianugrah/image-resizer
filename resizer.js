@@ -66,7 +66,8 @@ const newResponse = await fetch(subRequest,
             },
         })
 
-const response = new Response(newResponse.body, newResponse)
+let response = new Response(newResponse.body, newResponse)
+response.headers.set("debug",JSON.stringify(image))
 const catchResponseError = response.ok ? response : await fetch(newRequest)
 return catchResponseError
 }
