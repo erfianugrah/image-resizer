@@ -34,11 +34,10 @@ const deviceMatch = imageDeviceOptions[device]
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : {}
-/*
-const imageDeviceResized = imageDeviceOptions.find( ({asset}) => device == asset)
-const imageURLResized = imageURLOptions.find( ({asset}) => urlParams.get(asset))
-*/
-const imageResizer = cache ? deviceMatch || imageURLOptions : {}
+
+let imageResizer = deviceMatch || {}; for (k in imageURLOptions) { 
+    if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
+}
 
 const newResponse = await fetch(subRequest,
         { cf:
