@@ -61,7 +61,7 @@ const newResponse = await fetch(subRequest,
                     height: image.height,
                     fit: image.fit ,
                     metadata: image.metadata,
-                    quality: image.quality,
+                    quality: image.quality
                     }
             },
         })
