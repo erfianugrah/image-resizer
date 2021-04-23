@@ -61,5 +61,5 @@ const response = new Response(newResponse.body, newResponse)
 if (response.ok) {  
     return response
     } else {  
-    return response.redirect(newResponse, 307)}
+    return response.redirect(newRequest, 307)}
 }
