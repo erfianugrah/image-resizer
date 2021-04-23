@@ -8,7 +8,6 @@ async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
 const customCacheKey = newRequest.hostname + newRequest.pathname
-const urlParams = newRequest.searchParams
 
 const cacheAssets = [
     {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
@@ -26,13 +25,14 @@ const imageURL = [
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
+const urlParams = subRequest.searchParams.match(/(height|width|fit|quality|metadata)/)
 
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
-//const imageURLResized = imageURL.find( ({asset}) => urlParams.has(asset))
-const image = cache ? imageDeviceResized : ''
+const imageURLResized = imageURL.find( ({asset}) => urlParams == (asset))
+const image = cache ? imageDeviceResized : imageURLResized
 
 const newResponse = await fetch(subRequest,
         { cf:
