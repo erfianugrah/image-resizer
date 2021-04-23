@@ -19,13 +19,13 @@ const imageDevice = [
     {asset: 'tablet', height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 100},
     {asset: 'mobile', height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 100}
 ]
-/*
+
 const height = urlParams.has('height') ? urlParams.get('height') : ''
 const width = urlParams.has('width') ? urlParams.get('width') : ''
 const fit = urlParams.has('fit') ? urlParams.get('fit') : ''
 const quality = urlParams.has('quality') ? urlParams.get('quality') : ''
 const metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''
-*/
+
 const imageURL = [
     {asset: 'height', height}, 
     {asset: 'width', width}, 
