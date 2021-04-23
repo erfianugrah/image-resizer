@@ -7,7 +7,7 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
-const customCacheKey = newRequest.hostname + newRequest.pathname // + newRequest.search
+const customCacheKey = newRequest.hostname + newRequest.pathname + newRequest.search
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
@@ -37,7 +37,7 @@ const imageURL = [
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
 
-const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
+const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
