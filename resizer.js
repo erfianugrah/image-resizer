@@ -27,7 +27,13 @@ const fit = urlParams.has('fit') ? urlParams.get('fit') : ''
 const quality = urlParams.has('quality') ? urlParams.get('quality') : ''
 const metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''
 
-const imageURL = [height, width, fit, quality, metadata]
+const imageURL = [
+    {asset: height}, 
+    {asset: width}, 
+    {asset: fit}, 
+    {asset: quality}, 
+    {asset: metadata}
+]
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
