@@ -36,7 +36,7 @@ const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.match(re
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
 //const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
-const imageURLResized = imageURL.find( ({asset}) => asset))
+const imageURLResized = imageURL.find( ({asset}) => asset)
 const image = cache ? imageURLResized : ''
 console.log(urlParams.get(asset))
 
