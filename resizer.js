@@ -8,8 +8,8 @@ async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
 const customCacheKey = newRequest.hostname + newRequest.pathname
-const urlParams = newRequest.searchParams
-let keys = newRequest.searchParams.keys()
+//const urlParams = newRequest.searchParams
+const keys = newRequest.searchParams.keys()
 
 const cacheAssets = [
     {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
@@ -22,11 +22,11 @@ const imageDevice = [
 ]
 
 const imageURL = [
-    {asset: height = urlParams.has('height') ? urlParams.get('height') : ''},
-    {asset: width = urlParams.has('width') ? urlParams.get('width') : ''},
-    {asset: fit = urlParams.has('fit') ? urlParams.get('fit') : ''},
-    {asset: quality = urlParams.has('quality') ? urlParams.get('quality') : ''},
-    {asset: metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''}
+    {asset: 'height'}, // = urlParams.has('height') ? urlParams.get('height') : ''},
+    {asset: 'width'}, //= urlParams.has('width') ? urlParams.get('width') : ''},
+    {asset: 'fit'},// = urlParams.has('fit') ? urlParams.get('fit') : ''},
+    {asset: 'quality'}, //= urlParams.has('quality') ? urlParams.get('quality') : ''},
+    {asset: 'metadata'} //= urlParams.has('metadata') ? urlParams.get('metadata') : ''}
 ]
 
 const subRequest = new Request(request)
