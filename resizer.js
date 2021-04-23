@@ -36,7 +36,7 @@ const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerC
 const cache = cacheAssets_match ? cacheAssets_match : {}
 
 let imageResizer = deviceMatch || {}; for (k in imageURLOptions) { 
-    if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
+    if (imageURLOptions[k]) imageResizer[k] = imageURLOptions[k]; 
 }
 
 const newResponse = await fetch(subRequest,
