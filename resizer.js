@@ -69,7 +69,7 @@ const newResponse = await fetch(subRequest,
 let response = new Response(newResponse.body, newResponse)
 response.headers.set("debug", JSON.stringify(image))
 response.headers.set("imageDeviceResized", console.log(imageDeviceResized))
-response.headers.set("imageDeviceResized", console.log(imageURLResized))
+response.headers.set("imageURLResized", console.log(imageURLResized))
 
 const catchResponseError = response.ok ? response : await fetch(newRequest)
 return catchResponseError
