@@ -8,6 +8,7 @@ async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
 const customCacheKey = newRequest.hostname + newRequest.pathname
+const urlParams = newRequest.searchParams
 
 const cacheAssets = [
     {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
@@ -20,20 +21,21 @@ const imageDevice = [
 ]
 
 const imageURL = [
-    {asset: /(height|width|fit|quality|metadata)/}
+    {asset: height = urlParams.has('height') ? urlParams.get('height') : ''},
+    {asset: width = urlParams.has('width') ? urlParams.get('width') : ''},
+    {asset: fit = urlParams.has('fit') ? urlParams.get('fit') : ''},
+    {asset: quality = urlParams.has('quality') ? urlParams.get('quality') : ''},
+    {asset: metadata = urlParams.has('metadata') ? urlParams.get('metadata') : ''}
 ]
 
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
 
-const newSearchParams = new URLSearchParams(request)
-const urlParams = newSearchParams.keys.match(/(height|width|fit|quality|metadata)/)
-
 const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.pathname.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
-const imageURLResized = imageURL.find( ({asset}) => urlParams == asset)
+const imageURLResized = imageURL.find( ({asset}) => urlParams == asset))
 const image = cache ? imageDeviceResized : imageURLResized
 
 const newResponse = await fetch(subRequest,
