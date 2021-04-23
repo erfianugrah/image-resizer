@@ -35,10 +35,9 @@ const device = subRequest.headers.get('cf-device-type')
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
-//const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
+const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
 const imageURLResized = imageURL.find( ({asset}) => asset)
 const image = cache ? imageURLResized : ''
-console.log(urlParams.get(asset))
 
 const newResponse = await fetch(subRequest,
         { cf:
