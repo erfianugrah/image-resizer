@@ -64,6 +64,6 @@ const newResponse = await fetch(subRequest,
 let response = new Response(newResponse.body, newResponse)
 response.headers.set("debug", JSON.stringify(imageResizer))
 
-const catchResponseError = response.ok ? response : await fetch(newRequest)
+const catchResponseError = response.ok || response.redirected ? response : await fetch(newRequest)
 return catchResponseError
 }
