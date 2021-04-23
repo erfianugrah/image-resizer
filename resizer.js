@@ -11,7 +11,7 @@ const customCacheKey = newRequest.hostname + newRequest.pathname + newRequest.se
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
-    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 1, redirects: 30, clientError: 10, serverError: 0 },
+    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: -1, redirects: 30, clientError: 10, serverError: 0 },
 ]
 
 const imageDevice = [
@@ -37,7 +37,7 @@ const imageURL = [
 const subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type')
 
-const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.match(regex))
+const cacheAssets_match = cacheAssets.find( ({regex}) => newRequest.hostname.match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : ''
 
 const imageDeviceResized = imageDevice.find( ({asset}) => device == asset)
