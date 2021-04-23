@@ -11,12 +11,12 @@ const customCacheKey = newRequest.hostname + newRequest.pathname
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
-    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
+    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: -1, redirects: 30, clientError: 10, serverError: 0 },
 ]
 
 const imageDevice = [
     {asset: 'desktop', height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 100},
-    {asset: 'tablet', height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 100},
+    {asset: 'tablet', height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 100, format: 'webp'},
     {asset: 'mobile', height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 100}
 ]
 
@@ -58,8 +58,5 @@ const newResponse = await fetch(subRequest,
         })
 
 const response = new Response(newResponse.body, newResponse)
-if (response.ok) {  
-    return response
-    } else {  
-    return response.redirect(newRequest, 307)}
+const responseError = response ? response.ok : response.redirect(newRequest, 307)
 }
