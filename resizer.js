@@ -67,6 +67,6 @@ const newResponse = await fetch(subRequest,
         })
 
 const response = new Response(newResponse.body, newResponse)
-const catchResponseError = response.ok ? response : request
+const catchResponseError = response.ok ? response : await fetch(newRequest)
 return catchResponseError
 }
