@@ -8,7 +8,7 @@ async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
 const customCacheKey = newRequest.hostname + newRequest.pathname
-const urlParams = new URLSearchParams(newRequest.searchParams)
+const urlParams = new URLSearchParams(newRequest.search)
 //const keys = urlParams.get()
 
 const cacheAssets = [
