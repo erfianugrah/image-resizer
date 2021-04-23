@@ -58,5 +58,5 @@ const newResponse = await fetch(subRequest,
         })
 
 const response = new Response(newResponse.body, newResponse)
-response.ok ? response : response.redirect(newRequest, 307)
+const responseError = response.ok ? response : response.redirect(newRequest, 307)
 }
