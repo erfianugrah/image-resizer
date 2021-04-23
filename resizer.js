@@ -8,7 +8,6 @@ async function handleRequest(request) {
 
 const newRequest = new URL(request.url)
 const customCacheKey = newRequest.hostname + newRequest.pathname
-const device = newRequest.headers.get('cf-device-type')
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
