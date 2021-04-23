@@ -15,7 +15,7 @@ const cacheAssets = [
 ]
 
 const imageDevice = [
-    {asset: 'desktop', height: 2160, width: 3840, fit: 'scale-down', metadata: 'copyright', quality: 100},
+    {asset: 'desktop', height: 2160, width: 3840, fit: 'scale-down', metadata: 'copyright', quality: 100, format: 'webp'},
     {asset: 'tablet', height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 100},
     {asset: 'mobile', height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 100}
 ]
@@ -52,7 +52,8 @@ return await fetch(subRequest,
                     height: image.height,
                     fit: image.fit ,
                     metadata: image.metadata,
-                    quality: image.quality 
+                    quality: image.quality,
+                    format: image.format
                     }
             },
         })
