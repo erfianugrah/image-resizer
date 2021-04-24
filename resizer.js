@@ -11,13 +11,13 @@ const customCacheKey = newRequest.hostname + newRequest.pathname + newRequest.se
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
-    {asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
+    { asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 86400, redirects: 30, clientError: 10, serverError: 0 },
 ]
 
 const imageDeviceOptions = {
-    desktop: {height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85},
-    tablet: {height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85},
-    mobile: {height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85}
+    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85 },
+    tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85 },
+    mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85 }
 }
 
 const height = urlParams.get('height') || undefined
@@ -35,9 +35,11 @@ const deviceMatch = imageDeviceOptions[device]
 const cacheAssets_match = cacheAssets.find( ({regex}) => customCacheKey.toLowerCase().match(regex))
 const cache = cacheAssets_match ? cacheAssets_match : {}
 
-let imageResizer = deviceMatch || {}; for (k in imageURLOptions) { 
-    if (imageURLOptions[k]) imageResizer[k] = imageURLOptions[k]; 
+let options = deviceMatch || {}; for (k in imageURLOptions) { 
+    if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
 }
+
+const imageResizer = cache ? options : {}
 
 const newResponse = await fetch(subRequest,
         { cf:
