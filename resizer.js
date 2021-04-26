@@ -34,7 +34,13 @@ const deviceMatch = imageDeviceOptions[device]
 
 const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newRequest.pathname.match(regex)) ?? {}
 
-await fetch(subRequest,
+let options = deviceMatch || {}; for (k in imageURLOptions) { 
+    if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
+}
+
+const imageResizer = cache ? options : {}
+
+const newResponse = await fetch(subRequest,
         { cf:
             {
                 cacheKey: cache.key,
@@ -45,19 +51,7 @@ await fetch(subRequest,
                     '300-399': cache.redirects,
                     '400-499': cache.clientError,
                     '500-599': cache.serverError
-                    }
-            },
-        })
-
-let options = deviceMatch || {}; for (k in imageURLOptions) { 
-    if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
-}
-
-const imageResizer = cache ? options : {}
-
-const newResponse = await fetch(subRequest,
-        { cf:
-            {
+                    },
                 image: {
                     width: imageResizer.width,
                     height: imageResizer.height,
@@ -72,6 +66,6 @@ let response = new Response(newResponse.body, newResponse)
 response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
 
-const catchResponseError = response.ok || response.redirected ? response : await fetch(request)
+const catchResponseError = response.ok || response.redirected ? response : await fetch(newRequest)
 return catchResponseError
 }
