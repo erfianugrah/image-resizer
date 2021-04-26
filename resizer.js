@@ -63,7 +63,8 @@ const newResponse = await fetch(subRequest,
         })
 
 let response = new Response(newResponse.body, newResponse)
-response.headers.set("debug", JSON.stringify(imageResizer))
+response.headers.set("IR", JSON.stringify(imageResizer))
+response.headers.set("Cache", JSON.stringify(cache))
 
 const catchResponseError = response.ok || response.redirected ? response : await fetch(newRequest)
 return catchResponseError
