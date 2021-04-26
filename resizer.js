@@ -34,7 +34,7 @@ const deviceMatch = imageDeviceOptions[device]
 
 const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newRequest.pathname.match(regex)) ?? {}
 
-await fetch(subRequest,
+const cf_cache = await fetch(subRequest,
         { cf:
             {
                 cacheKey: cache.key,
@@ -53,7 +53,7 @@ let options = deviceMatch || {}; for (k in imageURLOptions) {
     if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
 }
 
-const imageResizer = cache ? options : {}
+const imageResizer = cf_cache ? options : {}
 
 const newResponse = await fetch(subRequest,
         { cf:
