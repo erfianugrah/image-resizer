@@ -1,6 +1,6 @@
 resource "cloudflare_worker_route" "uploads" {
     zone_id = var.CF_ZONE_ID
-    pattern = "*erfianugrah.com/wp-content/uploads/*"
+    pattern = var.route
     script_name = cloudflare_worker_script.prod_resizer.name
 }
 
