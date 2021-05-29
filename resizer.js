@@ -6,7 +6,7 @@ addEventListener('fetch', event => {
 
 async function handleRequest(request) {
 
-const newRequest = new URL(request.url)
+let newRequest = new URL(request.url)
 const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.search}`
 const urlParams = newRequest.searchParams
 
@@ -28,7 +28,7 @@ const metadata = urlParams.get('metadata') || undefined
 
 const imageURLOptions = { width, height, fit, quality, metadata }
 
-const subRequest = new Request(request)
+let subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type') || {desktop}
 const deviceMatch = imageDeviceOptions[device]
 
@@ -40,7 +40,7 @@ let options = deviceMatch || {}; for (k in imageURLOptions) {
 
 const imageResizer = cache ? options : {}
 
-const newResponse = await fetch(subRequest,
+let newResponse = await fetch(subRequest,
         { cf:
             {
                 cacheKey: cache.key,
