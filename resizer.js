@@ -55,7 +55,7 @@ let newResponse = await fetch(subRequest,
                 image: {
                     width: imageResizer.width,
                     height: imageResizer.height,
-                    fit: imageResizer.fit ,
+                    fit: imageResizer.fit,
                     metadata: imageResizer.metadata,
                     quality: imageResizer.quality
                     }
