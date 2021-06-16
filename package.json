@@ -1,8 +1,8 @@
 {
-    "name": "{{ project-name }}",
+    "name": "image-resizer",
     "version": "1.0.0",
     "description": "image-resizer",
     "main": "resizer.js",
-    "author": "{{ authors }}",
+    "author": "Erfi Anugrah",
     "license": "ISC"
 }
