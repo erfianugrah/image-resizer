@@ -15,7 +15,7 @@ const cacheAssets = [
 ]
 
 const imageDeviceOptions = {
-    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'auto'},
+    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'},
     tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85 },
     mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85 }
 }
