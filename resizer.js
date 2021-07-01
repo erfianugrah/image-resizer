@@ -25,8 +25,9 @@ const width = urlParams.get('width') || undefined
 const fit = urlParams.get('fit') || undefined
 const quality = urlParams.get('quality') || undefined
 const metadata = urlParams.get('metadata') || undefined
+const format = urlParams.get('format') || undefined
 
-const imageURLOptions = { width, height, fit, quality, metadata }
+const imageURLOptions = { width, height, fit, quality, metadata, format }
 
 let subRequest = new Request(request)
 const device = subRequest.headers.get('cf-device-type') || {desktop}
