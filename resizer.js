@@ -7,11 +7,11 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
 
 let newRequest = new URL(request.url)
-const customCacheKey = `${newRequest.hostname}${newRequest.pathname}`
+/*const customCacheKey = `${newRequest.hostname}${newRequest.pathname}`*/
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
-    { asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 1, ok: 31536000, redirects: 300, clientError: 10, serverError: 1 },
+    { asset: 'image', /*key: customCacheKey,*/ regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 1, ok: 31536000, redirects: 300, clientError: 10, serverError: 1 },
 ]
 
 const imageDeviceOptions = {
@@ -44,7 +44,7 @@ const imageResizer = cache ? options : {}
 let newResponse = await fetch(subRequest,
         { cf:
             {
-                cacheKey: cache.key,
+                /*cacheKey: cache.key,*/
                 cacheEverything: true,
                 cacheTtlByStatus: {
                     '100-199': cache.info,
