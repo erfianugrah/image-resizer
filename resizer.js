@@ -7,7 +7,7 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
 
 let newRequest = new URL(request.url)
-const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.search}`
+const customCacheKey = `${newRequest.hostname}${newRequest.pathname}`
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
