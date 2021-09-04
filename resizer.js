@@ -41,7 +41,7 @@ let options = deviceMatch || {}; for (k in imageURLOptions) {
 
 const imageResizer = cache ? options : {}
 
-let newResponse = await fetch(subRequest,
+let newResponse = await fetch(newRequest,
         { cf:
             {
                 /*cacheKey: cache.key,*/
