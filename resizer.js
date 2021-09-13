@@ -11,7 +11,7 @@ const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest
 const urlParams = newRequest.searchParams
 
 const cacheAssets = [
-    { asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 1, ok: 3600, redirects: 31536000, clientError: 10, serverError: 1 },
+    { asset: 'image', key: customCacheKey, regex: /^.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
 ]
 
 const imageDeviceOptions = {
