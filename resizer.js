@@ -67,7 +67,6 @@ let newResponse = await fetch(newRequest,
 let response = new Response(newResponse.body, newResponse)
 response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
-response.headers.set("cache-control", "public, max-age=31536000")
 
 const catchResponseError = response.ok || response.redirected ? response : request
 return catchResponseError
