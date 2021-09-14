@@ -42,7 +42,7 @@ let options = deviceMatch || {}; for (k in imageURLOptions) {
 
 const imageResizer = cache ? options : {}
 
-let newResponse = await fetch(newRequest,
+let newResponse = await fetch(subRequest,
         { cf:
             {
                 polish: "off",
