@@ -45,7 +45,6 @@ const imageResizer = cache ? options : {}
 let newResponse = await fetch(newRequest,
         { cf:
             {
-                polish: off,
                 cacheKey: cache.key,
                 cacheEverything: true,
                 cacheTtlByStatus: {
@@ -70,6 +69,6 @@ let response = new Response(newResponse.body, newResponse)
 response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
 
-const catchResponseError = response.ok || response.redirected ? response : await fetch(request)
+const catchResponseError = response.ok || response.redirected ? response : request
 return catchResponseError
 }
