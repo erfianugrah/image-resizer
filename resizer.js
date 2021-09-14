@@ -45,6 +45,7 @@ const imageResizer = cache ? options : {}
 let newResponse = await fetch(newRequest,
         { cf:
             {
+                polish: "off",
                 cacheKey: cache.key,
                 cacheEverything: true,
                 cacheTtlByStatus: {
