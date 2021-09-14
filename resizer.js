@@ -30,6 +30,7 @@ const format = urlParams.get('format') || undefined
 const imageURLOptions = { width, height, fit, quality, metadata, format }
 
 let subRequest = new Request(request)
+subRequest.headers.append("cf-feat-tiered-cache","image")
 const device = subRequest.headers.get('cf-device-type') || {desktop}
 const deviceMatch = imageDeviceOptions[device]
 
@@ -44,6 +45,7 @@ const imageResizer = cache ? options : {}
 let newResponse = await fetch(newRequest,
         { cf:
             {
+                polish: off,
                 cacheKey: cache.key,
                 cacheEverything: true,
                 cacheTtlByStatus: {
