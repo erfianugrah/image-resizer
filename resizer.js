@@ -8,6 +8,7 @@ addEventListener('fetch', event => {
 async function handleRequest(request) {
 
 let newRequest = new URL(request.url)
+let newURL = `${newRequest.hostname}${newRequest.pathname}`
 const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
 const urlParams = newRequest.searchParams
 
@@ -35,7 +36,7 @@ subRequest.headers.set("cf-feat-tiered-cache", "image")
 const device = subRequest.headers.get("cf-device-type")
 const deviceMatch = imageDeviceOptions[device] || { desktop }
 
-const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newRequest.pathname.match(regex)) ?? {}
+const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newURL.match(regex)) ?? {}
 
 let options = deviceMatch || {}; for (k in imageURLOptions) { 
     if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
