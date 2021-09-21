@@ -1,5 +1,6 @@
 name = "image-resizer"
 type = "javascript"
+compatibility_date = "2021-09-21"
 
 [dev]
 port = 9001
@@ -15,5 +16,3 @@ workers_dev = true
 name = "prod-resizer"
 vars = { ENVIRONMENT = "production" }
 route = "*www.erfianugrah.com/content/images/*"
-
-compatibility_date = "2021-09-21"
