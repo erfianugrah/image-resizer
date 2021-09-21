@@ -1,6 +1,7 @@
 addEventListener('fetch', event => {
-    if (!/image-resizing/.test(event.request.headers.get("via"))) {
-        return 
+    if (event.request.headers.has("via") &&
+        event.request.headers.get("via").lastIndexOf("image-resizing-proxy")>0) {
+        return
     }
     event.respondWith(handleRequest(event.request))
 })
