@@ -15,7 +15,6 @@ addEventListener('fetch', event => {
 })
 */
 async function resizer(request) {
-
 let newRequest = new URL(request.url)
 let newURL = `${newRequest.hostname}${newRequest.pathname}`
 const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
