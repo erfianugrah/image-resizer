@@ -43,7 +43,7 @@ subRequest.headers.set("cf-feat-tiered-cache", "image")
 const device = subRequest.headers.get("cf-device-type")
 const deviceMatch = imageDeviceOptions[device] || { desktop }
 
-const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newRequest.match(regex)) ?? {}
+const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newRequest.pathname.match(regex)) ?? {}
 
 let options = deviceMatch || {}; for (k in imageURLOptions) { 
     if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
