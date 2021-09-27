@@ -56,7 +56,7 @@ let newResponse = await fetch(subRequest,
         { cf:
             {
                 polish: "off",
-                cacheKey: cache.key,
+                /*cacheKey: cache.key,*/
                 cacheEverything: true,
                 cacheTtlByStatus: {
                     '100-199': cache.info,
