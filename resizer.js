@@ -9,9 +9,8 @@ addEventListener('fetch', event => {
 */
 addEventListener('fetch', event => {
     if (event.request.headers.has("via") && /image-resizing/.test(event.request.headers.get("via"))) {
-        return 
+        return event.respondWith(resizer(event.request))
     }
-    event.respondWith(resizer(event.request))
 })
 
 async function resizer(request) {
