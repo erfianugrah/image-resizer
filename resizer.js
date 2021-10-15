@@ -8,7 +8,7 @@ addEventListener('fetch', event => {
 })
 */
 addEventListener('fetch', event => {
-    if (event.request.headers.has("via") && /image-resizing/.test(event.request.headers.get("via"))) {
+    if (!/image-resizing/.test(event.request.headers.get("via"))) {
         return event.respondWith(resizer(event.request))
     }
 })
