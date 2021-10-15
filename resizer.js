@@ -1,4 +1,4 @@
-
+/*
 addEventListener('fetch', event => {
     if (event.request.headers.has("via") &&
         event.request.headers.get("via").lastIndexOf("image-resizing-proxy")>0) {
@@ -6,14 +6,14 @@ addEventListener('fetch', event => {
     }
     event.respondWith(resizer(event.request))
 })
-/*
+*/
 addEventListener('fetch', event => {
     if (event.request.headers.has("via") && /image-resizing/.test(event.request.headers.get("via"))) {
         return 
     }
     event.respondWith(handleRequest(event.request))
 })
-*/
+
 async function resizer(request) {
 let newRequest = new URL(request.url)
 const newURL = `${newRequest.hostname}${newRequest.pathname}`
