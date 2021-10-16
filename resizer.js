@@ -82,6 +82,7 @@ response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
 response.headers.set("cache-control", "public, max-age=31536000")
 response.headers.set("Access-Control-Allow-Origin", "*")
+response.headers.set("Access-Control-Max-Age", "86400")
 
 const catchResponseError = response.ok || response.redirected ? response : ''
 return catchResponseError
