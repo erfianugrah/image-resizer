@@ -1,4 +1,4 @@
-
+/*
 addEventListener('fetch', event => {
     if (event.request.headers.has("via") &&
         event.request.headers.get("via").lastIndexOf("image-resizing-proxy")>0) {
@@ -6,14 +6,14 @@ addEventListener('fetch', event => {
     }
     event.respondWith(resizer(event.request))
 })
+*/
 
-/*
 addEventListener('fetch', event => {
     if (!/image-resizing/.test(event.request.headers.get("via"))) {
         return event.respondWith(resizer(event.request))
     }
 })
-*/
+
 
 async function resizer(request) {
 let newRequest = new URL(request.url)
@@ -43,7 +43,7 @@ const imageURLOptions = { width, height, fit, quality, metadata, format }
 let subRequest = new Request(request)
 subRequest.headers.set("cf-feat-tiered-cache", "image")
 const device = subRequest.headers.get("cf-device-type")
-const deviceMatch = imageDeviceOptions[device] || "desktop"
+const deviceMatch = imageDeviceOptions[device] ||  { desktop }
 
 const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newURL.match(regex)) ?? {}
 
@@ -82,6 +82,6 @@ response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
 response.headers.set("cache-control", "public, max-age=31536000")
 
-const catchResponseError = response.ok || response.redirected ? response : await fetch(request)
+const catchResponseError = response.ok || response.redirected ? response : ''
 return catchResponseError
 }
