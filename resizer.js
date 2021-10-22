@@ -57,6 +57,7 @@ let newResponse = await fetch(subRequest,
         { cf:
             {
                 polish: "off",
+                mirage: false,
                 cacheKey: cache.key,
                 cacheEverything: true,
                 cacheTtlByStatus: {
@@ -84,6 +85,6 @@ response.headers.set("cache-control", "public, max-age=31536000")
 response.headers.set("Access-Control-Allow-Origin", "*")
 response.headers.set("Access-Control-Max-Age", "86400")
 
-const catchResponseError = response.ok || response.redirected ? response : await fetch(request)
+const catchResponseError = response.ok || response.redirected ? response : await fetch(request.url)
 return catchResponseError
 }
