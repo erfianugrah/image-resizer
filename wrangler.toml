@@ -15,4 +15,4 @@ workers_dev = true
 [env.prod]
 name = "prod-resizer"
 vars = { ENVIRONMENT = "production" }
-route = "*www.erfianugrah.com/content/images/*"
+route = "*erfianugrah.com/content/images/*"
