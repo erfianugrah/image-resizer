@@ -78,7 +78,7 @@ let newResponse = await fetch(request,
             },
         })
 
-let response = new Response(newResponse.body, newResponse)
+let response = new Response(newResponse.headers, newResponse)
 response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
 // response.headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=86400")
