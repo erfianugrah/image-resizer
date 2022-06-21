@@ -1,6 +1,7 @@
 name = "image-resizer"
 main = "./resizer.js"
 compatibility_date = "2021-09-21"
+account_id = "25f21f141824546aa72c74451a11b419"
 
 [dev]
 port = 9001
@@ -15,4 +16,4 @@ workers_dev = true
 [env.prod]
 name = "prod-resizer"
 vars = { ENVIRONMENT = "production" }
-route = "*erfianugrah.com/content/images/*"
+route = { pattern = "*erfianugrah.com/content/images/*", zone_id = "3f2c4daa43d5920f313654a873b31d06" }
