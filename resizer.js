@@ -75,7 +75,7 @@ let newResponse = await fetch(request,
                     format: imageResizer.format
                     },
                 cacheTags: [ 
-                    "images"
+                    "image"
                     ]
             },
         })
