@@ -73,14 +73,17 @@ let newResponse = await fetch(request,
                     metadata: imageResizer.metadata,
                     quality: imageResizer.quality,
                     format: imageResizer.format
-                    }
+                    },
+                cacheTags: [ 
+                    "images"
+                    ]
             },
         })
 
 let response = new Response(newResponse.body, newResponse)
 response.headers.set("debug-ir", JSON.stringify(imageResizer))
 response.headers.set("debug-cache", JSON.stringify(cache))
-response.headers.set("cache-tag","images")
+// response.headers.set("cache-tag","images")
 // response.headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=86400")
 // response.headers.set("Access-Control-Allow-Origin", "*")
 // response.headers.set("Access-Control-Max-Age", "86400")
