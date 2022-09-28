@@ -25,9 +25,9 @@ const cacheAssets = [
 ]
 
 const imageDeviceOptions = {
-    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'webp'},
-    tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'webp'},
-    mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'webp'}
+    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'},
+    tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'},
+    mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'}
 }
 
 const height = urlParams.get('height') || undefined
