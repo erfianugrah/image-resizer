@@ -25,9 +25,9 @@ const cacheAssets = [
 ]
 
 const imageDeviceOptions = {
-    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'},
-    tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'},
-    mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85, format: 'avif'}
+    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/},
+    tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/},
+    mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/}
 }
 
 const height = urlParams.get('height') || undefined
@@ -43,6 +43,13 @@ let subRequest = new Request(request.headers)
 subRequest.headers.set("cf-feat-tiered-cache", "image")
 const device = subRequest.headers.get("cf-device-type")
 const deviceMatch = imageDeviceOptions[device] ||  imageDeviceOptions.desktop
+
+const accept = request.headers.get("Accept");
+if (/image\/avif/.test(accept)) {
+    imageResizer.format = 'avif';
+    } else if (/image\/webp/.test(accept)) {
+    imageResizer.format = 'webp';
+}
 
 const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newURL.match(regex)) ?? {}
 
