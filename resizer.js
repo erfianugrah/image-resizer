@@ -44,13 +44,6 @@ subRequest.headers.set("cf-feat-tiered-cache", "image")
 const device = subRequest.headers.get("cf-device-type")
 const deviceMatch = imageDeviceOptions[device] ||  imageDeviceOptions.desktop
 
-const accept = request.headers.get("Accept");
-if (/image\/avif/.test(accept)) {
-    imageResizer.format = 'avif';
-    } else if (/image\/webp/.test(accept)) {
-    imageResizer.format = 'webp';
-}
-
 const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newURL.match(regex)) ?? {}
 
 let options = deviceMatch || {}; for (k in imageURLOptions) { 
@@ -58,6 +51,13 @@ let options = deviceMatch || {}; for (k in imageURLOptions) {
 }
 
 const imageResizer = cache ? options : {}
+
+const accept = request.headers.get("Accept");
+if (/image\/avif/.test(accept)) {
+    imageResizer.format = 'avif';
+    } else if (/image\/webp/.test(accept)) {
+    imageResizer.format = 'webp';
+}
 
 let newResponse = await fetch(request,
         { cf:
