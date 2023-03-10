@@ -21,7 +21,7 @@ async function resizer(request) {
     const urlParams = newRequest.searchParams
 
     const cacheAssets = [
-        { asset: 'image', /*(key: customCacheKey,*/ regex: /^.*\.(jpe?g|png|gif|webp)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
+        { asset: 'image', /*key: customCacheKey,*/ regex: /^.*\.(jpe?g|png|gif|webp)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
     ]
 
     const imageDeviceOptions = {
@@ -46,8 +46,11 @@ async function resizer(request) {
 
     const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newURL.match(regex)) ?? {}
 
-    let options = deviceMatch || {}; for (k in imageURLOptions) {
-        if (imageURLOptions[k]) options[k] = imageURLOptions[k];
+    let options = deviceMatch || {}
+
+    for (const urlParam in imageURLOptions) {
+        if (imageURLOptions[urlParam])
+            options[urlParam] = imageURLOptions[urlParam];
     }
 
     const imageResizer = cache ? options : {}

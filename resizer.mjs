@@ -1,11 +1,10 @@
-async function testImageResizerHeader(request) {
-    if (!/image-resizing/.test(request.headers.get("via"))) {
-        return resizer
-    }
-}
+// export default async function testImageResizerHeader(request) {
+//     if (/image-resizing/.test(request.headers.get("via"))) {
+//         return resizer
+//     }
+// }
 
-const resizer = {
-
+export default {
     async fetch(request) {
         let newRequest = new URL(request.url)
         const newURL = `${newRequest.hostname}${newRequest.pathname}`
@@ -13,7 +12,7 @@ const resizer = {
         const urlParams = newRequest.searchParams
 
         const cacheAssets = [
-            { asset: 'image', /*(key: customCacheKey,*/ regex: /^.*\.(jpe?g|png|gif|webp)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
+            { asset: 'image', /*key: customCacheKey,*/ regex: /^.*\.(jpe?g|png|gif|webp)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
         ]
 
         const imageDeviceOptions = {
@@ -38,8 +37,11 @@ const resizer = {
 
         const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newURL.match(regex)) ?? {}
 
-        let options = deviceMatch || {}; for (k in imageURLOptions) {
-            if (imageURLOptions[k]) options[k] = imageURLOptions[k];
+        let options = deviceMatch || {}
+
+        for (const urlParam in imageURLOptions) {
+            if (imageURLOptions[urlParam])
+                options[urlParam] = imageURLOptions[urlParam];
         }
 
         const imageResizer = cache ? options : {}
@@ -83,14 +85,8 @@ const resizer = {
         let response = new Response(newResponse.body, newResponse)
         response.headers.set("debug-ir", JSON.stringify(imageResizer))
         response.headers.set("debug-cache", JSON.stringify(cache))
-        // response.headers.set("cache-tag","images")
-        // response.headers.set("cache-control", "public, max-age=86400, stale-while-revalidate=86400")
-        // response.headers.set("Access-Control-Allow-Origin", "*")
-        // response.headers.set("Access-Control-Max-Age", "86400")
 
         const catchResponseError = response.ok || response.redirected ? response : await fetch(request)
         return catchResponseError
     }
 }
-
-export default testImageResizerHeader
