@@ -21,13 +21,13 @@ async function resizer(request) {
     const urlParams = newRequest.searchParams
 
     const cacheAssets = [
-    { asset: 'image', /*(key: customCacheKey,*/ regex: /^.*\.(jpe?g|png|gif|webp)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
+        { asset: 'image', /*(key: customCacheKey,*/ regex: /^.*\.(jpe?g|png|gif|webp)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
     ]
 
     const imageDeviceOptions = {
-    desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/},
-    tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/},
-    mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/}
+        desktop: { height: 1440, width: 2560, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/ },
+        tablet: { height: 1080, width: 1920, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/ },
+        mobile: { height: 720, width: 1280, fit: 'scale-down', metadata: 'copyright', quality: 85/*, format: 'auto'*/ }
     }
 
     const height = urlParams.get('height') || undefined
@@ -40,52 +40,53 @@ async function resizer(request) {
     const imageURLOptions = { width, height, fit, quality, metadata, format }
 
     let subRequest = new Request(request.headers)
-        subRequest.headers.set("cf-feat-tiered-cache", "image")
+    subRequest.headers.set("cf-feat-tiered-cache", "image")
     const device = subRequest.headers.get("cf-device-type")
-    const deviceMatch = imageDeviceOptions[device] ||  imageDeviceOptions.desktop
+    const deviceMatch = imageDeviceOptions[device] || imageDeviceOptions.desktop
 
-    const { asset, regex, ...cache } = cacheAssets.find( ({regex}) => newURL.match(regex)) ?? {}
+    const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newURL.match(regex)) ?? {}
 
-    let options = deviceMatch || {}; for (k in imageURLOptions) { 
-        if (imageURLOptions[k]) options[k] = imageURLOptions[k]; 
+    let options = deviceMatch || {}; for (k in imageURLOptions) {
+        if (imageURLOptions[k]) options[k] = imageURLOptions[k];
     }
 
     const imageResizer = cache ? options : {}
 
     const accept = request.headers.get("Accept")
-        if (/image\/avif/.test(accept)) {
-            imageResizer.format = 'avif';
-        } else if (/image\/webp/.test(accept)) {
-            imageResizer.format = 'webp';
-        }
+    if (/image\/avif/.test(accept)) {
+        imageResizer.format = 'avif';
+    } else if (/image\/webp/.test(accept)) {
+        imageResizer.format = 'webp';
+    }
 
     let newResponse = await fetch(request,
-            { cf:
-                {
-                    polish: "off",
-                    mirage: false,
-                    cacheKey: cache.key,
-                    cacheEverything: true,
-                    cacheTtlByStatus: {
-                        '100-199': cache.info,
-                        '200-299': cache.ok,
-                        '300-399': cache.redirects,
-                        '400-499': cache.clientError,
-                        '500-599': cache.serverError
-                        },
-                    image: {
-                        width: imageResizer.width,
-                        height: imageResizer.height,
-                        fit: imageResizer.fit,
-                        metadata: imageResizer.metadata,
-                        quality: imageResizer.quality,
-                        format: imageResizer.format
-                        },
-                    cacheTags: [ 
-                        "image"
-                        ]
+        {
+            cf:
+            {
+                polish: "off",
+                mirage: false,
+                cacheKey: cache.key,
+                cacheEverything: true,
+                cacheTtlByStatus: {
+                    '100-199': cache.info,
+                    '200-299': cache.ok,
+                    '300-399': cache.redirects,
+                    '400-499': cache.clientError,
+                    '500-599': cache.serverError
                 },
-            })
+                image: {
+                    width: imageResizer.width,
+                    height: imageResizer.height,
+                    fit: imageResizer.fit,
+                    metadata: imageResizer.metadata,
+                    quality: imageResizer.quality,
+                    format: imageResizer.format
+                },
+                cacheTags: [
+                    "image"
+                ]
+            },
+        })
 
     let response = new Response(newResponse.body, newResponse)
     response.headers.set("debug-ir", JSON.stringify(imageResizer))
