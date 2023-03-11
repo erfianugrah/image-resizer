@@ -42,7 +42,7 @@ export default {
 
             for (const urlParam in imageURLOptions) {
                 if (imageURLOptions[urlParam])
-                    options[urlParam] = imageURLOptions[urlParam];
+                    options[urlParam] = imageURLOptions[urlParam]
             }
 
             const imageResizer = cache ? options : {}

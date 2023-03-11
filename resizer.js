@@ -50,16 +50,16 @@ async function resizer(request) {
 
     for (const urlParam in imageURLOptions) {
         if (imageURLOptions[urlParam])
-            options[urlParam] = imageURLOptions[urlParam];
+            options[urlParam] = imageURLOptions[urlParam]
     }
 
     const imageResizer = cache ? options : {}
 
     const accept = request.headers.get("Accept")
     if (/image\/avif/.test(accept)) {
-        imageResizer.format = 'avif';
+        imageResizer.format = 'avif'
     } else if (/image\/webp/.test(accept)) {
-        imageResizer.format = 'webp';
+        imageResizer.format = 'webp'
     }
 
     let newResponse = await fetch(request,
