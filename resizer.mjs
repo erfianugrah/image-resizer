@@ -6,7 +6,7 @@
 
 export default {
     async fetch(request) {
-        if (!/image-resizing/.test(request.headers.get("via"))) {
+        // if (!/image-resizing/.test(request.headers.get("via"))) {
             let newRequest = new URL(request.url)
             const newURL = `${newRequest.hostname}${newRequest.pathname}`
             const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
@@ -92,4 +92,4 @@ export default {
             return catchResponseError
         }
     }
-}
+// }
