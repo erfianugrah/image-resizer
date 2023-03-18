@@ -70,14 +70,7 @@ export default {
                             '400-499': cache.clientError,
                             '500-599': cache.serverError
                         },
-                        image: {
-                            width: imageResizer.width,
-                            height: imageResizer.height,
-                            fit: imageResizer.fit,
-                            metadata: imageResizer.metadata,
-                            quality: imageResizer.quality,
-                            format: imageResizer.format
-                        },
+                        image: imageResizer,
                         cacheTags: [
                             "image"
                         ]
