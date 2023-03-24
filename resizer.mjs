@@ -84,7 +84,7 @@ export default {
         response.headers.set("debug-cache", JSON.stringify(cache))
 
         const catchResponseError = response.ok || response.redirected ? response : await fetch(request)
-        if (!/image-resizing/.test(request.headers.get("via"))) {
+        if (/image-resizing/.test(request.headers.get("via"))) {
             return catchResponseError
         }
     }
