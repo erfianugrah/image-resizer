@@ -1,5 +1,5 @@
 name = "image-resizer"
-main = "./resizer.mjs"
+main = "./resizer.js"
 compatibility_date = "2021-09-21"
 account_id = "25f21f141824546aa72c74451a11b419"
 send_metrics = false
