@@ -17,7 +17,7 @@ addEventListener('fetch', event => {
 async function resizer(request) {
     let newRequest = new URL(request.url)
     const newURL = `${newRequest.hostname}${newRequest.pathname}`
-    const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
+    // const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
     const urlParams = newRequest.searchParams
 
     const cacheAssets = [
@@ -68,15 +68,16 @@ async function resizer(request) {
             {
                 polish: "off",
                 mirage: false,
-                cacheKey: cache.key,
+                // cacheKey: cache.key,
                 cacheEverything: true,
-                cacheTtlByStatus: {
-                    '100-199': cache.info,
-                    '200-299': cache.ok,
-                    '300-399': cache.redirects,
-                    '400-499': cache.clientError,
-                    '500-599': cache.serverError
-                },
+                cacheTtl: cache.ok,
+                // cacheTtlByStatus: {
+                //     '100-199': cache.info,
+                //     '200-299': cache.ok,
+                //     '300-399': cache.redirects,
+                //     '400-499': cache.clientError,
+                //     '500-599': cache.serverError
+                // },
                 image: {
                     width: imageResizer.width,
                     height: imageResizer.height,
