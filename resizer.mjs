@@ -56,8 +56,11 @@ async function resizer(request) {
         imageResizer.format = 'webp'
     }
 
-    let newResponse = await fetch(request, subRequest,
+    let newResponse = await fetch(request,
         {
+            headers: {
+                "cf-feat-tiered-cache": "image"
+            },
             cf:
             {
                 polish: "off",
