@@ -9,7 +9,7 @@ export default {
 
 async function resizer(request) {
     let newRequest = new URL(request.url)
-    // const newURL = `${newRequest.hostname}${newRequest.pathname}`
+    const newURL = `${newRequest.hostname}${newRequest.pathname}`
     // const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
     const urlParams = newRequest.searchParams
 
@@ -32,12 +32,12 @@ async function resizer(request) {
 
     const imageURLOptions = { width, height, fit, quality, metadata, format }
 
-    let subRequest = new Request(newRequest, request)
+    let subRequest = new Request(newURL, request)
     subRequest.headers.set("cf-feat-tiered-cache", "image")
     const device = subRequest.headers.get("cf-device-type")
     const deviceMatch = imageDeviceOptions[device] || imageDeviceOptions.desktop
 
-    const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newRequest.match(regex)) ?? {}
+    const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newURL.match(regex)) ?? {}
 
     let options = deviceMatch || {}
 
@@ -56,7 +56,7 @@ async function resizer(request) {
         imageResizer.format = 'webp'
     }
 
-    let newResponse = await fetch(subRequest,
+    let newResponse = await fetch(request, subRequest,
         {
             cf:
             {
@@ -87,6 +87,27 @@ async function resizer(request) {
         })
 
     let response = new Response(newResponse.body, newResponse)
+
+    let cacheControl = '';
+
+    // Find the matching asset in the cacheAssets array
+    let matchedAsset = cacheAssets.find(asset => asset.regex.test(newUrl));
+
+    if (matchedAsset) {
+        // Set the cache-control header based on the asset type
+        if (response.status >= 200 && response.status < 300) {
+            cacheControl = `public, max-age=${matchedAsset.ok}`;
+        } else if (response.status >= 300 && response.status < 400) {
+            cacheControl = `public, max-age=${matchedAsset.redirects}`;
+        } else if (response.status >= 400 && response.status < 500) {
+            cacheControl = `public, max-age=${matchedAsset.clientError}`;
+        } else if (response.status >= 500 && response.status < 600) {
+            cacheControl = `public, max-age=${matchedAsset.serverError}`;
+        }
+    }
+
+    // Set the cache-control header on the response
+    response.headers.set('Cache-Control', cacheControl);
     response.headers.set("debug-ir", JSON.stringify(imageResizer))
     response.headers.set("debug-cache", JSON.stringify(cache))
 
