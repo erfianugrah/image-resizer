@@ -91,7 +91,7 @@ async function resizer(request) {
     let cacheControl = '';
 
     // Find the matching asset in the cacheAssets array
-    let matchedAsset = cacheAssets.find(asset => asset.regex.test(newUrl));
+    let matchedAsset = cacheAssets.find(asset => asset.regex.test(newURL));
 
     if (matchedAsset) {
         // Set the cache-control header based on the asset type
