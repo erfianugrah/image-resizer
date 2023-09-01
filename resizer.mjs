@@ -9,7 +9,7 @@ export default {
 
 async function resizer(request) {
     let newRequest = new URL(request.url)
-    const newURL = `${newRequest.hostname}${newRequest.pathname}`
+    // const newURL = `${newRequest.hostname}${newRequest.pathname}`
     // const customCacheKey = `${newRequest.hostname}${newRequest.pathname}${newRequest.searchParams}`
     const urlParams = newRequest.searchParams
 
@@ -32,12 +32,12 @@ async function resizer(request) {
 
     const imageURLOptions = { width, height, fit, quality, metadata, format }
 
-    let subRequest = new Request(request.headers)
+    let subRequest = new Request(newRequest, request)
     subRequest.headers.set("cf-feat-tiered-cache", "image")
     const device = subRequest.headers.get("cf-device-type")
     const deviceMatch = imageDeviceOptions[device] || imageDeviceOptions.desktop
 
-    const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newURL.match(regex)) ?? {}
+    const { asset, regex, ...cache } = cacheAssets.find(({ regex }) => newRequest.match(regex)) ?? {}
 
     let options = deviceMatch || {}
 
@@ -56,7 +56,7 @@ async function resizer(request) {
         imageResizer.format = 'webp'
     }
 
-    let newResponse = await fetch(request,
+    let newResponse = await fetch(subRequest,
         {
             cf:
             {
