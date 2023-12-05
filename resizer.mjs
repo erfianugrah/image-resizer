@@ -50,10 +50,10 @@ async function resizer(request) {
 
     const accept = request.headers.get("Accept")
 
-    if (/image\/avif/.test(accept)) {
-        imageResizer.format = 'avif'
-    } else if (/image\/webp/.test(accept)) {
-        imageResizer.format = 'webp'
+    imageResizer.format = 'avif'; // Set to 'avif' by default
+
+    if (!/image\/avif/.test(accept) && /image\/webp/.test(accept)) {
+    imageResizer.format = 'webp'; // Fallback to 'webp' if 'avif' is not present
     }
 
     let newResponse = await fetch(request,
