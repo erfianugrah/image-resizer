@@ -52,7 +52,7 @@ async function resizer(request) {
 
     imageResizer.format = 'avif'; // Set to 'avif' by default
 
-    if (!/image\/avif/.test("accept") && /image\/webp/.test("accept")) {
+    if (!/image\/avif/.test(accept) && /image\/webp/.test(accept)) {
     imageResizer.format = 'webp'; // Fallback to 'webp' if 'avif' is not present
     }
 
