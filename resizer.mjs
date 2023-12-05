@@ -48,13 +48,13 @@ async function resizer(request) {
 
     const imageResizer = cache ? options : {}
 
-    // const accept = request.headers.get("Accept")
+    const accept = request.headers.get("Accept")
 
     imageResizer.format = 'avif'; // Set to 'avif' by default
 
-    // if (!/image\/avif/.test(accept) && /image\/webp/.test(accept)) {
-    // imageResizer.format = 'webp'; // Fallback to 'webp' if 'avif' is not present
-    // }
+    if (!/image\/avif/.test("accept") && /image\/webp/.test("accept")) {
+    imageResizer.format = 'webp'; // Fallback to 'webp' if 'avif' is not present
+    }
 
     let newResponse = await fetch(request,
         {
