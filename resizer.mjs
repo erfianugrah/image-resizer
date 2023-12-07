@@ -1,6 +1,6 @@
 export default {
     fetch: (request, env, ctx) => {
-        if (!/image-resizing/.test(request.headers.get("via")) && !/undici/.test(request.headers.get("user-agent"))) {
+        if (!/image-resizing/.test(request.headers.get("via")) && !/undici/.test(request.headers.get("user-agent")) && !/node/.test(request.headers.get("user-agent"))) {
             return resizer(request);
         }
         return fetch(request); // pass-through and continue
