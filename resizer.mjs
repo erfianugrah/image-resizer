@@ -14,7 +14,7 @@ async function resizer(request) {
     const urlParams = newRequest.searchParams
 
     const cacheAssets = [
-        { asset: 'image', /*key: customCacheKey,*/ regex: /^.*\.(jpe?g|JPG|png|gif|webp|svg)/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
+        { asset: 'image', /*key: customCacheKey,*/mirage: off, minified: { javascript: false, css: true, html: false }, imageCompression: off, cachability: true, regex: /^.*\.(jpe?g|JPG|png|gif|webp|svg)$/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
     ]
 
     const imageDeviceOptions = {
@@ -53,7 +53,7 @@ async function resizer(request) {
     imageResizer.format = 'avif'; // Set to 'avif' by default
 
     if (!/image\/avif/.test(accept) && /image\/webp/.test(accept)) {
-    imageResizer.format = 'webp'; // Fallback to 'webp' if 'avif' is not present
+        imageResizer.format = 'webp'; // Fallback to 'webp' if 'avif' is not present
     }
 
     let newResponse = await fetch(request,
@@ -63,10 +63,10 @@ async function resizer(request) {
             },
             cf:
             {
-                polish: "off",
-                mirage: false,
+                polish: cache.imageCompression,
+                mirage: cache.mirage,
                 // cacheKey: cache.key,
-                cacheEverything: true,
+                cacheEverything: cache.cachability,
                 cacheTtl: cache.ok,
                 // cacheTtlByStatus: {
                 //     '100-199': cache.info,
