@@ -14,7 +14,7 @@ async function resizer(request) {
     const urlParams = newRequest.searchParams
 
     const cacheAssets = [
-        { asset: 'image', /*key: customCacheKey,*/mirage: false, minified: { javascript: false, css: true, html: false }, imageCompression: 'off', cachability: true, regex: /^.*\.(jpe?g|JPG|png|gif|webp|svg)$/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
+        { asset: 'image', /*key: customCacheKey,*/mirage: false, minified: { javascript: false, css: true, html: false }, imageCompression: 'off', cacheability: true, regex: /^.*\.(jpe?g|JPG|png|gif|webp|svg)$/, info: 0, ok: 31536000, redirects: 31536000, clientError: 10, serverError: 1 },
     ]
 
     const imageDeviceOptions = {
@@ -66,7 +66,7 @@ async function resizer(request) {
                 polish: cache.imageCompression,
                 mirage: cache.mirage,
                 // cacheKey: cache.key,
-                cacheEverything: cache.cachability,
+                cacheEverything: cache.cacheability,
                 cacheTtl: cache.ok,
                 // cacheTtlByStatus: {
                 //     '100-199': cache.info,
