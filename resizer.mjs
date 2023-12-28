@@ -63,10 +63,10 @@ async function resizer(request) {
             },
             cf:
             {
-                polish: cache.imageCompression,
-                mirage: cache.mirage,
+                polish: cache.imageCompression || 'off',
+                mirage: cache.mirage || false,
                 // cacheKey: cache.key,
-                cacheEverything: cache.cacheability,
+                cacheEverything: cache.cacheability || false,
                 cacheTtl: cache.ok,
                 // cacheTtlByStatus: {
                 //     '100-199': cache.info,
@@ -94,19 +94,11 @@ async function resizer(request) {
     let cacheControl = '';
 
     // Find the matching asset in the cacheAssets array
-    let matchedAsset = cacheAssets.find(asset => asset.regex.test(newURL));
+    let matchedAsset = cacheAssets.find(asset => asset.regex.test(newRequest));
 
     if (matchedAsset) {
-        // Set the cache-control header based on the asset type
-        if (response.status >= 200 && response.status < 300) {
-            cacheControl = `public, max-age=${matchedAsset.ok}`;
-        } else if (response.status >= 300 && response.status < 400) {
-            cacheControl = `public, max-age=${matchedAsset.redirects}`;
-        } else if (response.status >= 400 && response.status < 500) {
-            cacheControl = `public, max-age=${matchedAsset.clientError}`;
-        } else if (response.status >= 500 && response.status < 600) {
-            cacheControl = `public, max-age=${matchedAsset.serverError}`;
-        }
+        const prop = ['ok', 'redirects', 'clientError', 'serverError'][Math.floor(response.status / 100) - 2] || 0;
+        cacheControl = prop && `public, max-age=${matchedAsset[prop]}`;
     }
 
     // Set the cache-control header on the response
