@@ -18,5 +18,5 @@ workers_dev = true
 name = "prod-resizer"
 vars = { ENVIRONMENT = "production" }
 routes = [
-    { pattern = "example.com/images/* zone_id = env.ZONE_ID },
+    { pattern = "cdn.erfianugrah.com/*", zone_id = env.ZONE_ID },
 ]
