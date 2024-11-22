@@ -1,7 +1,7 @@
 name = "image-resizer"
 main = "./resizer.mjs"
 compatibility_date = "2021-09-21"
-account_id = env.ACCOUNT_ID 
+account_id = "25f21f141824546aa72c74451a11b419"
 send_metrics = false
 
 [dev]
@@ -18,5 +18,5 @@ workers_dev = true
 name = "prod-resizer"
 vars = { ENVIRONMENT = "production" }
 routes = [
-    { pattern = "cdn.erfianugrah.com/*", zone_id = env.ZONE_ID },
+    { pattern = "cdn.erfianugrah.com/*", zone_id = "3f2c4daa43d5920f313654a873b31d06"},
 ]
