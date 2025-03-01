@@ -33,10 +33,10 @@ export function getWidthFromCfDeviceType(
 
   switch (cfDeviceType) {
     case "mobile":
-      width = standardWidths[0]; // 320
+      width = widthsToUse[0]; // 320
       break;
     case "tablet":
-      width = standardWidths[1]; // 768
+      width = widthsToUse[1]; // 768
       break;
     default: // desktop or other
       width = requestedWidth === "auto" ? standardWidths[3] : standardWidths[2]; // 1200 or 960

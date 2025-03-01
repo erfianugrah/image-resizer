@@ -64,7 +64,7 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
         quality: options.quality,
         format: options.format,
         // Don't upscale if specified in options
-        upscale: options.upscale !== undefined ? options.upscale : true,
+        upscale: options.upscale !== undefined ? options.upscale : false,
       },
       cacheTags: generateCacheTags(debugInfo.bucketName, options.derivative),
     },

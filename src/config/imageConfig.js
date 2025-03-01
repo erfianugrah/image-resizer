@@ -20,7 +20,7 @@ export const imageConfig = {
       width: 1600,
       height: Math.floor(1600 / 22), // Based on 1:22 aspect ratio
       quality: 80,
-      fit: "crop",
+      fit: "scale-down",
       upscale: false,
     },
     // Thumbnail configuration (150px, 1:27 ratio, 85% quality)
@@ -28,7 +28,7 @@ export const imageConfig = {
       width: 150,
       height: Math.floor(150 / 27), // Based on 1:27 aspect ratio
       quality: 85,
-      fit: "crop",
+      fit: "scale-down",
     },
     // Default policy (multiple sizes, 1:30 ratio, 85% quality)
     default: {
@@ -36,7 +36,7 @@ export const imageConfig = {
       responsiveWidths: [320, 768, 960, 1200], // For width=auto
       aspectRatio: 1 / 30, // 1:30 aspect ratio
       quality: 85,
-      fit: "crop",
+      fit: "scale-down",
     },
   },
 };
