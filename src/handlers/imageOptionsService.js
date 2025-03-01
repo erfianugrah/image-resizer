@@ -19,12 +19,8 @@ export function determineImageOptions(request, urlParams, path) {
   const pathDerivative = getDerivativeFromPath(path);
   const requestedDerivative = params.derivative || pathDerivative;
 
-  // Base options
-  let options = {
-    source: "default",
-  };
-
   // First determine the derivative to use
+  let options;
   if (requestedDerivative === "header") {
     options = applyHeaderDerivative(params);
   } else if (requestedDerivative === "thumbnail") {
@@ -100,10 +96,10 @@ function applyDefaultDerivative(request, params) {
   options.width = dimensionOptions.width;
   options.source = dimensionOptions.source;
 
-  // Calculate height based on aspect ratio if not provided
-  if (!params.height && options.width) {
-    // Use a better aspect ratio (16:9) instead of the problematic 1:30
-    options.height = Math.floor(options.width * (9 / 16));
+  // Calculate height based on aspect ratio if not provided but width is available
+  // (and it's not "auto")
+  if (!params.height && options.width && options.width !== "auto") {
+    options.height = Math.floor(options.width * (9 / 16)); // 16:9 aspect ratio
   }
 
   // Override with explicitly provided URL parameters
@@ -122,5 +118,5 @@ function applyParameterOverrides(options, params) {
   if (params.quality) options.quality = parseInt(params.quality);
   if (params.fit) options.fit = params.fit;
   if (params.metadata) options.metadata = params.metadata;
-  if (params.upscale !== undefined) options.upscale = params.upscale;
+  if (params.upscale !== undefined) options.upscale = params.upscale === "true";
 }

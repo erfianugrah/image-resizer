@@ -1,38 +1,28 @@
 /**
- * Get responsive width based on client hints headers
+ * Check if client hints headers are present in the request
  * @param {Request} request - The incoming request
- * @param {number[]} responsiveWidths - Available responsive widths
- * @returns {Object|null} - Width settings based on client hints or null if not available
+ * @returns {boolean} - True if client hints are available
  */
-export function getWidthFromClientHints(request, responsiveWidths) {
-  // We'll use the standard responsive widths from Cloudflare documentation if none provided
-  const standardWidths = [320, 768, 960, 1200];
-  const widthsToUse = responsiveWidths && responsiveWidths.length > 0
-    ? responsiveWidths
-    : standardWidths;
+export function hasClientHints(request) {
+  const viewportWidth = request.headers.get("Sec-CH-Viewport-Width");
+  const dpr = request.headers.get("Sec-CH-DPR");
 
-  // Ensure we have a sorted array of widths
-  const sortedWidths = [...widthsToUse].sort((a, b) => a - b);
+  return Boolean(viewportWidth) || Boolean(dpr);
+}
 
-  // Check for client hints
-  const viewportWidth = parseInt(request.headers.get("Sec-CH-Viewport-Width"));
-  const dpr = parseFloat(request.headers.get("Sec-CH-DPR")) || 1;
-
-  // Return null if client hints are not available
-  if (!viewportWidth) {
-    return null;
+/**
+ * Get responsive width based on client hints headers - simplified to use 'auto'
+ * @param {Request} request - The incoming request
+ * @returns {Object|null} - Width settings for client hints or null if not available
+ */
+export function getWidthFromClientHints(request) {
+  // Check if client hints are available
+  if (hasClientHints(request)) {
+    return {
+      width: "auto", // Let Cloudflare handle the sizing with client hints
+      source: "client-hints-auto",
+    };
   }
 
-  // Calculate ideal image width based on viewport width and device pixel ratio
-  const idealWidth = Math.floor(viewportWidth * dpr);
-
-  // Find the closest responsive width that's at least as large as the ideal width
-  // or use the largest available if none are large enough
-  const width = sortedWidths.find((w) => w >= idealWidth) ||
-    sortedWidths[sortedWidths.length - 1];
-
-  return {
-    width,
-    source: "client-hints",
-  };
+  return null;
 }

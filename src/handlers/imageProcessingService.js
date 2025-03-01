@@ -47,6 +47,13 @@ function isImageResizingLoop(request) {
  * @returns {Promise<Response>} - Cloudflare response
  */
 async function fetchWithImageOptions(request, options, cache, debugInfo) {
+  // Create a copy of options for the cf.image object to avoid modifying the original
+  const imageOptions = { ...options };
+
+  // Remove non-Cloudflare options that shouldn't be passed to the API
+  delete imageOptions.source;
+  delete imageOptions.derivative;
+
   return fetch(request, {
     headers: {
       "cf-feat-tiered-cache": "image",
@@ -55,17 +62,8 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
       polish: cache.imageCompression || "off",
       mirage: cache.mirage || false,
       cacheEverything: cache.cacheability || false,
-      cacheTtl: cache.ok,
-      image: {
-        width: options.width,
-        height: options.height,
-        fit: options.fit,
-        metadata: options.metadata,
-        quality: options.quality,
-        format: options.format,
-        // Don't upscale if specified in options
-        upscale: options.upscale !== undefined ? options.upscale : false,
-      },
+      cacheTtl: cache.ttl?.ok,
+      image: imageOptions,
       cacheTags: generateCacheTags(debugInfo.bucketName, options.derivative),
     },
   });
