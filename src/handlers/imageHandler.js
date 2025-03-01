@@ -3,6 +3,7 @@ import { transformRequestUrl } from "../utils/urlTransformUtils.js";
 import { determineImageOptions } from "./imageOptionsService.js";
 import { processImage } from "./imageProcessingService.js";
 import { determineCacheConfig } from "../utils/cacheUtils.js";
+import { getDerivativeFromPath } from "../utils/pathUtils.js";
 
 /**
  * Main handler for image requests
@@ -12,6 +13,12 @@ import { determineCacheConfig } from "../utils/cacheUtils.js";
  */
 export async function handleImageRequest(request, config) {
   try {
+    const url = new URL(request.url);
+    const urlParams = url.searchParams;
+
+    // Check for path-based derivative directly
+    const pathDerivative = getDerivativeFromPath(url.pathname);
+
     // Transform the request URL based on deployment mode
     const transformedRequest = transformRequestUrl(request, config);
 
@@ -24,12 +31,16 @@ export async function handleImageRequest(request, config) {
       isRemoteFetch,
     } = transformedRequest;
 
-    const url = new URL(request.url);
-    const urlParams = url.searchParams;
+    // Add the route-derived derivative as a parameter if it exists and no explicit derivative set
+    // Priority: URL param > path derivative > route derivative
+    const explicitDerivative = urlParams.get("derivative");
 
-    // Add the route-derived derivative as a parameter if it exists
-    if (routeDerivative && !urlParams.has("derivative")) {
-      urlParams.set("derivative", routeDerivative);
+    if (!explicitDerivative) {
+      if (pathDerivative) {
+        urlParams.set("derivative", pathDerivative);
+      } else if (routeDerivative) {
+        urlParams.set("derivative", routeDerivative);
+      }
     }
 
     // Determine image options based on the original request (for parameters)
@@ -50,6 +61,7 @@ export async function handleImageRequest(request, config) {
       originalUrl: request.url,
       transformedUrl: originUrl,
       bucketName,
+      pathDerivative,
       routeDerivative,
     };
 

@@ -17,6 +17,7 @@ A highly configurable, modular Cloudflare Worker for dynamic image resizing, opt
 - [Deployment Modes](#deployment-modes)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [Demo](#demo)
 
 ## ✨ Features
 
@@ -467,3 +468,190 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+# Demo
+
+This document demonstrates the various image transformation capabilities of the Cloudflare Image Resizing Worker using a sample image.
+
+## Basic Usage
+
+### Original Image
+![Original Image](https://images.erfi.dev/Granna_1.JPG)
+```
+https://images.erfi.dev/Granna_1.JPG
+```
+
+### Specific Width (800px)
+![Width 800px](https://images.erfi.dev/Granna_1.JPG?width=800)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800
+```
+
+### Custom Dimensions (800x600)
+![Custom Dimensions](https://images.erfi.dev/Granna_1.JPG?width=800&height=600)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800&height=600
+```
+
+### Custom Quality (90%)
+![Custom Quality](https://images.erfi.dev/Granna_1.JPG?quality=90)
+```
+https://images.erfi.dev/Granna_1.JPG?quality=90
+```
+
+## Derivatives
+
+### Header Derivative via Path
+![Header Derivative](https://images.erfi.dev/header/Granna_1.JPG)
+```
+https://images.erfi.dev/header/Granna_1.JPG
+```
+
+### Thumbnail Derivative via Path
+![Thumbnail Derivative](https://images.erfi.dev/thumbnail/Granna_1.JPG)
+```
+https://images.erfi.dev/thumbnail/Granna_1.JPG
+```
+
+### Header Derivative via Parameter
+![Header Parameter](https://images.erfi.dev/Granna_1.JPG?derivative=header)
+```
+https://images.erfi.dev/Granna_1.JPG?derivative=header
+```
+
+### Thumbnail Derivative via Parameter
+![Thumbnail Parameter](https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail)
+```
+https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail
+```
+
+## Format Control
+
+### Force WebP Format
+![WebP Format](https://images.erfi.dev/Granna_1.JPG?format=webp)
+```
+https://images.erfi.dev/Granna_1.JPG?format=webp
+```
+
+### Force AVIF Format
+![AVIF Format](https://images.erfi.dev/Granna_1.JPG?format=avif)
+```
+https://images.erfi.dev/Granna_1.JPG?format=avif
+```
+
+### Auto Format Based on Browser Support
+![Auto Format](https://images.erfi.dev/Granna_1.JPG?format=auto)
+```
+https://images.erfi.dev/Granna_1.JPG?format=auto
+```
+
+## Additional Parameters
+
+### Resize Mode: Contain
+![Fit Contain](https://images.erfi.dev/Granna_1.JPG?fit=contain&width=800&height=600)
+```
+https://images.erfi.dev/Granna_1.JPG?fit=contain&width=800&height=600
+```
+
+### Resize Mode: Cover
+![Fit Cover](https://images.erfi.dev/Granna_1.JPG?fit=cover&width=800&height=600)
+```
+https://images.erfi.dev/Granna_1.JPG?fit=cover&width=800&height=600
+```
+
+### Resize Mode: Crop
+![Fit Crop](https://images.erfi.dev/Granna_1.JPG?fit=crop&width=800&height=600)
+```
+https://images.erfi.dev/Granna_1.JPG?fit=crop&width=800&height=600
+```
+
+### Resize Mode: Scale-down
+![Fit Scale-down](https://images.erfi.dev/Granna_1.JPG?fit=scale-down&width=800&height=600)
+```
+https://images.erfi.dev/Granna_1.JPG?fit=scale-down&width=800&height=600
+```
+
+### Metadata Handling: None
+![Metadata None](https://images.erfi.dev/Granna_1.JPG?metadata=none)
+```
+https://images.erfi.dev/Granna_1.JPG?metadata=none
+```
+
+### Metadata Handling: Copyright
+![Metadata Copyright](https://images.erfi.dev/Granna_1.JPG?metadata=copyright)
+```
+https://images.erfi.dev/Granna_1.JPG?metadata=copyright
+```
+
+### Metadata Handling: All
+![Metadata All](https://images.erfi.dev/Granna_1.JPG?metadata=all)
+```
+https://images.erfi.dev/Granna_1.JPG?metadata=all
+```
+
+### Prevent Upscaling
+![Prevent Upscaling](https://images.erfi.dev/Granna_1.JPG?width=3000&upscale=false)
+```
+https://images.erfi.dev/Granna_1.JPG?width=3000&upscale=false
+```
+
+## Responsive Images
+
+### Automatic Responsive Sizing
+![Responsive Sizing](https://images.erfi.dev/Granna_1.JPG?width=auto)
+```
+https://images.erfi.dev/Granna_1.JPG?width=auto
+```
+
+## Combined Transformations
+
+### Thumbnail with WebP Format
+![Thumbnail WebP](https://images.erfi.dev/thumbnail/Granna_1.JPG?format=webp)
+```
+https://images.erfi.dev/thumbnail/Granna_1.JPG?format=webp
+```
+
+### Header with Custom Quality
+![Header Custom Quality](https://images.erfi.dev/header/Granna_1.JPG?quality=95)
+```
+https://images.erfi.dev/header/Granna_1.JPG?quality=95
+```
+
+### Custom Size with Specific Format and Fit
+![Complex Transformation](https://images.erfi.dev/Granna_1.JPG?width=1200&height=675&format=webp&fit=cover&quality=85)
+```
+https://images.erfi.dev/Granna_1.JPG?width=1200&height=675&format=webp&fit=cover&quality=85
+```
+
+## HTML Responsive Images Implementation
+
+For responsive images in HTML, use the following pattern:
+
+```html
+<img 
+  src="https://images.erfi.dev/Granna_1.JPG?width=800" 
+  srcset="
+    https://images.erfi.dev/Granna_1.JPG?width=320 320w,
+    https://images.erfi.dev/Granna_1.JPG?width=768 768w,
+    https://images.erfi.dev/Granna_1.JPG?width=1024 1024w,
+    https://images.erfi.dev/Granna_1.JPG?width=1600 1600w
+  "
+  sizes="(max-width: 768px) 100vw, 768px"
+  alt="Granna landscape"
+/>
+```
+
+## Debug Information
+
+Add the following parameters to view transformation details in the response headers:
+
+```
+https://images.erfi.dev/Granna_1.JPG?width=800&debug=true
+```
+
+Then check the response headers for:
+- `debug-ir`: Shows image transformation options
+- `debug-cache`: Shows cache configuration
+- `debug-mode`: Shows deployment mode details
+- `x-derivative`: Shows the derivative used
+- `x-size-source`: Shows how the image size was determined

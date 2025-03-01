@@ -25,10 +25,11 @@ export const imageConfig = {
     },
     // Thumbnail configuration (150px, 1:27 ratio, 85% quality)
     thumbnail: {
-      width: 150,
+      width: 320,
       height: Math.floor(150 / 27), // Based on 1:27 aspect ratio
       quality: 85,
       fit: "scale-down",
+      upscale: false,
     },
     // Default policy (multiple sizes, 1:30 ratio, 85% quality)
     default: {
@@ -37,6 +38,7 @@ export const imageConfig = {
       aspectRatio: 1 / 30, // 1:30 aspect ratio
       quality: 85,
       fit: "scale-down",
+      upscale: false,
     },
   },
 };

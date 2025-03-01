@@ -20,14 +20,20 @@ export function transformRequestUrl(request, config, env) {
 
   // Handle local mode (direct deployment)
   if (config.deploymentMode === "direct") {
-    // Just check if there's a route-based derivative match
+    // Check if there's a route-based derivative match
     if (segments.length > 0) {
-      const routeMatch = Object.keys(config.routeDerivatives || {}).find(
-        (route) => path.includes(`/${route}/`),
-      );
+      // First check if the first segment directly matches a derivative
+      if (segments[0] === "header" || segments[0] === "thumbnail") {
+        result.derivative = segments[0];
+      } else {
+        // Otherwise check route derivatives from config
+        const routeMatch = Object.keys(config.routeDerivatives || {}).find(
+          (route) => path.includes(`/${route}/`),
+        );
 
-      if (routeMatch) {
-        result.derivative = config.routeDerivatives[routeMatch];
+        if (routeMatch) {
+          result.derivative = config.routeDerivatives[routeMatch];
+        }
       }
     }
 
@@ -48,6 +54,23 @@ export function transformRequestUrl(request, config, env) {
     }
   }
 
+  // Check if the first segment is a derivative
+  if (
+    segments.length > 0 &&
+    (segments[0] === "header" || segments[0] === "thumbnail")
+  ) {
+    result.derivative = segments[0];
+  } else {
+    // Check route derivatives from config
+    const routeMatch = Object.keys(config.routeDerivatives || {}).find(
+      (route) => path.includes(`/${route}/`),
+    );
+
+    if (routeMatch) {
+      result.derivative = config.routeDerivatives[routeMatch];
+    }
+  }
+
   // Get the remote origin for this bucket
   const remoteOrigin =
     (config.remoteBuckets && config.remoteBuckets[result.bucketName]) ||
@@ -56,6 +79,15 @@ export function transformRequestUrl(request, config, env) {
 
   // Apply path transformations if any
   let transformedPath = path;
+
+  // If the first segment is a derivative, remove it from the path when fetching from origin
+  if (
+    segments.length > 0 &&
+    (segments[0] === "header" || segments[0] === "thumbnail")
+  ) {
+    transformedPath = `/${segments.slice(1).join("/")}`;
+  }
+
   const pathTransform = config.pathTransforms &&
     config.pathTransforms[result.bucketName];
 
@@ -107,15 +139,6 @@ export function transformRequestUrl(request, config, env) {
     body: request.body,
     redirect: "follow",
   });
-
-  // Check for route-based derivative
-  const routeMatch = Object.keys(config.routeDerivatives || {}).find(
-    (route) => path.includes(`/${route}/`),
-  );
-
-  if (routeMatch) {
-    result.derivative = config.routeDerivatives[routeMatch];
-  }
 
   return result;
 }
