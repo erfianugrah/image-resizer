@@ -1,6 +1,6 @@
 // Main Worker entry point
-import { handleImageRequest } from "./handlers/imageHandler";
-import { getEnvironmentConfig } from "./config/environmentConfig";
+import { handleImageRequest } from "./handlers/imageHandler.js";
+import { getEnvironmentConfig } from "./config/environmentConfig.js";
 
 // Global environment config that will be populated at runtime
 let runtimeConfig = null;

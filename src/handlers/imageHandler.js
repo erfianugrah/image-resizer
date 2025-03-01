@@ -1,8 +1,8 @@
 // Main image handling entry point
-import { transformRequestUrl } from "../utils/urlTransformUtils";
-import { determineImageOptions } from "./imageOptionsService";
-import { processImage } from "./imageProcessingService";
-import { determineCacheConfig } from "../utils/cacheUtils";
+import { transformRequestUrl } from "../utils/urlTransformUtils.js";
+import { determineImageOptions } from "./imageOptionsService.js";
+import { processImage } from "./imageProcessingService.js";
+import { determineCacheConfig } from "../utils/cacheUtils.js";
 
 /**
  * Main handler for image requests

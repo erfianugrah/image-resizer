@@ -1,8 +1,8 @@
-import { imageConfig } from "../config/imageConfig";
-import { getDerivativeFromPath } from "../utils/pathUtils";
-import { getImageDimensions } from "../utils/responsiveWidthUtils";
-import { extractImageParams } from "../utils/urlParamUtils";
-import { determineFormat } from "../utils/formatUtils";
+import { imageConfig } from "../config/imageConfig.js";
+import { getDerivativeFromPath } from "../utils/pathUtils.js";
+import { getImageDimensions } from "../utils/responsiveWidthUtils.js";
+import { extractImageParams } from "../utils/urlParamUtils.js";
+import { determineFormat } from "../utils/formatUtils.js";
 
 /**
  * Determine which image options to use based on request parameters

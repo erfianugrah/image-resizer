@@ -1,7 +1,7 @@
 import {
   determineCacheControl,
   generateCacheTags,
-} from "../utils/cacheControlUtils";
+} from "../utils/cacheControlUtils.js";
 
 /**
  * Process the image using Cloudflare's Image Resizing
@@ -18,7 +18,12 @@ export async function processImage(request, options, cache, debugInfo = {}) {
   }
 
   // Make the request with our configured options
-  const newResponse = await fetchWithImageOptions(request, options, cache);
+  const newResponse = await fetchWithImageOptions(
+    request,
+    options,
+    cache,
+    debugInfo,
+  );
   const response = buildResponse(newResponse, options, cache, debugInfo);
 
   // Return the response or fallback to original request if error
@@ -41,7 +46,7 @@ function isImageResizingLoop(request) {
  * @param {Object} cache - Cache configuration
  * @returns {Promise<Response>} - Cloudflare response
  */
-async function fetchWithImageOptions(request, options, cache) {
+async function fetchWithImageOptions(request, options, cache, debugInfo) {
   return fetch(request, {
     headers: {
       "cf-feat-tiered-cache": "image",

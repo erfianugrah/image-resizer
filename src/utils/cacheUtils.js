@@ -1,4 +1,4 @@
-import { imageConfig } from "../config/imageConfig";
+import { imageConfig } from "../config/imageConfig.js";
 
 /**
  * Determine cache configuration based on URL

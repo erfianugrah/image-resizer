@@ -2,7 +2,10 @@ name = "image-resizer"
 main = "src/index.js"
 compatibility_date = "2021-09-21"
 account_id = "25f21f141824546aa72c74451a11b419"
-send_metrics = false
+
+[observability]
+enabled = true
+head_sampling_rate = 1 # optional. default = 1.
 
 [dev]
 port = 9001

@@ -1,6 +1,9 @@
-import { getWidthFromClientHints } from "./clientHints";
-import { getWidthFromCfDeviceType, getWidthFromUserAgent } from "./deviceUtils";
-import { findClosestWidth, parseWidthParam } from "./urlParamUtils";
+import { getWidthFromClientHints } from "./clientHints.js";
+import {
+  getWidthFromCfDeviceType,
+  getWidthFromUserAgent,
+} from "./deviceUtils.js";
+import { findClosestWidth, parseWidthParam } from "./urlParamUtils.js";
 
 /**
  * Determine responsive width using all available detection methods in priority order

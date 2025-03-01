@@ -1,7 +1,7 @@
 import {
   getDeviceTypeFromUserAgent,
   getWidthForDeviceType,
-} from "./userAgentUtils";
+} from "./userAgentUtils.js";
 
 /**
  * Get responsive width based on CF-Device-Type header
