@@ -643,12 +643,6 @@ For responsive images in HTML, use the following pattern:
 
 ## Debug Information
 
-Add the following parameters to view transformation details in the response headers:
-
-```
-https://images.erfi.dev/Granna_1.JPG?width=800&debug=true
-```
-
 Then check the response headers for:
 - `debug-ir`: Shows image transformation options
 - `debug-cache`: Shows cache configuration
