@@ -38,8 +38,7 @@ name = "staging-resizer"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-DEPLOYMENT_MODE = "remote"
-REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
+DEPLOYMENT_MODE = "direct"
 
 # Production environment
 [env.prod]
