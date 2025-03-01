@@ -22,7 +22,7 @@ export function transformRequestUrl(request, config) {
   if (config.deploymentMode === "direct") {
     // Just check if there's a route-based derivative match
     if (segments.length > 0) {
-      const routeMatch = Object.keys(config.routeDerivatives).find(
+      const routeMatch = Object.keys(config.routeDerivatives || {}).find(
         (route) => path.includes(`/${route}/`),
       );
 
@@ -39,7 +39,7 @@ export function transformRequestUrl(request, config) {
 
   // Find the matching bucket
   if (segments.length > 0) {
-    const bucketMatch = Object.keys(config.remoteBuckets).find(
+    const bucketMatch = Object.keys(config.remoteBuckets || {}).find(
       (bucket) => segments[0] === bucket || path.includes(`/${bucket}/`),
     );
 
@@ -49,12 +49,15 @@ export function transformRequestUrl(request, config) {
   }
 
   // Get the remote origin for this bucket
-  const remoteOrigin = config.remoteBuckets[result.bucketName] ||
-    config.remoteBuckets.default;
+  const remoteOrigin =
+    (config.remoteBuckets && config.remoteBuckets[result.bucketName]) ||
+    (config.remoteBuckets && config.remoteBuckets.default) ||
+    "https://example.com"; // Fallback
 
   // Apply path transformations if any
   let transformedPath = path;
-  const pathTransform = config.pathTransforms[result.bucketName];
+  const pathTransform = config.pathTransforms &&
+    config.pathTransforms[result.bucketName];
 
   if (pathTransform) {
     if (pathTransform.removePrefix) {
@@ -74,9 +77,25 @@ export function transformRequestUrl(request, config) {
 
   // Build the new origin URL
   const originUrl = new URL(transformedPath, remoteOrigin);
-  // Copy over search params
+
+  // Copy over search params, but exclude image-specific params that would
+  // interfere with Cloudflare's image resizing
   url.searchParams.forEach((value, key) => {
-    originUrl.searchParams.set(key, value);
+    // Skip image resizing specific parameters to avoid conflicts
+    if (
+      ![
+        "width",
+        "height",
+        "fit",
+        "quality",
+        "format",
+        "metadata",
+        "derivative",
+        "upscale",
+      ].includes(key)
+    ) {
+      originUrl.searchParams.set(key, value);
+    }
   });
 
   result.originUrl = originUrl.toString();
@@ -90,7 +109,7 @@ export function transformRequestUrl(request, config) {
   });
 
   // Check for route-based derivative
-  const routeMatch = Object.keys(config.routeDerivatives).find(
+  const routeMatch = Object.keys(config.routeDerivatives || {}).find(
     (route) => path.includes(`/${route}/`),
   );
 
