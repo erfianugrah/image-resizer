@@ -90,17 +90,19 @@ Edit `wrangler.toml` to configure different environments:
 name = "direct-resizer"
 
 [env.direct.vars]
-ENVIRONMENT = "direct"
+ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "direct"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
 
 # Remote mode deployment (worker fetches from remote buckets)
 [env.remote]
 name = "remote-resizer"
 
 [env.remote.vars]
-ENVIRONMENT = "remote"
+ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "remote"
 REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\"}"
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
 
 # Production environment
 [env.prod]
@@ -108,7 +110,8 @@ name = "prod-resizer"
 
 [env.prod.vars]
 ENVIRONMENT = "production"
-DEPLOYMENT_MODE = "direct"
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\"}"
 
 [[env.prod.routes]]
 pattern = "cdn.example.com/*"
@@ -136,26 +139,25 @@ export const imageConfig = {
     },
   },
   derivatives: {
-    // Header image configuration (1600px, 16:9 ratio, 80% quality)
+    // Header image configuration
     header: {
       width: 1600,
-      height: 900, // 16:9 aspect ratio
+      height: 800, // 2:1 aspect ratio
       quality: 80,
-      fit: "crop",
+      fit: "scale-down",
       upscale: false,
     },
-    // Thumbnail configuration (150px, 1:1 ratio, 85% quality)
+    // Thumbnail configuration
     thumbnail: {
       width: 150,
       height: 150, // Square thumbnails
       quality: 85,
-      fit: "crop",
+      fit: "scale-down",
     },
-    // Default policy (multiple responsive sizes, 16:9 ratio, 85% quality)
+    // Default policy (multiple responsive sizes)
     default: {
       widths: [320, 640, 1024, 2048, 5000],
-      responsiveWidths: [320, 768, 960, 1200], // For width=auto detection
-      aspectRatio: 9/16, // 16:9 aspect ratio
+      responsiveWidths: [320, 768, 960, 1200], // For device detection
       quality: 85,
       fit: "contain",
     },
@@ -215,11 +217,14 @@ Use the `width=auto` parameter to automatically serve the appropriate size based
 https://example.com/image.jpg?width=auto
 ```
 
-This uses client hints, CF-Device-Type, or User-Agent detection (in that order) to serve:
-- Mobile: 320px
-- Tablet: 768px
-- Desktop: 960px
-- Large Desktop: 1200px
+This uses a sophisticated priority system to determine the optimal image width:
+
+1. **Client hints**: For browsers that support client hints, we pass `width=auto` directly to Cloudflare's Image Resizing
+2. **CF-Device-Type**: For browsers without client hints but with Cloudflare's device detection:
+   - Mobile: 480px (480p)  
+   - Tablet: 720px (720p)
+   - Desktop: 1080px (1080p)
+3. **User-Agent analysis**: For browsers without the above, as a last resort
 
 ### Setting Up Client Hints
 
@@ -267,7 +272,7 @@ Images are cached by Cloudflare based on the TTL settings in `imageConfig.js`. Y
 
 Derivatives are predefined transformation configurations for common use cases:
 
-- **Header**: Optimized for hero/header images (1600px wide, 16:9, 80% quality)
+- **Header**: Optimized for hero/header images (1600px wide, customizable aspect ratio, 80% quality)
 - **Thumbnail**: Optimized for thumbnails (150px square, 85% quality)
 - **Default**: Used when no specific derivative is requested
 
@@ -288,9 +293,25 @@ derivatives: {
 }
 ```
 
-Then use it with:
+Then add it to your path detection in `pathUtils.js`:
+
+```javascript
+export function getDerivativeFromPath(path) {
+  if (path.includes("/header/")) {
+    return "header";
+  } else if (path.includes("/thumbnail/")) {
+    return "thumbnail";
+  } else if (path.includes("/profile/")) {
+    return "profile";  // Your new derivative
+  }
+  return null;
+}
 ```
-https://example.com/profile/image.jpg
+
+You can also add it to route-based derivatives in `wrangler.toml`:
+
+```toml
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"profile\"}"
 ```
 
 ## 🪣 Remote Bucket Support
@@ -321,11 +342,8 @@ https://your-worker.com/images/photo.jpg     # Fetches from https://images.examp
 You can configure automatic derivative selection based on URL paths:
 
 ```javascript
-// In environmentConfig.js
-routeDerivatives: {
-  "profile-pictures": "thumbnail",
-  "hero-banners": "header",
-}
+// In wrangler.toml
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
 ```
 
 This automatically applies the thumbnail derivative to any URL containing `/profile-pictures/`.
@@ -335,13 +353,8 @@ This automatically applies the thumbnail derivative to any URL containing `/prof
 You can configure path transformations for remote buckets:
 
 ```javascript
-// In environmentConfig.js
-pathTransforms: {
-  "images": {
-    prefix: "assets",
-    removePrefix: true,
-  },
-}
+// In wrangler.toml
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"assets\",\"removePrefix\":true}}"
 ```
 
 This would transform a request for `/images/photo.jpg` to fetch from `/assets/photo.jpg` on the remote origin.
@@ -409,8 +422,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ### Code Organization
 
 - `src/handlers/`: Contains the main request handlers
-- `src/services/`: Contains service modules for different aspects of image processing
-- `src/utils/`: Contains utility functions
+- `src/utils/`: Contains utility functions for various aspects
 - `src/config/`: Contains configuration files
 
 ## 📄 License

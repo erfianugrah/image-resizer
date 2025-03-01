@@ -1,36 +1,64 @@
+# Cloudflare Image Resizing Worker Configuration
+# ---
+# This worker provides dynamic image resizing capabilities using 
+# Cloudflare's Image Resizing service.
+
 name = "image-resizer"
 main = "src/index.js"
-compatibility_date = "2021-09-21"
+compatibility_date = "2025-01-01"
 account_id = "25f21f141824546aa72c74451a11b419"
 
+# Resource limits to prevent unexpected billing
+[limits]
+cpu_ms = 50
+memory_mb = 128
+
+# Observability settings
 [observability]
 enabled = true
-head_sampling_rate = 1 # optional. default = 1.
+head_sampling_rate = 1
 
-[env]
-FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
-
+# Development server configuration
 [dev]
 port = 9001
 local_protocol = "http"
 upstream_protocol = "https"
+
+#
+# Environment Configurations
+#
 
 # Direct mode deployment (worker runs on the bucket)
 [env.direct]
 name = "direct-resizer"
 
 [env.direct.vars]
-ENVIRONMENT = "direct"
+ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "direct"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+[[env.direct.routes]]
+pattern = "dev-direct.images.erfi.dev/*"
+zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
 
 # Remote mode deployment (worker fetches from remote buckets)
 [env.remote]
 name = "remote-resizer"
 
 [env.remote.vars]
-ENVIRONMENT = "remote"
+ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "remote"
 REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+[[env.remote.routes]]
+pattern = "dev-remote.images.erfi.dev/*"
+zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
 
 # Staging environment
 [env.staging]
@@ -38,7 +66,16 @@ name = "staging-resizer"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-DEPLOYMENT_MODE = "direct"
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+[[env.staging.routes]]
+pattern = "staging.images.erfi.dev/*"
+zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
 
 # Production environment
 [env.prod]
@@ -48,6 +85,10 @@ name = "prod-resizer"
 ENVIRONMENT = "production"
 DEPLOYMENT_MODE = "remote"
 REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
 
 [[env.prod.routes]]
 pattern = "images.erfi.dev/*"
