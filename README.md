@@ -59,8 +59,8 @@ The worker uses a modular architecture with clear separation of concerns:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/cloudflare-image-resizer.git
-   cd cloudflare-image-resizer
+   git clone https://github.com/erfianugrah/image-resizer.git
+   cd image-resizer
    ```
 
 2. Install dependencies:
