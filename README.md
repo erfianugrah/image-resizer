@@ -1,161 +1,418 @@
 # Cloudflare Image Resizing Worker
 
-This modular Cloudflare Worker provides advanced image resizing capabilities with support for multiple derivatives, responsive images, and client hints.
+A highly configurable, modular Cloudflare Worker for dynamic image resizing, optimization, and transformation. This worker provides advanced responsive image capabilities with support for multiple predefined derivatives, client hints, and remote bucket integration.
 
-## Directory Structure
+## 📋 Table of Contents
 
+- [Features](#features)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Responsive Images](#responsive-images)
+- [Cache Configuration](#cache-configuration)
+- [Derivatives](#derivatives)
+- [Remote Bucket Support](#remote-bucket-support)
+- [Advanced Features](#advanced-features)
+- [Deployment Modes](#deployment-modes)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+
+## ✨ Features
+
+- **Automatic device detection**: Serves optimal image sizes based on device type and screen size
+- **Predefined derivatives**: Built-in configurations for common use cases like headers, thumbnails, etc.
+- **Client hints support**: Advanced responsive images using browser client hints
+- **Remote bucket integration**: Process images from different origins/buckets
+- **Modern format handling**: AVIF with WebP fallback based on browser support
+- **Configurable caching**: Fine-grained cache control based on response status
+- **Performance optimization**: Tiered caching and optimal compression
+
+## 🏗️ Architecture
+
+The worker uses a modular architecture with clear separation of concerns:
+
+### Core Components
+
+- **Entry point**: Handles request routing and environment configuration
+- **Image handler**: Orchestrates the image processing workflow
+- **Image options service**: Determines the appropriate transformation options
+- **Image processing service**: Applies the transformations via Cloudflare's service
+
+### Utilities
+
+- **Format utilities**: Format detection and handling
+- **Client hints utilities**: Processing client hints headers for responsive images
+- **Device detection utilities**: Identifying device types for optimal sizing
+- **URL transformation utilities**: Handling remote bucket requests
+- **Cache control utilities**: Managing cache headers and TTLs
+
+## 📥 Installation
+
+### Prerequisites
+
+- Cloudflare account with Workers enabled
+- Cloudflare Image Resizing service enabled on your account
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed
+
+### Setup
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/cloudflare-image-resizer.git
+   cd cloudflare-image-resizer
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Authenticate wrangler with your Cloudflare account:
+   ```bash
+   wrangler login
+   ```
+
+4. Configure `wrangler.toml` with your account ID and zone ID:
+   ```toml
+   account_id = "your-account-id"
+   ```
+
+## ⚙️ Configuration
+
+### Environment Configuration
+
+Edit `wrangler.toml` to configure different environments:
+
+```toml
+# Direct mode deployment (worker runs on the bucket)
+[env.direct]
+name = "direct-resizer"
+
+[env.direct.vars]
+ENVIRONMENT = "direct"
+DEPLOYMENT_MODE = "direct"
+
+# Remote mode deployment (worker fetches from remote buckets)
+[env.remote]
+name = "remote-resizer"
+
+[env.remote.vars]
+ENVIRONMENT = "remote"
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\"}"
+
+# Production environment
+[env.prod]
+name = "prod-resizer"
+
+[env.prod.vars]
+ENVIRONMENT = "production"
+DEPLOYMENT_MODE = "direct"
+
+[[env.prod.routes]]
+pattern = "cdn.example.com/*"
+zone_id = "your-zone-id"
 ```
-├── src/
-│   ├── index.js                  # Main worker entry point
-│   ├── config/
-│   │   ├── imageConfig.js        # Configuration for image resizing
-│   │   └── environmentConfig.js  # Remote bucket and route configuration
-│   ├── handlers/
-│   │   └── imageHandler.js       # Main image handling functions
-│   └── utils/
-│       ├── cacheUtils.js         # Cache-related utility functions
-│       ├── clientHints.js        # Client hints handling
-│       └── pathUtils.js          # URL path parsing utilities
-├── wrangler.toml                 # Cloudflare Workers configuration
-├── package.json                  # NPM package configuration
-└── README.md                     # Documentation
+
+### Image Configuration
+
+Edit `src/config/imageConfig.js` to customize image derivatives and cache settings:
+
+```javascript
+export const imageConfig = {
+  cache: {
+    image: {
+      regex: /^.*\.(jpe?g|JPG|png|gif|webp|svg)$/,
+      ttl: {
+        ok: 31536000, // 1 year for successful responses
+        redirects: 31536000, // 1 year for redirects
+        clientError: 10, // 10 seconds for client errors
+        serverError: 1, // 1 second for server errors
+      },
+      cacheability: true,
+      mirage: false,
+      imageCompression: "off",
+    },
+  },
+  derivatives: {
+    // Header image configuration (1600px, 16:9 ratio, 80% quality)
+    header: {
+      width: 1600,
+      height: 900, // 16:9 aspect ratio
+      quality: 80,
+      fit: "crop",
+      upscale: false,
+    },
+    // Thumbnail configuration (150px, 1:1 ratio, 85% quality)
+    thumbnail: {
+      width: 150,
+      height: 150, // Square thumbnails
+      quality: 85,
+      fit: "crop",
+    },
+    // Default policy (multiple responsive sizes, 16:9 ratio, 85% quality)
+    default: {
+      widths: [320, 640, 1024, 2048, 5000],
+      responsiveWidths: [320, 768, 960, 1200], // For width=auto detection
+      aspectRatio: 9/16, // 16:9 aspect ratio
+      quality: 85,
+      fit: "contain",
+    },
+  },
+};
 ```
 
-## Features
-
-- **Predefined Derivatives**:
-  - **Header Images**: 1600px width, 1:22 aspect ratio, 80% quality
-  - **Thumbnails**: 150px width, 1:27 aspect ratio, 85% quality
-  - **Default Policy**: Multiple sizes, 1:30 aspect ratio, 85% quality
-
-- **Remote Bucket Support**:
-  - Process images from other buckets/origins
-  - Map route prefixes to specific remote origins
-  - Apply different derivatives based on route
-
-- **Advanced Features**:
-  - **Auto Responsive Sizing**: Automatic selection of optimal image size
-  - **Client Hints Support**: Uses `Sec-CH-Viewport-Width` and `Sec-CH-DPR`
-  - **Modern Format Selection**: AVIF with WebP fallback
-  - **Optimized Caching**: Configurable TTLs for different status codes
-
-## How to Use
+## 🚀 Usage
 
 ### Basic Usage
 
-```
-https://example.com/images/photo.jpg
-```
-
-Returns the image using the default 1024px width settings.
-
-### Remote Bucket Usage
+Once deployed, you can use the worker to resize images with:
 
 ```
-https://example.com/remote-images/photo.jpg
+https://example.com/image.jpg                   # Default sizing
+https://example.com/image.jpg?width=800         # Specific width
+https://example.com/image.jpg?width=800&height=600  # Custom dimensions
+https://example.com/image.jpg?quality=90        # Custom quality
 ```
 
-Fetches the image from a remote bucket and processes it with the default settings.
+### Derivatives
 
-### Derivative Configurations
-
-```
-https://example.com/images/header/photo.jpg     # Uses header configuration
-https://example.com/images/thumbnail/photo.jpg  # Uses thumbnail configuration
-```
-
-Or use the derivative parameter:
+Use predefined derivatives via URL path or query parameter:
 
 ```
-https://example.com/images/photo.jpg?derivative=header
-https://example.com/images/photo.jpg?derivative=thumbnail
+https://example.com/header/image.jpg            # Header derivative via path
+https://example.com/thumbnail/image.jpg         # Thumbnail derivative via path
+
+https://example.com/image.jpg?derivative=header # Header derivative via parameter
 ```
 
-### Responsive Images
+### Format Control
+
+Control output format:
 
 ```
-https://example.com/images/photo.jpg?width=auto
+https://example.com/image.jpg?format=webp       # Force WebP format
+https://example.com/image.jpg?format=avif       # Force AVIF format
+https://example.com/image.jpg?format=auto       # Auto format based on browser support
 ```
-
-Uses client hints or user agent detection to serve the most appropriate size.
-
-### Manual Size Selection
-
-```
-https://example.com/images/photo.jpg?width=800&height=600
-```
-
-Selects the closest predefined width or uses exact dimensions if specified.
 
 ### Additional Parameters
 
-- `quality`: Override quality setting (1-100)
-- `fit`: Change resize mode (crop, contain, cover, scale-down)
-- `format`: Force specific format (avif, webp, etc.)
+```
+https://example.com/image.jpg?fit=contain       # Resize mode (contain, cover, crop, scale-down)
+https://example.com/image.jpg?metadata=none     # Metadata handling (none, copyright, all)
+https://example.com/image.jpg?upscale=false     # Prevent upscaling
+```
 
-## Client Hints Setup
+## 📱 Responsive Images
 
-For best results with `width=auto`, add this to your HTML pages:
+### Automatic Responsive Images
+
+Use the `width=auto` parameter to automatically serve the appropriate size based on device:
+
+```
+https://example.com/image.jpg?width=auto
+```
+
+This uses client hints, CF-Device-Type, or User-Agent detection (in that order) to serve:
+- Mobile: 320px
+- Tablet: 768px
+- Desktop: 960px
+- Large Desktop: 1200px
+
+### Setting Up Client Hints
+
+For best results with `width=auto`, add this to your HTML:
 
 ```html
 <meta http-equiv="Delegate-CH" content="sec-ch-dpr https://example.com; sec-ch-viewport-width https://example.com"/>
 ```
 
-Or use HTTP headers:
+Or via HTTP headers:
 
 ```
 Accept-CH: Sec-CH-DPR, Sec-CH-Viewport-Width
 Critical-CH: Sec-CH-DPR, Sec-CH-Viewport-Width
 ```
 
-## Deployment
+### HTML Responsive Images with srcset
 
-1. Install Wrangler:
-   ```
-   npm install -g wrangler
-   ```
+For maximum compatibility, use HTML's native responsive image features:
 
-2. Authenticate:
-   ```
-   wrangler login
-   ```
+```html
+<img 
+  src="/image.jpg?width=800" 
+  srcset="
+    /image.jpg?width=320 320w,
+    /image.jpg?width=768 768w,
+    /image.jpg?width=1024 1024w,
+    /image.jpg?width=1600 1600w
+  "
+  sizes="(max-width: 768px) 100vw, 768px"
+  alt="Description"
+/>
+```
 
-3. Deploy the worker:
-   ```
-   wrangler deploy
-   ```
+## 🔄 Cache Configuration
 
-## Configuration
+Images are cached by Cloudflare based on the TTL settings in `imageConfig.js`. You can customize:
 
-### Image Settings
+- **Cache TTL**: Different TTLs for different HTTP status codes
+- **Cache Tags**: Automatic tagging for better cache management
+- **Polish**: Cloudflare's additional image optimization
+- **Mirage**: Cloudflare's lazy loading feature
 
-Edit `src/config/imageConfig.js` to customize the default settings, including:
+## 🎯 Derivatives
 
-- Cache TTLs
-- Image derivatives
-- Quality settings
-- Default widths
+Derivatives are predefined transformation configurations for common use cases:
 
-### Remote Buckets and Routes
+- **Header**: Optimized for hero/header images (1600px wide, 16:9, 80% quality)
+- **Thumbnail**: Optimized for thumbnails (150px square, 85% quality)
+- **Default**: Used when no specific derivative is requested
 
-Edit `src/config/environmentConfig.js` to configure:
+### Custom Derivatives
 
-- Remote bucket mappings
-- Route-based derivative selection
-
-Example configuration:
+You can define additional derivatives in `imageConfig.js`:
 
 ```javascript
-export const environmentConfig = {
-  // Remote bucket configuration
-  remoteBuckets: {
-    'remote-images': 'https://your-remote-bucket.example.com',
-    'cdn-assets': 'https://your-cdn-bucket.example.com',
+derivatives: {
+  // Your custom derivative
+  profile: {
+    width: 200,
+    height: 200,
+    quality: 90,
+    fit: "cover",
   },
-  
-  // Route configuration - automatically apply derivatives based on route
-  routes: {
-    'profile-pictures': 'thumbnail',
-    'hero-banners': 'header',
-  }
-};
+  // ...
+}
+```
+
+Then use it with:
+```
+https://example.com/profile/image.jpg
+```
+
+## 🪣 Remote Bucket Support
+
+The worker can fetch and process images from remote origins:
+
+### Configuration
+
+Configure remote buckets in `wrangler.toml`:
+
+```toml
+[env.remote.vars]
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\",\"images\":\"https://images.example.com\"}"
+```
+
+### Usage
+
+```
+https://your-worker.com/default/image.jpg    # Fetches from https://cdn.example.com/image.jpg
+https://your-worker.com/images/photo.jpg     # Fetches from https://images.example.com/photo.jpg
+```
+
+## 🔍 Advanced Features
+
+### Route-Based Derivatives
+
+You can configure automatic derivative selection based on URL paths:
+
+```javascript
+// In environmentConfig.js
+routeDerivatives: {
+  "profile-pictures": "thumbnail",
+  "hero-banners": "header",
+}
+```
+
+This automatically applies the thumbnail derivative to any URL containing `/profile-pictures/`.
+
+### Path Transformations
+
+You can configure path transformations for remote buckets:
+
+```javascript
+// In environmentConfig.js
+pathTransforms: {
+  "images": {
+    prefix: "assets",
+    removePrefix: true,
+  },
+}
+```
+
+This would transform a request for `/images/photo.jpg` to fetch from `/assets/photo.jpg` on the remote origin.
+
+## 🚢 Deployment Modes
+
+The worker supports two deployment modes:
+
+### Direct Mode
+
+The worker runs on the same zone as your images. This is simpler and more efficient:
+
+```
+[YOUR DOMAIN]
+   |
+   |-- Cloudflare Worker
+   |-- Your Images
+```
+
+### Remote Mode
+
+The worker runs on its own domain and fetches images from other origins:
+
+```
+[WORKER DOMAIN] --> [IMAGE ORIGIN 1]
+                 --> [IMAGE ORIGIN 2]
+```
+
+Configure remote mode for:
+- Serving images from multiple origins
+- Processing images from non-Cloudflare origins
+- Creating a dedicated image service
+
+## 🔧 Troubleshooting
+
+### Debug Headers
+
+The worker adds debug headers to every response:
+
+- `debug-ir`: Shows the image transformation options used
+- `debug-cache`: Shows the cache configuration
+- `debug-mode`: Shows deployment mode and request transformation details
+- `x-derivative`: Shows the derivative used
+- `x-size-source`: Shows how the image size was determined
+
+### Common Issues
+
+1. **Images not resizing**: Ensure Image Resizing is enabled on your Cloudflare account
+2. **workers.dev domain not working**: Image Resizing may not be available on workers.dev - deploy to your own domain
+3. **Remote images not loading**: Check CORS settings on your remote bucket
+4. **Incorrect sizes**: Check the debug headers to see how sizing decisions are made
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development
+
+1. Clone the repository
+2. Install dependencies: `npm install`
+3. Make your changes
+4. Test locally: `wrangler dev`
+5. Deploy to test: `wrangler deploy`
+
+### Code Organization
+
+- `src/handlers/`: Contains the main request handlers
+- `src/services/`: Contains service modules for different aspects of image processing
+- `src/utils/`: Contains utility functions
+- `src/config/`: Contains configuration files
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
