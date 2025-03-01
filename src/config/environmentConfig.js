@@ -11,7 +11,7 @@ const defaultConfig = {
   // Remote bucket configuration - used when deploymentMode is "remote"
   remoteBuckets: {
     // Default empty config that will be populated from env
-    "default": "https://default-origin.example.com",
+    "default": "",
   },
 
   // Remote bucket path transformations

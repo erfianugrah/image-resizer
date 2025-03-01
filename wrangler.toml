@@ -7,6 +7,9 @@ account_id = "25f21f141824546aa72c74451a11b419"
 enabled = true
 head_sampling_rate = 1 # optional. default = 1.
 
+[env]
+FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
 [dev]
 port = 9001
 local_protocol = "http"

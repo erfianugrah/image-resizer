@@ -4,7 +4,7 @@
  * @param {Object} config - Environment configuration
  * @returns {Object} - The transformed request details
  */
-export function transformRequestUrl(request, config) {
+export function transformRequestUrl(request, config, env) {
   const url = new URL(request.url);
   const path = url.pathname;
   const segments = path.split("/").filter((segment) => segment);
@@ -52,7 +52,7 @@ export function transformRequestUrl(request, config) {
   const remoteOrigin =
     (config.remoteBuckets && config.remoteBuckets[result.bucketName]) ||
     (config.remoteBuckets && config.remoteBuckets.default) ||
-    "https://example.com"; // Fallback
+    env.FALLBACK_BUCKET; // Fallback
 
   // Apply path transformations if any
   let transformedPath = path;

@@ -13,7 +13,7 @@ export function extractImageParams(urlParams, path = "") {
     fit: urlParams.get("fit"),
     format: urlParams.get("format"),
     metadata: urlParams.get("metadata") || "copyright",
-    upscale: urlParams.get("upscale") !== "false", // Default to true unless explicitly set to false
+    upscale: urlParams.get("upscale") || "false",
   };
 }
 
