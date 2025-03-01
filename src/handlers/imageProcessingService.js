@@ -91,9 +91,13 @@ function buildResponse(response, options, cache, debugInfo) {
   newResponse.headers.set("x-derivative", options.derivative || "default");
   newResponse.headers.set("x-size-source", options.source || "default");
 
-  // Enable client hints for future requests
+  // Enhanced client hints headers
   newResponse.headers.set("Accept-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
   newResponse.headers.set("Critical-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
+  newResponse.headers.set(
+    "Delegate-CH",
+    "Sec-CH-DPR https://*; Sec-CH-Viewport-Width https://*",
+  );
 
   return newResponse;
 }
