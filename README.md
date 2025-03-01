@@ -93,6 +93,8 @@ name = "direct-resizer"
 ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "direct"
 ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.example.com"
 
 # Remote mode deployment (worker fetches from remote buckets)
 [env.remote]
@@ -102,7 +104,27 @@ name = "remote-resizer"
 ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "remote"
 REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\"}"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
 PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.example.com"
+
+# Staging environment
+[env.staging]
+name = "staging-resizer"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\"}"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.example.com"
+
+[[env.staging.routes]]
+pattern = "staging.images.example.com/*"
+zone_id = "your-zone-id"
 
 # Production environment
 [env.prod]
@@ -112,11 +134,17 @@ name = "prod-resizer"
 ENVIRONMENT = "production"
 DEPLOYMENT_MODE = "remote"
 REMOTE_BUCKETS = "{\"default\":\"https://cdn.example.com\"}"
+ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\"}"
+PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
+VERSION = "1.1.0"
+FALLBACK_BUCKET = "https://cdn.example.com"
 
 [[env.prod.routes]]
-pattern = "cdn.example.com/*"
+pattern = "images.example.com/*"
 zone_id = "your-zone-id"
 ```
+
+> **Note**: All environment variables must be defined in each environment's `vars` section. Wrangler doesn't inherit variables from the top level.
 
 ### Image Configuration
 
@@ -217,9 +245,11 @@ Use the `width=auto` parameter to automatically serve the appropriate size based
 https://example.com/image.jpg?width=auto
 ```
 
-This uses a sophisticated priority system to determine the optimal image width:
+When `width=auto` is explicitly requested, we pass it directly to Cloudflare's native resizing service, which uses client hints and other factors to optimize the image size.
 
-1. **Client hints**: For browsers that support client hints, we pass `width=auto` directly to Cloudflare's Image Resizing
+For implicit responsive sizing (when no width is specified), we use a sophisticated priority system:
+
+1. **Client hints**: For browsers that support client hints, we pass `width=auto` to Cloudflare
 2. **CF-Device-Type**: For browsers without client hints but with Cloudflare's device detection:
    - Mobile: 480px (480p)  
    - Tablet: 720px (720p)
@@ -400,12 +430,21 @@ The worker adds debug headers to every response:
 - `x-derivative`: Shows the derivative used
 - `x-size-source`: Shows how the image size was determined
 
+Example debug header values:
+```
+x-derivative: header
+x-size-source: derivative-header
+debug-ir: {"width":1600,"height":73,"quality":80,"fit":"scale-down","upscale":false,"source":"derivative-header","derivative":"header","format":"avif"}
+```
+
 ### Common Issues
 
 1. **Images not resizing**: Ensure Image Resizing is enabled on your Cloudflare account
 2. **workers.dev domain not working**: Image Resizing may not be available on workers.dev - deploy to your own domain
 3. **Remote images not loading**: Check CORS settings on your remote bucket
 4. **Incorrect sizes**: Check the debug headers to see how sizing decisions are made
+5. **Deployment warnings**: Ensure all environment variables are duplicated in each environment's `vars` section
+6. **Deployment failures**: Check that your wrangler.toml doesn't contain unsupported fields like `security` or `analytics`
 
 ## 🤝 Contributing
 
