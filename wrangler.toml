@@ -6,17 +6,43 @@ send_metrics = false
 
 [dev]
 port = 9001
-local_protocol="http"
-upstream_protocol="https"
+local_protocol = "http"
+upstream_protocol = "https"
 
+# Direct mode deployment (worker runs on the bucket)
+[env.direct]
+name = "direct-resizer"
+
+[env.direct.vars]
+ENVIRONMENT = "direct"
+DEPLOYMENT_MODE = "direct"
+
+# Remote mode deployment (worker fetches from remote buckets)
+[env.remote]
+name = "remote-resizer"
+
+[env.remote.vars]
+ENVIRONMENT = "remote"
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
+
+# Staging environment
 [env.staging]
 name = "staging-resizer"
-vars = { ENVIRONMENT = "staging" }
-workers_dev = true
 
+[env.staging.vars]
+ENVIRONMENT = "staging"
+DEPLOYMENT_MODE = "remote"
+REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
+
+# Production environment
 [env.prod]
 name = "prod-resizer"
-vars = { ENVIRONMENT = "production" }
-routes = [
-    { pattern = "cdn.erfianugrah.com/*", zone_id = "3f2c4daa43d5920f313654a873b31d06"},
-]
+
+[env.prod.vars]
+ENVIRONMENT = "production"
+DEPLOYMENT_MODE = "direct"
+
+[[env.prod.routes]]
+pattern = "cdn.erfianugrah.com/*"
+zone_id = "3f2c4daa43d5920f313654a873b31d06"

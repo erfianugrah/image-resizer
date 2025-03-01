@@ -3,25 +3,56 @@ import { imageConfig } from "../config/imageConfig";
 import { getDerivativeFromPath } from "../utils/pathUtils";
 import { getResponsiveWidth } from "../utils/clientHints";
 import { determineCacheConfig } from "../utils/cacheUtils";
+import { transformRequestUrl } from "../utils/urlTransformUtils";
 
 /**
  * Main handler for image requests
  * @param {Request} request - The incoming request
+ * @param {Object} config - Environment configuration
  * @returns {Promise<Response>} - The processed image response
  */
-export async function handleImageRequest(request) {
+export async function handleImageRequest(request, config) {
+  // Transform the request URL based on deployment mode
+  const {
+    originRequest,
+    bucketName,
+    originUrl,
+    derivative: routeDerivative,
+    isRemoteFetch,
+  } = transformRequestUrl(request, config);
+
   const url = new URL(request.url);
   const urlParams = url.searchParams;
-  const path = url.pathname;
 
-  // Determine image options
-  const imageOptions = determineImageOptions(request, urlParams, path);
+  // Add the route-derived derivative as a parameter if it exists
+  if (routeDerivative && !urlParams.has("derivative")) {
+    urlParams.set("derivative", routeDerivative);
+  }
 
-  // Get cache configuration
-  const cache = determineCacheConfig(url.hostname + path);
+  // Determine image options based on the original request (for parameters)
+  // but using the path from the transformed URL
+  const imageOptions = determineImageOptions(request, urlParams, url.pathname);
 
-  // Process the image
-  const response = await processImage(request, imageOptions, cache);
+  // Get cache configuration for the target URL
+  const cache = determineCacheConfig(originUrl);
+
+  // For debugging
+  const debugInfo = {
+    deploymentMode: config.deploymentMode,
+    isRemoteFetch,
+    originalUrl: request.url,
+    transformedUrl: originUrl,
+    bucketName,
+    routeDerivative,
+  };
+
+  // Process the image - use the origin request for remote fetches
+  const response = await processImage(
+    isRemoteFetch ? originRequest : request,
+    imageOptions,
+    cache,
+    debugInfo,
+  );
 
   return response;
 }
@@ -38,68 +69,84 @@ function determineImageOptions(request, urlParams, path) {
   const requestedDerivative = urlParams.get("derivative") ||
     getDerivativeFromPath(path);
   const requestedWidth = urlParams.get("width");
-  const height = urlParams.get("height");
+  const requestedHeight = urlParams.get("height");
   const quality = urlParams.get("quality");
   const fit = urlParams.get("fit");
   const format = urlParams.get("format");
   const metadata = urlParams.get("metadata") || "copyright";
+  const upscale = urlParams.get("upscale") !== "false"; // Default to true unless explicitly set to false
 
   // Base options
-  let options = {};
+  let options = {
+    source: "default",
+  };
 
-  // Select derivative configuration
+  // First determine the derivative to use
   if (requestedDerivative === "header") {
-    options = { ...imageConfig.derivatives.header };
-    options.source = "derivative-header";
+    options = {
+      ...imageConfig.derivatives.header,
+      source: "derivative-header",
+    };
   } else if (requestedDerivative === "thumbnail") {
-    options = { ...imageConfig.derivatives.thumbnail };
-    options.source = "derivative-thumbnail";
+    options = {
+      ...imageConfig.derivatives.thumbnail,
+      source: "derivative-thumbnail",
+    };
   } else {
-    // PRIORITY 1: Try client hints first (highest priority)
-    const clientHintOptions = getResponsiveWidth(
-      request,
-      imageConfig.derivatives.default.responsiveWidths,
-    );
+    // Using default derivative configuration
+    options.quality = imageConfig.derivatives.default.quality;
+    options.fit = imageConfig.derivatives.default.fit;
 
-    // PRIORITY 2: Check for explicit width parameter (second priority)
-    if (requestedWidth && requestedWidth !== "auto") {
-      // Override client hint width with explicitly requested width
+    // Handle width selection with proper priority
+    if (requestedWidth === "auto") {
+      // PRIORITY 1: Explicit "auto" - Use client hints/UA detection
+      const clientHintOptions = getResponsiveWidth(
+        request,
+        imageConfig.derivatives.default.responsiveWidths,
+      );
+      options.width = clientHintOptions.width;
+      options.source = "auto-" + clientHintOptions.source;
+    } else if (requestedWidth) {
+      // PRIORITY 2: Explicit width parameter
       const parsedWidth = parseInt(requestedWidth);
       if (!isNaN(parsedWidth)) {
-        // Find closest width from default widths
-        const closestWidth = imageConfig.derivatives.default.widths.reduce(
-          (prev, curr) => {
-            return (Math.abs(curr - parsedWidth) < Math.abs(prev - parsedWidth)
-              ? curr
-              : prev);
-          },
-        );
-        clientHintOptions.width = closestWidth;
-        clientHintOptions.source = "url-param";
+        // Find closest predefined width
+        const availableWidths = imageConfig.derivatives.default.widths;
+        const closestWidth = availableWidths.reduce((prev, curr) => {
+          return (Math.abs(curr - parsedWidth) < Math.abs(prev - parsedWidth))
+            ? curr
+            : prev;
+        });
+        options.width = closestWidth;
+        options.source = "explicit-width";
+      } else {
+        // Invalid width parameter - use default width
+        options.width = imageConfig.derivatives.default.widths[2]; // Use the middle option (1024px)
+        options.source = "default-invalid-width";
       }
+    } else {
+      // PRIORITY 3: No width specified - use default width
+      options.width = imageConfig.derivatives.default.widths[2]; // Use the middle option (1024px)
+      options.source = "default-no-width";
     }
 
-    // Use the client hint options (either pure or modified by explicit width)
-    options = {
-      width: clientHintOptions.width,
-      quality: imageConfig.derivatives.default.quality,
-      fit: imageConfig.derivatives.default.fit,
-      source: clientHintOptions.source,
-    };
-
-    // Set height based on aspect ratio if not explicitly specified
-    if (!height) {
+    // Calculate height based on aspect ratio if not provided
+    if (!requestedHeight) {
       options.height = Math.floor(
         options.width * imageConfig.derivatives.default.aspectRatio,
       );
     }
   }
 
-  // Override with any explicitly provided URL parameters (except width which was already handled)
-  if (height) options.height = parseInt(height);
+  // Override with explicitly provided URL parameters
+  if (requestedHeight) options.height = parseInt(requestedHeight);
   if (quality) options.quality = parseInt(quality);
   if (fit) options.fit = fit;
   if (metadata) options.metadata = metadata;
+  if (upscale !== undefined) options.upscale = upscale;
+
+  // Store the derivative name for debugging
+  options.derivative = requestedDerivative || "default";
 
   // Determine image format
   options.format = determineFormat(request, format);
@@ -135,9 +182,10 @@ function determineFormat(request, formatParam) {
  * @param {Request} request - The incoming request
  * @param {Object} options - Image processing options
  * @param {Object} cache - Cache configuration
+ * @param {Object} debugInfo - Debug information
  * @returns {Promise<Response>} - The processed image response
  */
-async function processImage(request, options, cache) {
+async function processImage(request, options, cache, debugInfo = {}) {
   // Make the request with our configured options
   const newResponse = await fetch(request, {
     headers: {
@@ -173,6 +221,7 @@ async function processImage(request, options, cache) {
   response.headers.set("Cache-Control", cacheControl);
   response.headers.set("debug-ir", JSON.stringify(options));
   response.headers.set("debug-cache", JSON.stringify(cache));
+  response.headers.set("debug-mode", JSON.stringify(debugInfo));
   response.headers.set("x-derivative", options.derivative || "default");
   response.headers.set("x-size-source", options.source || "default");
 
