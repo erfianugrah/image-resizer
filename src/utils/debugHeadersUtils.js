@@ -64,6 +64,8 @@ function getClientHintsDebug(request) {
 
 /**
  * Add standard client hints headers to responses
+ * These headers are essential for responsive image sizing functionality
+ * 
  * @param {Response} response - The response to add headers to
  */
 function addClientHintsResponseHeaders(response) {
@@ -93,12 +95,16 @@ export function applyDebugHeaders(
   response,
   { options, cache, debugInfo = {} },
 ) {
-  // If debug headers are disabled, return the original response
-  if (!headerConfig.enabled) {
-    return response;
-  }
-
   const newResponse = new Response(response.body, response);
+
+  // Always add client hints headers regardless of debug header settings
+  // These are needed for responsive image functionality
+  addClientHintsResponseHeaders(newResponse);
+  
+  // If debug headers are disabled, return the response with only client hints headers
+  if (!headerConfig.enabled) {
+    return newResponse;
+  }
 
   // Extract device information for debugging
   const deviceInfo = {
@@ -156,9 +162,6 @@ export function applyDebugHeaders(
         : "false",
     );
   }
-
-  // Add client hints headers for browsers
-  addClientHintsResponseHeaders(newResponse);
 
   return newResponse;
 }

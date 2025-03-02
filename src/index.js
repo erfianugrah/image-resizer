@@ -40,8 +40,8 @@ export default {
       // Define patterns to skip resizing
       const skipPatterns = [
         (headers) => /image-resizing/.test(headers.get("via") || ""),
-        (headers) => /undici/.test(headers.get("user-agent") || ""),
-        (headers) => /node/.test(headers.get("user-agent") || ""),
+        // (headers) => /undici/.test(headers.get("user-agent") || ""),
+        // (headers) => /node/.test(headers.get("user-agent") || ""),
       ];
 
       // Check if we should skip resizing
@@ -87,11 +87,17 @@ function initializeLogging(config) {
   }
 
   // Configure debug headers
-  const isDebugEnvironment = config.debugHeaders?.allowedEnvironments?.includes(
-    config.ENVIRONMENT,
-  );
-  const enableDebugHeaders = config.debugHeaders?.enabled !== false &&
-    isDebugEnvironment;
+  // Only check allowedEnvironments if it exists
+  let enableDebugHeaders = config.debugHeaders?.enabled !== false;
+
+  // Apply environment filtering only if allowedEnvironments is configured
+  if (config.debugHeaders?.allowedEnvironments) {
+    const isAllowedEnvironment = config.debugHeaders.allowedEnvironments
+      .includes(
+        config.ENVIRONMENT,
+      );
+    enableDebugHeaders = enableDebugHeaders && isAllowedEnvironment;
+  }
 
   setDebugHeadersEnabled(enableDebugHeaders);
 

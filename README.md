@@ -110,8 +110,11 @@ PATH_TRANSFORMS = '''
 ### Basic Usage
 
 ```
-# Original image
+# Original image (uses automatic responsive sizing)
 https://images.erfi.dev/Granna_1.JPG
+
+# Explicitly request responsive sizing
+https://images.erfi.dev/Granna_1.JPG?width=auto
 
 # Resized to specific width
 https://images.erfi.dev/Granna_1.JPG?width=800
@@ -141,7 +144,32 @@ The worker supports responsive image sizing based on device detection:
 2. **CF-Device-Type** - Cloudflare's device detection
 3. **User-Agent** - Fallback device detection
 
-For best results with responsive images:
+#### Automatic Responsive Sizing
+
+You can enable automatic responsive sizing in two ways:
+
+1. **Default behavior** - Simply request an image without specifying width:
+   ```
+   https://images.erfi.dev/Granna_1.JPG
+   ```
+
+2. **Explicit auto mode** - Use the `width=auto` parameter:
+   ```
+   https://images.erfi.dev/Granna_1.JPG?width=auto
+   ```
+
+In both cases, the worker will:
+- Analyze client hints (viewport width, DPR)
+- Check for Cloudflare device type information
+- Fall back to user agent detection if needed
+- Select the appropriate width based on the detected device characteristics
+- Apply the responsive sizing automatically
+
+This is ideal for scenarios where you don't want to manage srcset manually or when you need a simple way to deliver appropriately sized images.
+
+#### Traditional Responsive Implementation
+
+For maximum browser compatibility and control, you can also use the traditional srcset approach:
 
 ```html
 <!-- In your HTML -->
@@ -167,7 +195,7 @@ The worker supports all Cloudflare Image Resizing parameters:
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `width` | Image width in pixels | `width=800` |
+| `width` | Image width in pixels or "auto" for responsive sizing | `width=800`, `width=auto` |
 | `height` | Image height in pixels | `height=600` |
 | `fit` | Resizing behavior | `fit=cover`, `fit=contain`, `fit=scale-down` |
 | `quality` | Compression quality (1-100) | `quality=80` |
@@ -281,10 +309,16 @@ This section demonstrates the various image transformation capabilities of the C
 
 ### Basic Transformations
 
-#### Original Image
+#### Original Image (Automatic Responsive Sizing)
 ![Original Image](https://images.erfi.dev/Granna_1.JPG)
 ```
 https://images.erfi.dev/Granna_1.JPG
+```
+
+#### Explicit Responsive Sizing
+![Responsive Sizing](https://images.erfi.dev/Granna_1.JPG?width=auto)
+```
+https://images.erfi.dev/Granna_1.JPG?width=auto
 ```
 
 #### Specific Width (800px)
@@ -457,19 +491,41 @@ For responsive images in HTML, use the following pattern:
 
 ## Troubleshooting
 
-### Debug Headers
+### Response Headers
 
-The worker adds debugging headers to each response:
+#### Client Hints Headers
+
+The worker always includes client hints headers in responses to enable responsive image functionality:
+
+- `Accept-CH` - Tells browsers which client hints the server accepts
+- `Critical-CH` - Marks critical client hints
+- `Permissions-Policy` - Sets permissions for client hints
+
+These headers are essential for the responsive image sizing functionality to work properly with browsers that support client hints.
+
+#### Debug Headers
+
+The worker can also include optional debug headers (can be disabled in production):
 
 - `debug-ir` - Image transformation options
 - `debug-cache` - Cache configuration
 - `x-size-source` - Source of size determination (explicit, client-hints, device-type, etc.)
+- `x-actual-width` - The actual width used for the image
+- `x-processing-mode` - Processing mode (explicit, responsive, or template)
+- `x-responsive-sizing` - Whether responsive sizing was used
 
 Example debug header values:
 ```
+# Regular explicit width
 x-size-source: explicit-width
 debug-ir: {"width":800,"source":"explicit-width","format":"avif"}
+
+# Auto width (with responsive sizing fallback)
+x-size-source: explicit-params-fallback
+debug-ir: {"width":1024,"metadata":"copyright","format":"avif","source":"explicit-params-fallback"}
 ```
+
+When using `width=auto`, you'll see "explicit-params-fallback" as the source in the debug headers, indicating that the responsive sizing system automatically determined the width based on device characteristics.
 
 ### Common Issues
 
