@@ -85,14 +85,6 @@ function buildResponse(request, response, options, cache, debugInfo) {
   newResponse.headers.set("x-derivative", options.derivative || "default");
   newResponse.headers.set("x-size-source", options.source || "default");
 
-  // Enhanced client hints headers
-  newResponse.headers.set("Accept-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
-  newResponse.headers.set(
-    "Permissions-Policy",
-    "ch-dpr=(self), ch-viewport-width=(self)",
-  );
-  newResponse.headers.set("Critical-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
-
   // Add debug info for user agent
   const userAgent = request.headers.get("User-Agent") || "";
   newResponse.headers.set("debug-ua", userAgent);
