@@ -52,9 +52,6 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
   console.log("Final image options:", JSON.stringify(imageOptions));
 
   return fetch(request, {
-    headers: {
-      "cf-feat-tiered-cache": "image",
-    },
     cf: {
       polish: cache.imageCompression || "off",
       mirage: cache.mirage || false,
