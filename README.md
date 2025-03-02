@@ -1,7 +1,5 @@
 # Cloudflare Image Resizing Worker
 
-A powerful, configurable Cloudflare Worker for dynamic image resizing and optimization. This worker intelligently serves optimized images based on device type, client capabilities, and URL parameters.
-
 ## Features
 
 - **Dynamic image resizing** - Resize images on-the-fly with specific dimensions or automatic responsive sizing
