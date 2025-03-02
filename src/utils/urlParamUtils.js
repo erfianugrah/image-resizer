@@ -49,13 +49,17 @@ export function extractImageParams(urlParams, path = "") {
 }
 
 /**
- * Parse width parameter into numeric value or null if not numeric
+ * Parse width parameter into numeric value, "auto", or null if not numeric
  * @param {string} widthParam - Width parameter from URL
- * @returns {number|null} - Parsed width or null if not a valid number
+ * @returns {number|string|null} - Parsed width, "auto", or null if not a valid number
  */
 export function parseWidthParam(widthParam) {
-  if (!widthParam || widthParam === "auto") {
+  if (!widthParam) {
     return null;
+  }
+  
+  if (widthParam === "auto") {
+    return "auto";
   }
 
   const parsedWidth = parseInt(widthParam);

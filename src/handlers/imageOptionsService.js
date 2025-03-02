@@ -29,8 +29,12 @@ export function determineImageOptions(request, urlParams, path) {
     // Only add parameters that were explicitly provided
     Object.entries(params).forEach(([key, value]) => {
       if (value !== null) {
+        // Handle special case for width=auto
+        if (key === "width" && value === "auto") {
+          options[key] = value;
+        }
         // Parse numeric parameters
-        if (
+        else if (
           [
             "width",
             "height",
@@ -156,8 +160,18 @@ function applyParameterOverrides(options, params) {
 
   const booleanParams = ["anim"];
 
+  // Handle width=auto as a special case
+  if (params.width === "auto") {
+    options.width = "auto";
+  }
+  
   // Apply numeric parameters
   numericParams.forEach((param) => {
+    // Skip width if already handled as "auto"
+    if (param === "width" && params[param] === "auto") {
+      return;
+    }
+    
     if (params[param] !== null && params[param] !== undefined) {
       const value = parseFloat(params[param]);
       if (!isNaN(value)) {
