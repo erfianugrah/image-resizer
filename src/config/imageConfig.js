@@ -21,15 +21,52 @@ export const imageConfig = {
       height: Math.floor(1600 / 22), // Based on 1:22 aspect ratio
       quality: 80,
       fit: "scale-down",
-      upscale: false,
+      format: "auto", // Let browser negotiation determine format
+      metadata: "copyright",
+      // Additional CF-supported parameters that can be overridden
+      dpr: 1,
+      gravity: "auto",
+      trim: null,
+      // Visual adjustments
+      brightness: 0,
+      contrast: 0,
+      gamma: 0,
+      rotate: null,
+      sharpen: 0,
+      saturation: 0,
+      // Optional settings
+      background: null,
+      blur: null,
+      border: null,
+      compression: null,
+      onerror: null,
+      anim: true,
     },
-    // Thumbnail configuration (150px, 1:27 ratio, 85% quality)
+    // Thumbnail configuration (320px, 1:27 ratio, 85% quality)
     thumbnail: {
       width: 320,
       height: Math.floor(150 / 27), // Based on 1:27 aspect ratio
       quality: 85,
       fit: "scale-down",
-      upscale: false,
+      format: "auto",
+      metadata: "copyright",
+      gravity: "auto",
+      trim: null,
+      // Visual adjustments (optimized for thumbnails)
+      brightness: 0,
+      contrast: 5, // Slightly increased contrast for thumbnails
+      gamma: 0,
+      rotate: null,
+      sharpen: 1, // Light sharpening for thumbnails
+      saturation: 5, // Slightly increased saturation for thumbnails
+      // Optional settings
+      background: null,
+      blur: null,
+      border: null,
+      compression: null,
+      onerror: null,
+      anim: true,
+      dpr: 1,
     },
     // Default policy (multiple sizes, 1:30 ratio, 85% quality)
     default: {
@@ -38,7 +75,25 @@ export const imageConfig = {
       aspectRatio: 1 / 30, // 1:30 aspect ratio
       quality: 85,
       fit: "scale-down",
-      upscale: false,
+      format: "auto",
+      metadata: "copyright",
+      // Visual adjustment defaults
+      brightness: 0,
+      contrast: 0,
+      gamma: 0,
+      rotate: null,
+      sharpen: 0,
+      saturation: 0,
+      // Optional settings
+      gravity: "auto",
+      trim: null,
+      background: null,
+      blur: null,
+      border: null,
+      compression: null,
+      onerror: null,
+      anim: true,
+      dpr: 1,
     },
   },
 };

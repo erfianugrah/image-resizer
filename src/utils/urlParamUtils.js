@@ -7,6 +7,7 @@
 export function extractImageParams(urlParams, path = "") {
   // Define parameters with default values
   const paramDefinitions = {
+    // Core parameters
     derivative: null,
     width: null,
     height: null,
@@ -14,7 +15,27 @@ export function extractImageParams(urlParams, path = "") {
     fit: null,
     format: null,
     metadata: "copyright",
-    upscale: "false",
+
+    // Additional Cloudflare parameters
+    dpr: null,
+    gravity: null,
+    trim: null,
+
+    // Visual adjustments
+    brightness: null,
+    contrast: null,
+    gamma: null,
+    rotate: null,
+    sharpen: null,
+    saturation: null,
+
+    // Optional settings
+    background: null,
+    blur: null,
+    border: null,
+    compression: null,
+    onerror: null,
+    anim: null,
   };
 
   // Extract parameters using the definitions

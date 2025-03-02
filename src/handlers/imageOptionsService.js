@@ -15,27 +15,82 @@ export function determineImageOptions(request, urlParams, path) {
   // Extract all image parameters from URL
   const params = extractImageParams(urlParams, path);
 
-  // Check for path-based derivative
+  // Check if this is a direct request with explicit parameters
+  const hasExplicitParams = Object.entries(params).some(([key, value]) =>
+    value !== null &&
+    key !== "derivative" &&
+    key !== "metadata" // metadata has a default but shouldn't trigger derivative logic
+  );
+
+  // If user specified explicit parameters, use only those parameters
+  if (hasExplicitParams) {
+    const options = {};
+
+    // Only add parameters that were explicitly provided
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== null) {
+        // Parse numeric parameters
+        if (
+          [
+            "width",
+            "height",
+            "quality",
+            "brightness",
+            "contrast",
+            "gamma",
+            "sharpen",
+            "saturation",
+            "dpr",
+            "blur",
+          ].includes(key)
+        ) {
+          const numValue = parseFloat(value);
+          if (!isNaN(numValue)) {
+            options[key] = numValue;
+          }
+        } else {
+          options[key] = value;
+        }
+      }
+    });
+
+    // If width specified but format not, determine format from Accept header
+    if (!options.format) {
+      options.format = determineFormat(request, null);
+    }
+
+    // For debugging, mark the source as "explicit-params"
+    options.source = "explicit-params";
+
+    return options;
+  }
+
+  // Check for path-based derivative or explicit derivative parameter
   const pathDerivative = getDerivativeFromPath(path);
   const requestedDerivative = params.derivative || pathDerivative;
 
-  // Define derivative handlers
-  const derivativeHandlers = {
-    "header": () => applyHeaderDerivative(params),
-    "thumbnail": () => applyThumbnailDerivative(params),
-    "default": () => applyDefaultDerivative(request, params),
-  };
+  // If a specific derivative was requested, apply it
+  if (requestedDerivative) {
+    const derivativeHandlers = {
+      "header": () => applyHeaderDerivative(params),
+      "thumbnail": () => applyThumbnailDerivative(params),
+    };
 
-  // Apply the appropriate derivative or default
-  const options =
-    (derivativeHandlers[requestedDerivative] || derivativeHandlers.default)();
+    // Apply the requested derivative if handler exists
+    if (derivativeHandlers[requestedDerivative]) {
+      const options = derivativeHandlers[requestedDerivative]();
+      // Add the derivative name for debugging
+      options.derivative = requestedDerivative;
+      // Determine image format
+      options.format = determineFormat(request, params.format);
+      return options;
+    }
+  }
 
-  // Store the derivative name for debugging
-  options.derivative = requestedDerivative || "default";
-
+  // If no derivative was requested and no explicit params, use responsive sizing
+  const options = applyResponsiveSizing(request, params);
   // Determine image format
   options.format = determineFormat(request, params.format);
-
   return options;
 }
 
@@ -74,18 +129,20 @@ function applyThumbnailDerivative(params) {
 }
 
 /**
- * Apply default derivative settings
+ * Apply responsive sizing logic
  * @param {Request} request - The incoming request
  * @param {Object} params - Request parameters
- * @returns {Object} - Image options with default derivative settings
+ * @returns {Object} - Image options with responsive sizing
  */
-function applyDefaultDerivative(request, params) {
+function applyResponsiveSizing(request, params) {
+  // Basic quality and fit settings from default config
   const options = {
     quality: imageConfig.derivatives.default.quality,
     fit: imageConfig.derivatives.default.fit,
+    metadata: imageConfig.derivatives.default.metadata,
   };
 
-  // Get dimensions based on width parameter or device detection
+  // Get dimensions based on device detection
   const dimensionOptions = getImageDimensions(
     request,
     params.width,
@@ -95,12 +152,6 @@ function applyDefaultDerivative(request, params) {
 
   options.width = dimensionOptions.width;
   options.source = dimensionOptions.source;
-
-  // Calculate height based on aspect ratio if not provided but width is available
-  // (and it's not "auto")
-  if (!params.height && options.width && options.width !== "auto") {
-    options.height = Math.floor(options.width * (9 / 16)); // 16:9 aspect ratio
-  }
 
   // Override with explicitly provided URL parameters
   applyParameterOverrides(options, params);
@@ -115,22 +166,53 @@ function applyDefaultDerivative(request, params) {
  */
 function applyParameterOverrides(options, params) {
   // Define parameters that need parsing/conversion
-  const numericParams = ["height", "quality"];
-  const stringParams = ["fit", "metadata"];
-  const booleanParams = ["upscale"];
+  const numericParams = [
+    "height",
+    "quality",
+    "brightness",
+    "contrast",
+    "gamma",
+    "sharpen",
+    "saturation",
+    "dpr",
+    "blur",
+  ];
+
+  const stringParams = [
+    "fit",
+    "metadata",
+    "gravity",
+    "background",
+    "border",
+    "compression",
+    "onerror",
+    "rotate",
+    "trim",
+  ];
+
+  const booleanParams = ["anim"];
 
   // Apply numeric parameters
   numericParams.forEach((param) => {
-    if (params[param]) options[param] = parseInt(params[param]);
+    if (params[param] !== null && params[param] !== undefined) {
+      const value = parseFloat(params[param]);
+      if (!isNaN(value)) {
+        options[param] = value;
+      }
+    }
   });
 
   // Apply string parameters
   stringParams.forEach((param) => {
-    if (params[param]) options[param] = params[param];
+    if (params[param] !== null && params[param] !== undefined) {
+      options[param] = params[param];
+    }
   });
 
   // Apply boolean parameters
   booleanParams.forEach((param) => {
-    if (params[param] !== undefined) options[param] = params[param] === "true";
+    if (params[param] !== null && params[param] !== undefined) {
+      options[param] = params[param] === "true" || params[param] === "1";
+    }
   });
 }

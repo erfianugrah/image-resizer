@@ -40,7 +40,7 @@ export function getImageDimensions(
       },
     },
 
-    // Case 2: Explicit width parameter
+    // Case 2: Explicit width parameter - use exact value as specified by user
     {
       condition: () => {
         const parsedWidth = parseInt(requestedWidth);
@@ -50,7 +50,7 @@ export function getImageDimensions(
         const parsedWidth = parseInt(requestedWidth);
         console.log("Explicit width requested:", parsedWidth);
         return {
-          width: findClosestWidth(parsedWidth, availableWidths),
+          width: parsedWidth, // Use exact requested width instead of finding closest match
           source: "explicit-width",
         };
       },

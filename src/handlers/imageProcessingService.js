@@ -64,11 +64,19 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
     imageOptions.width = 1200; // Fallback
   }
 
+  // Only include defined parameters to avoid sending empty/null values to Cloudflare API
+  const cfImageOptions = {};
+  Object.entries(imageOptions).forEach(([key, value]) => {
+    if (value !== null && value !== undefined) {
+      cfImageOptions[key] = value;
+    }
+  });
+
   // Log request headers for debugging
   const headerDebug = {};
   request.headers.forEach((value, key) => headerDebug[key] = value);
   console.log("Request headers:", JSON.stringify(headerDebug));
-  console.log("Final image options:", JSON.stringify(imageOptions));
+  console.log("Final image options:", JSON.stringify(cfImageOptions));
 
   try {
     const cacheTags = generateCacheTags(
@@ -82,7 +90,7 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
         mirage: cache.mirage || false,
         cacheEverything: cache.cacheability || false,
         cacheTtl: cache.ttl?.ok,
-        image: imageOptions,
+        image: cfImageOptions,
         cacheTags,
       },
     });

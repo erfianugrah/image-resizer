@@ -1,9 +1,10 @@
 /**
  * Determine derivative type from URL path
  * @param {string} path - The URL path
+ * @param {Object} config - Environment configuration
  * @returns {string|null} - Derivative type or null if no match
  */
-export function getDerivativeFromPath(path) {
+export function getDerivativeFromPath(path, config = null) {
   // Define known derivatives
   const knownDerivatives = ["header", "thumbnail"];
 
@@ -13,6 +14,17 @@ export function getDerivativeFromPath(path) {
   // Check first segment specifically
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
     return segments[0];
+  }
+
+  // If config is available, check path templates
+  if (config && config.pathTemplates) {
+    const matchedPath = Object.keys(config.pathTemplates).find((pathPattern) =>
+      path.includes(`/${pathPattern}/`)
+    );
+
+    if (matchedPath) {
+      return config.pathTemplates[matchedPath];
+    }
   }
 
   // Fallback to substring check for backward compatibility

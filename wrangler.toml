@@ -35,9 +35,56 @@ name = "direct-resizer"
 [env.direct.vars]
 ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "direct"
-ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\",\"header\":\"header\",\"thumbnail\":\"thumbnail\"}"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Predefined image transformation templates
+DERIVATIVE_TEMPLATES = '''
+{
+  "header": {
+    "width": 1600,
+    "height": 73,
+    "quality": 80,
+    "fit": "scale-down",
+    "metadata": "copyright"
+  },
+  "thumbnail": {
+    "width": 320,
+    "height": 150,
+    "quality": 85,
+    "fit": "scale-down",
+    "metadata": "copyright",
+    "sharpen": 1
+  },
+  "avatar": {
+    "width": 180,
+    "height": 180,
+    "quality": 90,
+    "fit": "cover",
+    "metadata": "none",
+    "gravity": "face"
+  },
+  "product": {
+    "width": 800,
+    "height": 800,
+    "quality": 85,
+    "fit": "contain",
+    "background": "white"
+  }
+}
+'''
+
+# Path-based derivative mappings
+PATH_TEMPLATES = '''
+{
+  "profile-pictures": "avatar",
+  "hero-banners": "header",
+  "header": "header",
+  "thumbnail": "thumbnail",
+  "avatars": "avatar",
+  "products": "product"
+}
+'''
 
 [[env.direct.routes]]
 pattern = "dev-direct.images.erfi.dev/*"
@@ -50,11 +97,81 @@ name = "remote-resizer"
 [env.remote.vars]
 ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "remote"
-REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
-ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\",\"header\":\"header\",\"thumbnail\":\"thumbnail\"}"
-PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Predefined image transformation templates
+DERIVATIVE_TEMPLATES = '''
+{
+  "header": {
+    "width": 1600,
+    "height": 73,
+    "quality": 80,
+    "fit": "scale-down",
+    "metadata": "copyright"
+  },
+  "thumbnail": {
+    "width": 320,
+    "height": 150,
+    "quality": 85,
+    "fit": "scale-down",
+    "metadata": "copyright",
+    "sharpen": 1
+  },
+  "avatar": {
+    "width": 180,
+    "height": 180,
+    "quality": 90,
+    "fit": "cover",
+    "metadata": "none",
+    "gravity": "face"
+  },
+  "product": {
+    "width": 800,
+    "height": 800,
+    "quality": 85,
+    "fit": "contain",
+    "background": "white"
+  }
+}
+'''
+
+# Path-based derivative mappings
+PATH_TEMPLATES = '''
+{
+  "profile-pictures": "avatar",
+  "hero-banners": "header",
+  "header": "header",
+  "thumbnail": "thumbnail",
+  "avatars": "avatar",
+  "products": "product"
+}
+'''
+
+# Remote bucket configuration
+REMOTE_BUCKETS = '''
+{
+  "default": "https://cdn.erfianugrah.com"
+}
+'''
+
+# Path transformation rules for remote buckets
+PATH_TRANSFORMS = '''
+{
+  "images": {
+    "prefix": "",
+    "removePrefix": true
+  },
+  "assets": {
+    "prefix": "img/", 
+    "removePrefix": true
+  },
+  "content": {
+    "prefix": "content-images/",
+    "removePrefix": true
+  }
+}
+'''
 
 [[env.remote.routes]]
 pattern = "dev-remote.images.erfi.dev/*"
@@ -67,11 +184,81 @@ name = "staging-resizer"
 [env.staging.vars]
 ENVIRONMENT = "staging"
 DEPLOYMENT_MODE = "remote"
-REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
-ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\",\"header\":\"header\",\"thumbnail\":\"thumbnail\"}"
-PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Predefined image transformation templates (same as other environments)
+DERIVATIVE_TEMPLATES = '''
+{
+  "header": {
+    "width": 1600,
+    "height": 73,
+    "quality": 80,
+    "fit": "scale-down",
+    "metadata": "copyright"
+  },
+  "thumbnail": {
+    "width": 320,
+    "height": 150,
+    "quality": 85,
+    "fit": "scale-down",
+    "metadata": "copyright",
+    "sharpen": 1
+  },
+  "avatar": {
+    "width": 180,
+    "height": 180,
+    "quality": 90,
+    "fit": "cover",
+    "metadata": "none",
+    "gravity": "face"
+  },
+  "product": {
+    "width": 800,
+    "height": 800,
+    "quality": 85,
+    "fit": "contain",
+    "background": "white"
+  }
+}
+'''
+
+# Path-based derivative mappings (same as other environments)
+PATH_TEMPLATES = '''
+{
+  "profile-pictures": "avatar",
+  "hero-banners": "header",
+  "header": "header",
+  "thumbnail": "thumbnail",
+  "avatars": "avatar",
+  "products": "product"
+}
+'''
+
+# Same remote bucket configuration as remote env
+REMOTE_BUCKETS = '''
+{
+  "default": "https://cdn.erfianugrah.com"
+}
+'''
+
+# Same path transformations as remote env
+PATH_TRANSFORMS = '''
+{
+  "images": {
+    "prefix": "",
+    "removePrefix": true
+  },
+  "assets": {
+    "prefix": "img/", 
+    "removePrefix": true
+  },
+  "content": {
+    "prefix": "content-images/",
+    "removePrefix": true
+  }
+}
+'''
 
 [[env.staging.routes]]
 pattern = "staging.images.erfi.dev/*"
@@ -84,11 +271,81 @@ name = "prod-resizer"
 [env.prod.vars]
 ENVIRONMENT = "production"
 DEPLOYMENT_MODE = "remote"
-REMOTE_BUCKETS = "{\"default\":\"https://cdn.erfianugrah.com\"}"
-ROUTE_DERIVATIVES = "{\"profile-pictures\":\"thumbnail\",\"hero-banners\":\"header\",\"header\":\"header\",\"thumbnail\":\"thumbnail\"}"
-PATH_TRANSFORMS = "{\"images\":{\"prefix\":\"\",\"removePrefix\":true}}"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Predefined image transformation templates (same as other environments)
+DERIVATIVE_TEMPLATES = '''
+{
+  "header": {
+    "width": 1600,
+    "height": 73,
+    "quality": 80,
+    "fit": "scale-down",
+    "metadata": "copyright"
+  },
+  "thumbnail": {
+    "width": 320,
+    "height": 150,
+    "quality": 85,
+    "fit": "scale-down",
+    "metadata": "copyright",
+    "sharpen": 1
+  },
+  "avatar": {
+    "width": 180,
+    "height": 180,
+    "quality": 90,
+    "fit": "cover",
+    "metadata": "none",
+    "gravity": "face"
+  },
+  "product": {
+    "width": 800,
+    "height": 800,
+    "quality": 85,
+    "fit": "contain",
+    "background": "white"
+  }
+}
+'''
+
+# Path-based derivative mappings (same as other environments)
+PATH_TEMPLATES = '''
+{
+  "profile-pictures": "avatar",
+  "hero-banners": "header",
+  "header": "header",
+  "thumbnail": "thumbnail",
+  "avatars": "avatar",
+  "products": "product"
+}
+'''
+
+# Same remote bucket configuration as other envs
+REMOTE_BUCKETS = '''
+{
+  "default": "https://cdn.erfianugrah.com"
+}
+'''
+
+# Same path transformations as other envs
+PATH_TRANSFORMS = '''
+{
+  "images": {
+    "prefix": "",
+    "removePrefix": true
+  },
+  "assets": {
+    "prefix": "img/", 
+    "removePrefix": true
+  },
+  "content": {
+    "prefix": "content-images/",
+    "removePrefix": true
+  }
+}
+'''
 
 [[env.prod.routes]]
 pattern = "images.erfi.dev/*"

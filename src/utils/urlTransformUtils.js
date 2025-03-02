@@ -64,7 +64,7 @@ export function transformRequestUrl(request, config, env) {
  * @param {string[]} segments - Path segments
  * @param {string} path - Full path
  * @param {Object} config - Configuration
- * @returns {string|null} - Derivative type
+ * @returns {string|null} - Derivative type or object
  */
 function getDerivativeForPath(segments, path, config) {
   const knownDerivatives = ["header", "thumbnail"];
@@ -74,14 +74,15 @@ function getDerivativeForPath(segments, path, config) {
     return segments[0];
   }
 
-  // Check route derivatives from config
-  if (config.routeDerivatives) {
-    const routeMatch = Object.keys(config.routeDerivatives).find(
-      (route) => path.includes(`/${route}/`),
-    );
+  // Check derivative templates from config (previously called routeDerivatives)
+  if (config.derivativeTemplates) {
+    // Look for the longest matching route to handle nested paths correctly
+    const matchedRoutes = Object.keys(config.derivativeTemplates)
+      .filter((route) => path.includes(`/${route}/`))
+      .sort((a, b) => b.length - a.length); // Sort by length, longest first
 
-    if (routeMatch) {
-      return config.routeDerivatives[routeMatch];
+    if (matchedRoutes.length > 0) {
+      return config.derivativeTemplates[matchedRoutes[0]];
     }
   }
 
@@ -160,7 +161,22 @@ function buildOriginUrl(originalUrl, transformedPath, remoteOrigin) {
     "format",
     "metadata",
     "derivative",
-    "upscale",
+    // Additional Cloudflare parameters
+    "dpr",
+    "gravity",
+    "trim",
+    "brightness",
+    "contrast",
+    "gamma",
+    "rotate",
+    "sharpen",
+    "saturation",
+    "background",
+    "blur",
+    "border",
+    "compression",
+    "onerror",
+    "anim",
   ];
 
   // Copy over search params, excluding image-specific ones

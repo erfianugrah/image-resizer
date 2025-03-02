@@ -19,10 +19,31 @@ const defaultConfig = {
     },
   },
 
-  // Route configuration - automatically apply derivatives based on route
-  routeDerivatives: {
+  // Derivative templates - predefined image transformation settings
+  derivativeTemplates: {
+    "header": {
+      width: 1600,
+      height: 73,
+      quality: 80,
+      fit: "scale-down",
+      metadata: "copyright",
+    },
+    "thumbnail": {
+      width: 320,
+      height: 150,
+      quality: 85,
+      fit: "scale-down",
+      metadata: "copyright",
+      sharpen: 1,
+    },
+  },
+
+  // Path-based mappings to derivatives
+  pathTemplates: {
     "profile-pictures": "thumbnail",
     "hero-banners": "header",
+    "header": "header",
+    "thumbnail": "thumbnail",
   },
 };
 
@@ -67,14 +88,46 @@ export function getEnvironmentConfig(env = {}) {
         }
       },
     },
+    // New configuration for derivative templates
+    {
+      key: "DERIVATIVE_TEMPLATES",
+      handler: (value) => {
+        try {
+          config.derivativeTemplates = {
+            ...config.derivativeTemplates,
+            ...JSON.parse(value),
+          };
+        } catch (e) {
+          console.error("Failed to parse DERIVATIVE_TEMPLATES env variable", e);
+        }
+      },
+    },
+    // New configuration for path-based derivative mappings
+    {
+      key: "PATH_TEMPLATES",
+      handler: (value) => {
+        try {
+          config.pathTemplates = {
+            ...config.pathTemplates,
+            ...JSON.parse(value),
+          };
+        } catch (e) {
+          console.error("Failed to parse PATH_TEMPLATES env variable", e);
+        }
+      },
+    },
+    // Handle legacy ROUTE_DERIVATIVES for backward compatibility
     {
       key: "ROUTE_DERIVATIVES",
       handler: (value) => {
         try {
-          config.routeDerivatives = {
-            ...config.routeDerivatives,
-            ...JSON.parse(value),
-          };
+          // Only use if PATH_TEMPLATES not present
+          if (!env.PATH_TEMPLATES) {
+            config.pathTemplates = {
+              ...config.pathTemplates,
+              ...JSON.parse(value),
+            };
+          }
         } catch (e) {
           console.error("Failed to parse ROUTE_DERIVATIVES env variable", e);
         }
