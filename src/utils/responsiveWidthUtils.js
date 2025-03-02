@@ -20,17 +20,26 @@ export function getImageDimensions(
   availableWidths,
   responsiveWidths,
 ) {
-  // Case 1: Explicitly set width=auto - use Cloudflare's native auto sizing
+  console.log("getImageDimensions - requestedWidth:", requestedWidth);
+
+  // Case 1: Explicitly set width=auto - calculate width instead of using "auto"
   if (requestedWidth === "auto") {
-    return {
-      width: "auto",
-      source: "explicit-auto",
-    };
+    console.log("Explicit auto width requested");
+    // Don't use "auto" directly as it causes 400 errors
+    // Instead, use client hints if available, otherwise fall back to UA detection
+    if (hasClientHints(request)) {
+      return getWidthFromClientHints(request);
+    } else if (hasCfDeviceType(request)) {
+      return getWidthFromCfDeviceType(request);
+    } else {
+      return getWidthFromUserAgent(request, responsiveWidths);
+    }
   }
 
   // Case 2: Explicit width parameter
   const parsedWidth = parseInt(requestedWidth);
   if (!isNaN(parsedWidth)) {
+    console.log("Explicit width requested:", parsedWidth);
     return {
       width: findClosestWidth(parsedWidth, availableWidths),
       source: "explicit-width",
@@ -38,6 +47,7 @@ export function getImageDimensions(
   }
 
   // Case 3: No width specified - use responsive detection with priority order
+  console.log("No width specified, using responsive detection");
   return getResponsiveWidth(request, responsiveWidths);
 }
 
@@ -48,18 +58,30 @@ export function getImageDimensions(
  * @returns {Object} - Width settings based on best available detection method
  */
 export function getResponsiveWidth(request, responsiveWidths) {
-  // PRIORITY 1: Client hints (Chrome, Edge, Opera, etc.) - use 'auto'
-  if (hasClientHints(request)) {
-    // Use the result from client hints
+  console.log("Responsive width detection flow:");
+
+  // PRIORITY 1: Client hints (Chrome, Edge, Opera, etc.)
+  const hasClientHintsResult = hasClientHints(request);
+  console.log("hasClientHints:", hasClientHintsResult);
+
+  if (hasClientHintsResult) {
+    console.log("Using client hints for width");
     return getWidthFromClientHints(request);
   }
 
-  // PRIORITY 2: Cloudflare's device detection - use specific widths (480p/720p/1080p)
-  if (hasCfDeviceType(request)) {
+  // PRIORITY 2: Cloudflare's device detection
+  const hasCfDeviceTypeResult = hasCfDeviceType(request);
+  console.log("hasCfDeviceType:", hasCfDeviceTypeResult);
+  console.log("CF-Device-Type:", request.headers.get("CF-Device-Type"));
+
+  if (hasCfDeviceTypeResult) {
+    console.log("Using CF-Device-Type for width");
     return getWidthFromCfDeviceType(request);
   }
 
-  // PRIORITY 3: User agent detection as fallback - use specific widths
+  // PRIORITY 3: User agent detection as fallback
+  console.log("Using User-Agent for width");
+  console.log("User-Agent:", request.headers.get("User-Agent"));
   return getWidthFromUserAgent(request, responsiveWidths);
 }
 
