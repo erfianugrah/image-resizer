@@ -6,7 +6,7 @@
  */
 export function getDerivativeFromPath(path, config = null) {
   // Define known derivatives
-  const knownDerivatives = ["header", "thumbnail"];
+  const knownDerivatives = ["header", "thumbnail", "avatar", "product"];
 
   // Check for exact path segments to avoid partial matches
   const segments = path.split("/").filter((segment) => segment);

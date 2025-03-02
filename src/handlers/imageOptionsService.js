@@ -111,7 +111,6 @@ function applyResponsiveSizing(request, params) {
   const dimensionOptions = getImageDimensions(
     request,
     params.width,
-    imageConfig.responsive.availableWidths,
     imageConfig.responsive.breakpoints,
   );
 

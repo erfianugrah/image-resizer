@@ -126,14 +126,19 @@ function buildResponse(request, response, options, cache, debugInfo) {
   // Set cache control headers
   const cacheControl = determineCacheControl(response.status, cache);
 
+  // Determine processing mode for debug headers
+  const processingMode = options.derivative
+    ? `template:${options.derivative}`
+    : (options.source === "explicit-params" ? "explicit" : "responsive");
+
   // Define standard headers to set
   const standardHeaders = {
     "Cache-Control": cacheControl,
     "debug-ir": JSON.stringify(options),
     "debug-cache": JSON.stringify(cache),
     "debug-mode": JSON.stringify(debugInfo),
-    "x-derivative": options.derivative || "default",
-    "x-size-source": options.source || "default",
+    "x-processing-mode": processingMode,
+    "x-size-source": options.source || "unknown",
     "x-actual-width": options.width || "unknown",
   };
 

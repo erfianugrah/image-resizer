@@ -67,7 +67,7 @@ export function transformRequestUrl(request, config, env) {
  * @returns {string|null} - Derivative type or object
  */
 function getDerivativeForPath(segments, path, config) {
-  const knownDerivatives = ["header", "thumbnail"];
+  const knownDerivatives = ["header", "thumbnail", "avatar", "product"];
 
   // Check first segment if it's a known derivative
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
@@ -101,7 +101,7 @@ function transformPathForRemote(path, segments, bucketName, config) {
   let transformedPath = path;
 
   // Remove derivative prefix if present
-  const knownDerivatives = ["header", "thumbnail"];
+  const knownDerivatives = ["header", "thumbnail", "avatar", "product"];
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
     transformedPath = `/${segments.slice(1).join("/")}`;
   }

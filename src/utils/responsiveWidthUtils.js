@@ -4,20 +4,17 @@ import {
   getWidthFromUserAgent,
   hasCfDeviceType,
 } from "./deviceUtils.js";
-import { findClosestWidth } from "./urlParamUtils.js";
 
 /**
  * Get image dimensions based on requested width or responsive detection
  * @param {Request} request - The incoming request
  * @param {string} requestedWidth - Width parameter from URL
- * @param {number[]} availableWidths - Available predefined widths
- * @param {number[]} responsiveWidths - Available responsive widths
+ * @param {number[]} responsiveWidths - Available responsive widths for auto sizing
  * @returns {Object} - Width and source information
  */
 export function getImageDimensions(
   request,
   requestedWidth,
-  availableWidths,
   responsiveWidths,
 ) {
   console.log("getImageDimensions - requestedWidth:", requestedWidth);
@@ -50,7 +47,7 @@ export function getImageDimensions(
         const parsedWidth = parseInt(requestedWidth);
         console.log("Explicit width requested:", parsedWidth);
         return {
-          width: parsedWidth, // Use exact requested width instead of finding closest match
+          width: parsedWidth, // Use exact requested width
           source: "explicit-width",
         };
       },
