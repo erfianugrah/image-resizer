@@ -86,6 +86,24 @@ PATH_TEMPLATES = '''
 }
 '''
 
+# Logging configuration
+LOGGING_CONFIG = '''
+{
+  "level": "DEBUG",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Debug headers configuration
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": true,
+  "prefix": "debug-",
+  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua"]
+}
+'''
+
 [[env.direct.routes]]
 pattern = "dev-direct.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -170,6 +188,24 @@ PATH_TRANSFORMS = '''
     "prefix": "content-images/",
     "removePrefix": true
   }
+}
+'''
+
+# Logging configuration
+LOGGING_CONFIG = '''
+{
+  "level": "DEBUG",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Debug headers configuration
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": true,
+  "prefix": "debug-",
+  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua"]
 }
 '''
 
@@ -260,6 +296,24 @@ PATH_TRANSFORMS = '''
 }
 '''
 
+# Logging configuration
+LOGGING_CONFIG = '''
+{
+  "level": "INFO",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Debug headers configuration
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": true,
+  "prefix": "debug-",
+  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua"]
+}
+'''
+
 [[env.staging.routes]]
 pattern = "staging.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -344,6 +398,22 @@ PATH_TRANSFORMS = '''
     "prefix": "content-images/",
     "removePrefix": true
   }
+}
+'''
+
+# Logging configuration - less verbose for production
+LOGGING_CONFIG = '''
+{
+  "level": "DEBUG",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Debug headers configuration - disabled for production
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": false
 }
 '''
 

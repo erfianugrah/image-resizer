@@ -2,6 +2,8 @@ import {
   determineCacheControl,
   generateCacheTags,
 } from "../utils/cacheControlUtils.js";
+import { debug, error, info, logResponse, warn } from "../utils/loggerUtils.js";
+import { applyDebugHeaders } from "../utils/debugHeadersUtils.js";
 
 /**
  * Process the image using Cloudflare's Image Resizing
@@ -12,12 +14,12 @@ import {
  * @returns {Promise<Response>} - The processed image response
  */
 export async function processImage(request, options, cache, debugInfo = {}) {
-  console.log("processImage - Initial options:", JSON.stringify(options));
-  console.log("processImage - Cache config:", JSON.stringify(cache));
+  debug("ImageProcessor", "Processing image", { options, cache, debugInfo });
 
   // Handle 'auto' width - not supported in Workers API
   if (options.width === "auto") {
-    console.warn(
+    warn(
+      "ImageProcessor",
       "width=auto is not supported in Workers API. Using responsive sizing fallback.",
     );
     options.width = 1200; // Safe default for desktop
@@ -35,10 +37,15 @@ export async function processImage(request, options, cache, debugInfo = {}) {
   const response = buildResponse(
     request,
     newResponse,
-    options,
-    cache,
-    debugInfo,
+    {
+      options,
+      cache,
+      debugInfo,
+    },
   );
+
+  // Log response details
+  logResponse("ImageProcessor", response);
 
   // Return the response or fallback to original request if error
   return response.ok || response.redirected ? response : fetch(request);
@@ -72,11 +79,11 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
     }
   });
 
-  // Log request headers for debugging
-  const headerDebug = {};
-  request.headers.forEach((value, key) => headerDebug[key] = value);
-  console.log("Request headers:", JSON.stringify(headerDebug));
-  console.log("Final image options:", JSON.stringify(cfImageOptions));
+  // Log request details
+  debug("ImageProcessor", "Preparing Cloudflare image resize fetch", {
+    imageOptions: cfImageOptions,
+    url: request.url,
+  });
 
   try {
     const cacheTags = generateCacheTags(
@@ -95,18 +102,20 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
       },
     });
 
-    // Log response details
-    const responseDetails = {
+    info("ImageProcessor", "Image processed successfully", {
       status: response.status,
-      "content-length": response.headers.get("content-length"),
-      "content-type": response.headers.get("content-type"),
-    };
-    console.log("Response details:", responseDetails);
+      contentType: response.headers.get("content-type"),
+      contentLength: response.headers.get("content-length"),
+    });
 
     return response;
-  } catch (error) {
-    console.error("Error fetching image:", error);
-    return new Response(`Error processing image: ${error.message}`, {
+  } catch (err) {
+    error("ImageProcessor", "Error fetching image", {
+      error: err.message,
+      stack: err.stack,
+    });
+
+    return new Response(`Error processing image: ${err.message}`, {
       status: 500,
     });
   }
@@ -120,56 +129,13 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
  * @param {Object} debugInfo - Debug information
  * @returns {Response} - Final response with proper headers
  */
-function buildResponse(request, response, options, cache, debugInfo) {
+function buildResponse(request, response, { options, cache, debugInfo }) {
   const newResponse = new Response(response.body, response);
 
   // Set cache control headers
   const cacheControl = determineCacheControl(response.status, cache);
+  newResponse.headers.set("Cache-Control", cacheControl);
 
-  // Determine processing mode for debug headers
-  const processingMode = options.derivative
-    ? `template:${options.derivative}`
-    : (options.source === "explicit-params" ? "explicit" : "responsive");
-
-  // Define standard headers to set
-  const standardHeaders = {
-    "Cache-Control": cacheControl,
-    "debug-ir": JSON.stringify(options),
-    "debug-cache": JSON.stringify(cache),
-    "debug-mode": JSON.stringify(debugInfo),
-    "x-processing-mode": processingMode,
-    "x-size-source": options.source || "unknown",
-    "x-actual-width": options.width || "unknown",
-  };
-
-  // Add all client hints headers to debug output
-  const clientHintHeaders = [
-    "Sec-CH-Viewport-Width",
-    "Sec-CH-DPR",
-    "Width",
-    "Viewport-Width",
-    "CF-Device-Type",
-  ];
-
-  const clientHintsDebug = clientHintHeaders.reduce((debug, header) => {
-    debug[header.toLowerCase()] = request.headers.get(header);
-    return debug;
-  }, {});
-
-  standardHeaders["debug-client-hints"] = JSON.stringify(clientHintsDebug);
-  standardHeaders["debug-ua"] = request.headers.get("User-Agent") || "";
-
-  // Add client hints related headers
-  const clientHintsResponseHeaders = {
-    "Accept-CH": "Sec-CH-DPR, Sec-CH-Viewport-Width, Width, Viewport-Width",
-    "Permissions-Policy": "ch-dpr=(self), ch-viewport-width=(self)",
-    "Critical-CH": "Sec-CH-DPR, Sec-CH-Viewport-Width",
-  };
-
-  // Set all headers
-  Object.entries({ ...standardHeaders, ...clientHintsResponseHeaders }).forEach(
-    ([key, value]) => newResponse.headers.set(key, value),
-  );
-
-  return newResponse;
+  // Apply all debug headers through our utility
+  return applyDebugHeaders(request, newResponse, { options, cache, debugInfo });
 }
