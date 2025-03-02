@@ -70,21 +70,20 @@ export function determineImageOptions(request, urlParams, path) {
   const requestedDerivative = params.derivative || pathDerivative;
 
   // If a specific derivative was requested, apply it
-  if (requestedDerivative) {
-    const derivativeHandlers = {
-      "header": () => applyHeaderDerivative(params),
-      "thumbnail": () => applyThumbnailDerivative(params),
+  if (requestedDerivative && imageConfig.derivatives[requestedDerivative]) {
+    const options = {
+      ...imageConfig.derivatives[requestedDerivative],
+      source: `derivative-${requestedDerivative}`,
+      derivative: requestedDerivative,
     };
 
-    // Apply the requested derivative if handler exists
-    if (derivativeHandlers[requestedDerivative]) {
-      const options = derivativeHandlers[requestedDerivative]();
-      // Add the derivative name for debugging
-      options.derivative = requestedDerivative;
-      // Determine image format
-      options.format = determineFormat(request, params.format);
-      return options;
-    }
+    // Override with explicitly provided URL parameters
+    applyParameterOverrides(options, params);
+
+    // Determine image format
+    options.format = determineFormat(request, params.format);
+
+    return options;
   }
 
   // If no derivative was requested and no explicit params, use responsive sizing
@@ -95,59 +94,25 @@ export function determineImageOptions(request, urlParams, path) {
 }
 
 /**
- * Apply header derivative settings
- * @param {Object} params - Request parameters
- * @returns {Object} - Image options with header derivative settings
- */
-function applyHeaderDerivative(params) {
-  const options = {
-    ...imageConfig.derivatives.header,
-    source: "derivative-header",
-  };
-
-  // Override with explicitly provided URL parameters
-  applyParameterOverrides(options, params);
-
-  return options;
-}
-
-/**
- * Apply thumbnail derivative settings
- * @param {Object} params - Request parameters
- * @returns {Object} - Image options with thumbnail derivative settings
- */
-function applyThumbnailDerivative(params) {
-  const options = {
-    ...imageConfig.derivatives.thumbnail,
-    source: "derivative-thumbnail",
-  };
-
-  // Override with explicitly provided URL parameters
-  applyParameterOverrides(options, params);
-
-  return options;
-}
-
-/**
  * Apply responsive sizing logic
  * @param {Request} request - The incoming request
  * @param {Object} params - Request parameters
  * @returns {Object} - Image options with responsive sizing
  */
 function applyResponsiveSizing(request, params) {
-  // Basic quality and fit settings from default config
+  // Basic quality and fit settings from responsive config
   const options = {
-    quality: imageConfig.derivatives.default.quality,
-    fit: imageConfig.derivatives.default.fit,
-    metadata: imageConfig.derivatives.default.metadata,
+    quality: imageConfig.responsive.quality,
+    fit: imageConfig.responsive.fit,
+    metadata: imageConfig.responsive.metadata,
   };
 
   // Get dimensions based on device detection
   const dimensionOptions = getImageDimensions(
     request,
     params.width,
-    imageConfig.derivatives.default.widths,
-    imageConfig.derivatives.default.responsiveWidths,
+    imageConfig.responsive.availableWidths,
+    imageConfig.responsive.breakpoints,
   );
 
   options.width = dimensionOptions.width;

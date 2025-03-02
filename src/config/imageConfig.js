@@ -18,23 +18,20 @@ export const imageConfig = {
     // Header resize configuration (1600px, 1:22 ratio, 80% quality)
     header: {
       width: 1600,
-      height: Math.floor(1600 / 22), // Based on 1:22 aspect ratio
+      height: 73,
       quality: 80,
       fit: "scale-down",
-      format: "auto", // Let browser negotiation determine format
+      format: "auto",
       metadata: "copyright",
-      // Additional CF-supported parameters that can be overridden
       dpr: 1,
       gravity: "auto",
       trim: null,
-      // Visual adjustments
       brightness: 0,
       contrast: 0,
       gamma: 0,
       rotate: null,
       sharpen: 0,
       saturation: 0,
-      // Optional settings
       background: null,
       blur: null,
       border: null,
@@ -45,21 +42,19 @@ export const imageConfig = {
     // Thumbnail configuration (320px, 1:27 ratio, 85% quality)
     thumbnail: {
       width: 320,
-      height: Math.floor(150 / 27), // Based on 1:27 aspect ratio
+      height: 150,
       quality: 85,
       fit: "scale-down",
       format: "auto",
       metadata: "copyright",
       gravity: "auto",
       trim: null,
-      // Visual adjustments (optimized for thumbnails)
       brightness: 0,
-      contrast: 5, // Slightly increased contrast for thumbnails
+      contrast: 5,
       gamma: 0,
       rotate: null,
-      sharpen: 1, // Light sharpening for thumbnails
-      saturation: 5, // Slightly increased saturation for thumbnails
-      // Optional settings
+      sharpen: 1,
+      saturation: 5,
       background: null,
       blur: null,
       border: null,
@@ -68,26 +63,47 @@ export const imageConfig = {
       anim: true,
       dpr: 1,
     },
-    // Default policy (multiple sizes, 1:30 ratio, 85% quality)
-    default: {
-      widths: [320, 640, 1024, 2048, 5000],
-      responsiveWidths: [320, 768, 960, 1200], // For width=auto
-      aspectRatio: 1 / 30, // 1:30 aspect ratio
+    // Avatar configuration (180x180, 90% quality, face detection)
+    avatar: {
+      width: 180,
+      height: 180,
+      quality: 90,
+      fit: "cover",
+      format: "auto",
+      metadata: "none",
+      gravity: "face",
+      trim: null,
+      brightness: 0,
+      contrast: 0,
+      gamma: 0,
+      rotate: null,
+      sharpen: 2,
+      saturation: 0,
+      background: null,
+      blur: null,
+      border: null,
+      compression: null,
+      onerror: null,
+      anim: true,
+      dpr: 1,
+    },
+    // Product configuration (800x800, 85% quality, white background)
+    product: {
+      width: 800,
+      height: 800,
       quality: 85,
-      fit: "scale-down",
+      fit: "contain",
       format: "auto",
       metadata: "copyright",
-      // Visual adjustment defaults
+      gravity: "auto",
+      trim: null,
       brightness: 0,
       contrast: 0,
       gamma: 0,
       rotate: null,
       sharpen: 0,
       saturation: 0,
-      // Optional settings
-      gravity: "auto",
-      trim: null,
-      background: null,
+      background: "white",
       blur: null,
       border: null,
       compression: null,
@@ -95,5 +111,20 @@ export const imageConfig = {
       anim: true,
       dpr: 1,
     },
+  },
+  // Responsive mode settings (not a derivative)
+  responsive: {
+    // Available widths for explicit width selection
+    availableWidths: [320, 640, 1024, 2048, 5000],
+    // Widths used for auto-responsive sizing
+    breakpoints: [320, 768, 960, 1200],
+    // Default quality setting
+    quality: 85,
+    // Default fit setting
+    fit: "scale-down",
+    // Default metadata setting
+    metadata: "copyright",
+    // Default format
+    format: "auto",
   },
 };
