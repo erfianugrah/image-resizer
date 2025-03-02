@@ -4,24 +4,27 @@
  * @returns {boolean} - True if client hints are available
  */
 export function hasClientHints(request) {
+  // Define client hint headers to check
+  const clientHintHeaders = [
+    "Sec-CH-Viewport-Width",
+    "Sec-CH-DPR",
+    "Width",
+    "Viewport-Width",
+  ];
+
   // Log all client hints headers for debugging
-  console.log("Client Hints Headers:", {
-    "Sec-CH-Viewport-Width": request.headers.get("Sec-CH-Viewport-Width"),
-    "Sec-CH-DPR": request.headers.get("Sec-CH-DPR"),
-    "Width": request.headers.get("Width"),
-    "Viewport-Width": request.headers.get("Viewport-Width"),
+  const hintsDebug = clientHintHeaders.reduce((debug, header) => {
+    debug[header] = request.headers.get(header);
+    return debug;
+  }, {});
+
+  console.log("Client Hints Headers:", hintsDebug);
+
+  // Check if any of the headers have a non-empty value
+  return clientHintHeaders.some((header) => {
+    const value = request.headers.get(header);
+    return value && value !== "";
   });
-
-  const viewportWidth = request.headers.get("Sec-CH-Viewport-Width");
-  const dpr = request.headers.get("Sec-CH-DPR");
-  const width = request.headers.get("Width");
-  const viewportWithLegacy = request.headers.get("Viewport-Width");
-
-  // More strict check - ensure we have actual values, not just headers
-  return (viewportWidth && viewportWidth !== "") ||
-    (dpr && dpr !== "") ||
-    (width && width !== "") ||
-    (viewportWithLegacy && viewportWithLegacy !== "");
 }
 
 /**
@@ -30,6 +33,7 @@ export function hasClientHints(request) {
  * @returns {Object} - Width settings based on client hints
  */
 export function getWidthFromClientHints(request) {
+  // Extract relevant headers
   const viewportWidth = request.headers.get("Sec-CH-Viewport-Width");
   const dpr = request.headers.get("Sec-CH-DPR");
   const width = request.headers.get("Width");
@@ -46,21 +50,21 @@ export function getWidthFromClientHints(request) {
     viewportWithLegacy,
   });
 
-  // Calculate specific width based on viewport size instead of using "auto"
+  // Calculate specific width based on viewport size
   if (actualViewportWidth) {
     const vw = parseInt(actualViewportWidth);
-    let optimizedWidth;
 
-    // Use Cloudflare's documented breakpoints
-    if (vw <= 640) {
-      optimizedWidth = 320; // mobile
-    } else if (vw <= 1024) {
-      optimizedWidth = 768; // tablet
-    } else if (vw <= 1440) {
-      optimizedWidth = 960; // desktop
-    } else {
-      optimizedWidth = 1200; // large desktop/monitor
-    }
+    // Define viewport breakpoints and corresponding widths
+    const breakpoints = [
+      { maxWidth: 640, width: 320 }, // mobile
+      { maxWidth: 1024, width: 768 }, // tablet
+      { maxWidth: 1440, width: 960 }, // desktop
+      { maxWidth: Infinity, width: 1200 }, // large desktop
+    ];
+
+    // Find appropriate width based on viewport
+    const breakpoint = breakpoints.find((bp) => vw <= bp.maxWidth);
+    let optimizedWidth = breakpoint.width;
 
     // Apply DPR adjustment for high-DPI screens
     if (actualDpr && actualDpr !== "1") {

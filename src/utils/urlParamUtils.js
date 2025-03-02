@@ -5,16 +5,26 @@
  * @returns {Object} - Extracted image parameters
  */
 export function extractImageParams(urlParams, path = "") {
-  return {
-    derivative: urlParams.get("derivative"),
-    width: urlParams.get("width"),
-    height: urlParams.get("height"),
-    quality: urlParams.get("quality"),
-    fit: urlParams.get("fit"),
-    format: urlParams.get("format"),
-    metadata: urlParams.get("metadata") || "copyright",
-    upscale: urlParams.get("upscale") || "false",
+  // Define parameters with default values
+  const paramDefinitions = {
+    derivative: null,
+    width: null,
+    height: null,
+    quality: null,
+    fit: null,
+    format: null,
+    metadata: "copyright",
+    upscale: "false",
   };
+
+  // Extract parameters using the definitions
+  return Object.entries(paramDefinitions).reduce(
+    (params, [key, defaultValue]) => {
+      params[key] = urlParams.get(key) || defaultValue;
+      return params;
+    },
+    {},
+  );
 }
 
 /**

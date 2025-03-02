@@ -8,22 +8,17 @@ export function determineCacheControl(status, cache) {
   if (!cache || !cache.ttl) return "";
 
   const statusGroup = Math.floor(status / 100);
-  let ttl = 0;
 
-  switch (statusGroup) {
-    case 2: // 200-299 status codes
-      ttl = cache.ttl.ok;
-      break;
-    case 3: // 300-399 status codes
-      ttl = cache.ttl.redirects;
-      break;
-    case 4: // 400-499 status codes
-      ttl = cache.ttl.clientError;
-      break;
-    case 5: // 500-599 status codes
-      ttl = cache.ttl.serverError;
-      break;
-  }
+  // Map status groups to TTL properties
+  const ttlMap = {
+    2: "ok", // 200-299 status codes
+    3: "redirects", // 300-399 status codes
+    4: "clientError", // 400-499 status codes
+    5: "serverError", // 500-599 status codes
+  };
+
+  const ttlProperty = ttlMap[statusGroup];
+  const ttl = ttlProperty ? cache.ttl[ttlProperty] : 0;
 
   return ttl ? `public, max-age=${ttl}` : "";
 }

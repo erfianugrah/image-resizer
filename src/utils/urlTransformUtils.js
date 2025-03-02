@@ -18,32 +18,16 @@ export function transformRequestUrl(request, config, env) {
     isRemoteFetch: false,
   };
 
-  // Handle local mode (direct deployment)
+  // Handle direct deployment
   if (config.deploymentMode === "direct") {
-    // Check if there's a route-based derivative match
-    if (segments.length > 0) {
-      // First check if the first segment directly matches a derivative
-      if (segments[0] === "header" || segments[0] === "thumbnail") {
-        result.derivative = segments[0];
-      } else {
-        // Otherwise check route derivatives from config
-        const routeMatch = Object.keys(config.routeDerivatives || {}).find(
-          (route) => path.includes(`/${route}/`),
-        );
-
-        if (routeMatch) {
-          result.derivative = config.routeDerivatives[routeMatch];
-        }
-      }
-    }
-
+    result.derivative = getDerivativeForPath(segments, path, config);
     return result;
   }
 
   // Handle remote mode (separate worker fetching from remote buckets)
   result.isRemoteFetch = true;
 
-  // Find the matching bucket
+  // Find matching bucket
   if (segments.length > 0) {
     const bucketMatch = Object.keys(config.remoteBuckets || {}).find(
       (bucket) => segments[0] === bucket || path.includes(`/${bucket}/`),
@@ -54,91 +38,152 @@ export function transformRequestUrl(request, config, env) {
     }
   }
 
-  // Check if the first segment is a derivative
-  if (
-    segments.length > 0 &&
-    (segments[0] === "header" || segments[0] === "thumbnail")
-  ) {
-    result.derivative = segments[0];
-  } else {
-    // Check route derivatives from config
-    const routeMatch = Object.keys(config.routeDerivatives || {}).find(
+  // Determine derivative
+  result.derivative = getDerivativeForPath(segments, path, config);
+
+  // Transform the URL based on bucket and path transformation rules
+  const transformedPath = transformPathForRemote(
+    path,
+    segments,
+    result.bucketName,
+    config,
+  );
+  const remoteOrigin = getRemoteOrigin(result.bucketName, config, env);
+
+  // Build the new origin URL
+  const originUrl = buildOriginUrl(url, transformedPath, remoteOrigin);
+
+  result.originUrl = originUrl.toString();
+  result.originRequest = createOriginRequest(result.originUrl, request);
+
+  return result;
+}
+
+/**
+ * Get derivative type based on path and configuration
+ * @param {string[]} segments - Path segments
+ * @param {string} path - Full path
+ * @param {Object} config - Configuration
+ * @returns {string|null} - Derivative type
+ */
+function getDerivativeForPath(segments, path, config) {
+  const knownDerivatives = ["header", "thumbnail"];
+
+  // Check first segment if it's a known derivative
+  if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
+    return segments[0];
+  }
+
+  // Check route derivatives from config
+  if (config.routeDerivatives) {
+    const routeMatch = Object.keys(config.routeDerivatives).find(
       (route) => path.includes(`/${route}/`),
     );
 
     if (routeMatch) {
-      result.derivative = config.routeDerivatives[routeMatch];
+      return config.routeDerivatives[routeMatch];
     }
   }
 
-  // Get the remote origin for this bucket
-  const remoteOrigin =
-    (config.remoteBuckets && config.remoteBuckets[result.bucketName]) ||
-    (config.remoteBuckets && config.remoteBuckets.default) ||
-    env.FALLBACK_BUCKET; // Fallback
+  return null;
+}
 
-  // Apply path transformations if any
+/**
+ * Transform path for remote buckets based on configuration
+ * @param {string} path - Original path
+ * @param {string[]} segments - Path segments
+ * @param {string} bucketName - Bucket name
+ * @param {Object} config - Configuration
+ * @returns {string} - Transformed path
+ */
+function transformPathForRemote(path, segments, bucketName, config) {
   let transformedPath = path;
 
-  // If the first segment is a derivative, remove it from the path when fetching from origin
-  if (
-    segments.length > 0 &&
-    (segments[0] === "header" || segments[0] === "thumbnail")
-  ) {
+  // Remove derivative prefix if present
+  const knownDerivatives = ["header", "thumbnail"];
+  if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
     transformedPath = `/${segments.slice(1).join("/")}`;
   }
 
+  // Apply path transformations if configured
   const pathTransform = config.pathTransforms &&
-    config.pathTransforms[result.bucketName];
+    config.pathTransforms[bucketName];
 
   if (pathTransform) {
+    // Remove bucket prefix if configured
     if (pathTransform.removePrefix) {
-      // Remove the bucket name prefix from the path
-      transformedPath = transformedPath.replace(`/${result.bucketName}`, "");
+      transformedPath = transformedPath.replace(`/${bucketName}`, "");
     }
 
+    // Add prefix if configured
     if (pathTransform.prefix) {
-      // Add the configured prefix
-      transformedPath = `/${pathTransform.prefix}${
-        transformedPath.startsWith("/")
-          ? transformedPath.substring(1)
-          : transformedPath
-      }`;
+      const pathWithoutLeadingSlash = transformedPath.startsWith("/")
+        ? transformedPath.substring(1)
+        : transformedPath;
+      transformedPath = `/${pathTransform.prefix}${pathWithoutLeadingSlash}`;
     }
   }
 
-  // Build the new origin URL
+  return transformedPath;
+}
+
+/**
+ * Get remote origin URL for bucket
+ * @param {string} bucketName - Bucket name
+ * @param {Object} config - Configuration
+ * @param {Object} env - Environment variables
+ * @returns {string} - Remote origin URL
+ */
+function getRemoteOrigin(bucketName, config, env) {
+  return (config.remoteBuckets && config.remoteBuckets[bucketName]) ||
+    (config.remoteBuckets && config.remoteBuckets.default) ||
+    env?.FALLBACK_BUCKET ||
+    "https://placeholder.example.com";
+}
+
+/**
+ * Build origin URL by combining remote origin with path and non-image params
+ * @param {URL} originalUrl - Original URL object
+ * @param {string} transformedPath - Transformed path
+ * @param {string} remoteOrigin - Remote origin URL
+ * @returns {URL} - New origin URL
+ */
+function buildOriginUrl(originalUrl, transformedPath, remoteOrigin) {
   const originUrl = new URL(transformedPath, remoteOrigin);
 
-  // Copy over search params, but exclude image-specific params that would
-  // interfere with Cloudflare's image resizing
-  url.searchParams.forEach((value, key) => {
-    // Skip image resizing specific parameters to avoid conflicts
-    if (
-      ![
-        "width",
-        "height",
-        "fit",
-        "quality",
-        "format",
-        "metadata",
-        "derivative",
-        "upscale",
-      ].includes(key)
-    ) {
+  // List of image-specific params to exclude
+  const imageParams = [
+    "width",
+    "height",
+    "fit",
+    "quality",
+    "format",
+    "metadata",
+    "derivative",
+    "upscale",
+  ];
+
+  // Copy over search params, excluding image-specific ones
+  originalUrl.searchParams.forEach((value, key) => {
+    if (!imageParams.includes(key)) {
       originUrl.searchParams.set(key, value);
     }
   });
 
-  result.originUrl = originUrl.toString();
+  return originUrl;
+}
 
-  // Create a new request to the origin
-  result.originRequest = new Request(result.originUrl, {
-    method: request.method,
-    headers: request.headers,
-    body: request.body,
+/**
+ * Create new request for the origin
+ * @param {string} originUrl - URL to request
+ * @param {Request} originalRequest - Original request
+ * @returns {Request} - New request
+ */
+function createOriginRequest(originUrl, originalRequest) {
+  return new Request(originUrl, {
+    method: originalRequest.method,
+    headers: originalRequest.headers,
+    body: originalRequest.body,
     redirect: "follow",
   });
-
-  return result;
 }

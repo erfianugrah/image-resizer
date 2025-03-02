@@ -4,25 +4,24 @@
  * @returns {string|null} - Derivative type or null if no match
  */
 export function getDerivativeFromPath(path) {
+  // Define known derivatives
+  const knownDerivatives = ["header", "thumbnail"];
+
   // Check for exact path segments to avoid partial matches
   const segments = path.split("/").filter((segment) => segment);
 
-  if (segments.length > 0) {
-    // Check first segment specifically
-    if (segments[0] === "header") {
-      return "header";
-    } else if (segments[0] === "thumbnail") {
-      return "thumbnail";
-    }
+  // Check first segment specifically
+  if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
+    return segments[0];
   }
 
   // Fallback to substring check for backward compatibility
-  if (path.includes("/header/")) {
-    return "header";
-  } else if (path.includes("/thumbnail/")) {
-    return "thumbnail";
+  for (const derivative of knownDerivatives) {
+    if (path.includes(`/${derivative}/`)) {
+      return derivative;
+    }
   }
-  // Add more path-based derivatives as needed
+
   return null;
 }
 

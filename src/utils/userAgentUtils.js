@@ -4,22 +4,35 @@
  * @returns {string} - Device type (mobile, tablet, desktop, large-desktop)
  */
 export function getDeviceTypeFromUserAgent(userAgent = "") {
-  if (/mobile|android|iphone|ipod|webos|iemobile|opera mini/i.test(userAgent)) {
-    return "mobile";
+  // Define device type detection rules
+  const deviceRules = [
+    {
+      regex: /mobile|android|iphone|ipod|webos|iemobile|opera mini/i,
+      type: "mobile",
+    },
+    {
+      regex: /ipad|tablet|playbook|silk/i,
+      type: "tablet",
+    },
+    {
+      regex: /macintosh|windows/i,
+      extraCheck: () => /screen and \(min-width: 1440px\)/.test(userAgent),
+      type: "large-desktop",
+    },
+  ];
+
+  // Find matching device type
+  for (const rule of deviceRules) {
+    if (rule.regex.test(userAgent)) {
+      // For large-desktop, we need an additional check
+      if (rule.extraCheck && !rule.extraCheck()) {
+        continue;
+      }
+      return rule.type;
+    }
   }
 
-  if (/ipad|tablet|playbook|silk/i.test(userAgent)) {
-    return "tablet";
-  }
-
-  if (
-    /macintosh|windows/i.test(userAgent) &&
-    /screen and \(min-width: 1440px\)/.test(userAgent)
-  ) {
-    return "large-desktop";
-  }
-
-  return "desktop";
+  return "desktop"; // Default fallback
 }
 
 /**
@@ -40,21 +53,28 @@ export function getWidthForDeviceType(
     a - b
   );
 
-  let width;
+  // Define device type to minimum width mapping
+  const deviceMinWidthMap = {
+    "mobile": 320,
+    "tablet": 768,
+    "large-desktop": 1200,
+    "desktop": isAutoRequested ? 1200 : 960, // Special case for desktop
+  };
 
-  switch (deviceType) {
-    case "mobile":
-      width = sortedWidths.find((w) => w >= 320) || 320;
-      break;
-    case "tablet":
-      width = sortedWidths.find((w) => w >= 768) || 768;
-      break;
-    case "large-desktop":
-      width = sortedWidths.find((w) => w >= 1200) || 1200;
-      break;
-    default: // desktop or other
-      width = isAutoRequested ? 1200 : 960; // Use 1200 for explicit auto, 960 for implicit
+  // Get minimum width for the device type
+  const minWidth = deviceMinWidthMap[deviceType] || deviceMinWidthMap.desktop;
+
+  // For desktop, use exact width from map
+  if (deviceType === "desktop") {
+    return {
+      width: minWidth,
+      source: `ua-${deviceType}`,
+    };
   }
+
+  // For other devices, find the first width that meets or exceeds the minimum width
+  // or fallback to the minimum width if none found
+  const width = sortedWidths.find((w) => w >= minWidth) || minWidth;
 
   return {
     width,

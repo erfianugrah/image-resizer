@@ -13,12 +13,19 @@ export default {
         runtimeConfig = getEnvironmentConfig(env);
       }
 
-      // Skip resizing for Cloudflare's own requests
-      if (
-        !/image-resizing/.test(request.headers.get("via")) &&
-        !/undici/.test(request.headers.get("user-agent")) &&
-        !/node/.test(request.headers.get("user-agent"))
-      ) {
+      // Define patterns to skip resizing
+      const skipPatterns = [
+        (headers) => /image-resizing/.test(headers.get("via") || ""),
+        (headers) => /undici/.test(headers.get("user-agent") || ""),
+        (headers) => /node/.test(headers.get("user-agent") || ""),
+      ];
+
+      // Check if we should skip resizing
+      const shouldSkip = skipPatterns.some((pattern) =>
+        pattern(request.headers)
+      );
+
+      if (!shouldSkip) {
         return handleImageRequest(request, runtimeConfig);
       }
 

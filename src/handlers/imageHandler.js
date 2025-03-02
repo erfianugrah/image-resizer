@@ -16,13 +16,11 @@ export async function handleImageRequest(request, config) {
     const url = new URL(request.url);
     const urlParams = url.searchParams;
 
-    // Check for path-based derivative directly
+    // Extract information from request
     const pathDerivative = getDerivativeFromPath(url.pathname);
 
     // Transform the request URL based on deployment mode
     const transformedRequest = transformRequestUrl(request, config);
-
-    // Extract components from the transformed request
     const {
       originRequest,
       bucketName,
@@ -31,30 +29,30 @@ export async function handleImageRequest(request, config) {
       isRemoteFetch,
     } = transformedRequest;
 
-    // Add the route-derived derivative as a parameter if it exists and no explicit derivative set
-    // Priority: URL param > path derivative > route derivative
-    const explicitDerivative = urlParams.get("derivative");
+    // Determine which derivative to use (URL param > path > route)
+    const derivativeSources = [
+      { type: "explicit", value: urlParams.get("derivative") },
+      { type: "path", value: pathDerivative },
+      { type: "route", value: routeDerivative },
+    ];
 
-    if (!explicitDerivative) {
-      if (pathDerivative) {
-        urlParams.set("derivative", pathDerivative);
-      } else if (routeDerivative) {
-        urlParams.set("derivative", routeDerivative);
-      }
+    // Find first non-null derivative and set it as a parameter
+    const derivativeSource = derivativeSources.find((source) => source.value);
+    if (derivativeSource && !urlParams.get("derivative")) {
+      urlParams.set("derivative", derivativeSource.value);
     }
 
-    // Determine image options based on the original request (for parameters)
-    // but using the path from the transformed URL
+    // Determine image options
     const imageOptions = determineImageOptions(
       request,
       urlParams,
       url.pathname,
     );
 
-    // Get cache configuration for the target URL
+    // Get cache configuration
     const cache = determineCacheConfig(originUrl);
 
-    // For debugging
+    // Debug information
     const debugInfo = {
       deploymentMode: config.deploymentMode,
       isRemoteFetch,
@@ -65,15 +63,14 @@ export async function handleImageRequest(request, config) {
       routeDerivative,
     };
 
-    // Process the image - use the origin request for remote fetches
-    const response = await processImage(
-      isRemoteFetch ? originRequest : request,
+    // Process the image - use appropriate request based on mode
+    const processingRequest = isRemoteFetch ? originRequest : request;
+    return await processImage(
+      processingRequest,
       imageOptions,
       cache,
       debugInfo,
     );
-
-    return response;
   } catch (error) {
     console.error("Error handling image request:", error);
     return new Response(`Error processing image: ${error.message}`, {

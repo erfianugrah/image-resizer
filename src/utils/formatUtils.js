@@ -11,14 +11,19 @@ export function determineFormat(request, formatParam) {
   // Otherwise determine from Accept header
   const accept = request.headers.get("Accept");
 
-  if (/image\/avif/.test(accept)) {
-    return "avif"; // Use AVIF if supported
-  } else if (/image\/webp/.test(accept)) {
-    return "webp"; // Use WebP as fallback
-  }
+  // Define format checks in order of preference
+  const formatChecks = [
+    { regex: /image\/avif/, format: "avif" },
+    { regex: /image\/webp/, format: "webp" },
+  ];
 
-  // Default to AVIF (Cloudflare will handle fallback if needed)
-  return "avif";
+  // Find the first supported format
+  const supportedFormat = formatChecks.find((check) =>
+    check.regex.test(accept)
+  );
+
+  // Return the supported format or default to AVIF
+  return supportedFormat ? supportedFormat.format : "avif";
 }
 
 /**
@@ -27,21 +32,15 @@ export function determineFormat(request, formatParam) {
  * @returns {string} - Content type header value
  */
 export function getContentTypeForFormat(format) {
-  switch (format.toLowerCase()) {
-    case "avif":
-      return "image/avif";
-    case "webp":
-      return "image/webp";
-    case "png":
-      return "image/png";
-    case "gif":
-      return "image/gif";
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "svg":
-      return "image/svg+xml";
-    default:
-      return "image/jpeg";
-  }
+  const contentTypeMap = {
+    "avif": "image/avif",
+    "webp": "image/webp",
+    "png": "image/png",
+    "gif": "image/gif",
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "svg": "image/svg+xml",
+  };
+
+  return contentTypeMap[format.toLowerCase()] || "image/jpeg";
 }

@@ -583,12 +583,6 @@ https://images.erfi.dev/Granna_1.JPG?metadata=none
 https://images.erfi.dev/Granna_1.JPG?metadata=copyright
 ```
 
-### Metadata Handling: All
-![Metadata All](https://images.erfi.dev/Granna_1.JPG?metadata=all)
-```
-https://images.erfi.dev/Granna_1.JPG?metadata=all
-```
-
 ### Prevent Upscaling
 ![Prevent Upscaling](https://images.erfi.dev/Granna_1.JPG?width=3000&upscale=false)
 ```

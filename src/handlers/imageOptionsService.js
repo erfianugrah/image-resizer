@@ -19,16 +19,16 @@ export function determineImageOptions(request, urlParams, path) {
   const pathDerivative = getDerivativeFromPath(path);
   const requestedDerivative = params.derivative || pathDerivative;
 
-  // First determine the derivative to use
-  let options;
-  if (requestedDerivative === "header") {
-    options = applyHeaderDerivative(params);
-  } else if (requestedDerivative === "thumbnail") {
-    options = applyThumbnailDerivative(params);
-  } else {
-    // Using default derivative configuration
-    options = applyDefaultDerivative(request, params);
-  }
+  // Define derivative handlers
+  const derivativeHandlers = {
+    "header": () => applyHeaderDerivative(params),
+    "thumbnail": () => applyThumbnailDerivative(params),
+    "default": () => applyDefaultDerivative(request, params),
+  };
+
+  // Apply the appropriate derivative or default
+  const options =
+    (derivativeHandlers[requestedDerivative] || derivativeHandlers.default)();
 
   // Store the derivative name for debugging
   options.derivative = requestedDerivative || "default";
@@ -114,9 +114,23 @@ function applyDefaultDerivative(request, params) {
  * @param {Object} params - URL parameters
  */
 function applyParameterOverrides(options, params) {
-  if (params.height) options.height = parseInt(params.height);
-  if (params.quality) options.quality = parseInt(params.quality);
-  if (params.fit) options.fit = params.fit;
-  if (params.metadata) options.metadata = params.metadata;
-  if (params.upscale !== undefined) options.upscale = params.upscale === "true";
+  // Define parameters that need parsing/conversion
+  const numericParams = ["height", "quality"];
+  const stringParams = ["fit", "metadata"];
+  const booleanParams = ["upscale"];
+
+  // Apply numeric parameters
+  numericParams.forEach((param) => {
+    if (params[param]) options[param] = parseInt(params[param]);
+  });
+
+  // Apply string parameters
+  stringParams.forEach((param) => {
+    if (params[param]) options[param] = params[param];
+  });
+
+  // Apply boolean parameters
+  booleanParams.forEach((param) => {
+    if (params[param] !== undefined) options[param] = params[param] === "true";
+  });
 }

@@ -20,18 +20,15 @@ export function hasCfDeviceType(request) {
 export function getWidthFromCfDeviceType(request) {
   const cfDeviceType = request.headers.get("CF-Device-Type");
 
-  // Use specific widths based on CF-Device-Type
-  let width;
-  switch (cfDeviceType) {
-    case "mobile":
-      width = 480; // Mobile specific width (480p)
-      break;
-    case "tablet":
-      width = 720; // Tablet specific width (720p)
-      break;
-    default: // desktop or other
-      width = 1080; // Desktop specific width (1080p)
-  }
+  // Define device type to width mapping
+  const deviceWidthMap = {
+    "mobile": 480, // Mobile specific width (480p)
+    "tablet": 720, // Tablet specific width (720p)
+    "desktop": 1080, // Desktop specific width (1080p)
+  };
+
+  // Get width for the device type or use desktop default
+  const width = deviceWidthMap[cfDeviceType] || deviceWidthMap.desktop;
 
   return {
     width,
@@ -50,5 +47,5 @@ export function getWidthFromUserAgent(request, responsiveWidths) {
   const deviceType = getDeviceTypeFromUserAgent(userAgent);
 
   // Fallback: use specific width based on user agent detection
-  return getWidthForDeviceType(deviceType, responsiveWidths);
+  return getWidthForDeviceType(deviceType, false, responsiveWidths);
 }
