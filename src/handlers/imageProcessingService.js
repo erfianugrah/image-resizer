@@ -4,6 +4,8 @@ import {
 } from "../utils/cacheControlUtils.js";
 import { debug, error, info, logResponse, warn } from "../utils/loggerUtils.js";
 import { applyDebugHeaders } from "../utils/debugHeadersUtils.js";
+import { getResponsiveWidth } from "../utils/responsiveWidthUtils.js";
+import { imageConfig } from "../config/imageConfig.js";
 
 /**
  * Process the image using Cloudflare's Image Resizing
@@ -20,9 +22,27 @@ export async function processImage(request, options, cache, debugInfo = {}) {
   if (options.width === "auto") {
     warn(
       "ImageProcessor",
-      "width=auto is not supported in Workers API. Using responsive sizing fallback.",
+      "width=auto is not supported in Workers API. Using responsive sizing.",
     );
-    options.width = 1200; // Safe default for desktop
+
+    // Instead of a fixed fallback, use the responsive width detection
+    const responsiveSettings = getResponsiveWidth(
+      request,
+      imageConfig.responsive.breakpoints,
+    );
+
+    // Update the options with the detected width
+    options.width = responsiveSettings.width;
+
+    // Keep track of the original source and add the fallback info
+    const originalSource = options.source;
+    options.source = `${originalSource}-fallback`;
+
+    debug("ImageProcessor", "Replaced auto width with responsive width", {
+      originalWidth: "auto",
+      newWidth: options.width,
+      detectionSource: responsiveSettings.source,
+    });
   }
 
   // Make the request with our configured options
@@ -65,11 +85,6 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
   // Remove non-Cloudflare options
   const nonCloudflareOptions = ["source", "derivative"];
   nonCloudflareOptions.forEach((opt) => delete imageOptions[opt]);
-
-  // Ensure width is numeric, never "auto"
-  if (imageOptions.width === "auto") {
-    imageOptions.width = 1200; // Fallback
-  }
 
   // Only include defined parameters to avoid sending empty/null values to Cloudflare API
   const cfImageOptions = {};

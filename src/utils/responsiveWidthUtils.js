@@ -1,9 +1,11 @@
+import { debug, warn } from "./loggerUtils.js";
 import { getWidthFromClientHints, hasClientHints } from "./clientHints.js";
 import {
   getWidthFromCfDeviceType,
   getWidthFromUserAgent,
   hasCfDeviceType,
 } from "./deviceUtils.js";
+import { getDeviceTypeFromUserAgent } from "./userAgentUtils.js";
 
 /**
  * Get image dimensions based on requested width or responsive detection
@@ -78,7 +80,14 @@ export function getImageDimensions(
  * @returns {Object} - Width settings based on best available detection method
  */
 export function getResponsiveWidth(request, responsiveWidths) {
-  console.log("Responsive width detection flow:");
+  debug("ResponsiveWidth", "Starting responsive width detection", {
+    responsiveWidths,
+    url: request.url,
+    hasClientHints: request.headers.has("Sec-CH-Viewport-Width") ||
+      request.headers.has("Viewport-Width"),
+    hasCfDeviceType: request.headers.has("CF-Device-Type"),
+    userAgent: request.headers.get("User-Agent")?.substring(0, 50), // Truncate for log readability
+  });
 
   // Define detection methods in priority order
   const detectionMethods = [
@@ -101,21 +110,45 @@ export function getResponsiveWidth(request, responsiveWidths) {
 
   // Try each method in order
   for (const method of detectionMethods) {
-    console.log(`Checking ${method.name}...`);
+    debug("ResponsiveWidth", `Checking ${method.name} detection method`);
 
-    if (method.name === "Cloudflare Device Type") {
-      console.log("CF-Device-Type:", request.headers.get("CF-Device-Type"));
+    if (method.name === "Client Hints") {
+      // Log all relevant client hints headers
+      const clientHintHeaders = {
+        "Sec-CH-Viewport-Width": request.headers.get("Sec-CH-Viewport-Width"),
+        "Sec-CH-DPR": request.headers.get("Sec-CH-DPR"),
+        "Width": request.headers.get("Width"),
+        "Viewport-Width": request.headers.get("Viewport-Width"),
+      };
+      debug("ResponsiveWidth", "Client Hints headers", clientHintHeaders);
+    } else if (method.name === "Cloudflare Device Type") {
+      debug("ResponsiveWidth", "CF-Device-Type", {
+        value: request.headers.get("CF-Device-Type"),
+      });
     } else if (method.name === "User Agent") {
-      console.log("User-Agent:", request.headers.get("User-Agent"));
+      const userAgent = request.headers.get("User-Agent") || "";
+      debug("ResponsiveWidth", "User-Agent detection", {
+        userAgent: userAgent.substring(0, 100), // Truncate for log
+        detectedDevice: getDeviceTypeFromUserAgent(userAgent),
+      });
     }
 
     if (method.check()) {
-      console.log(`Using ${method.name} for width`);
-      return method.getWidth();
+      const widthSettings = method.getWidth();
+      debug(
+        "ResponsiveWidth",
+        `Selected ${method.name} for width determination`,
+        widthSettings,
+      );
+      return widthSettings;
     }
   }
 
   // Fallback (should never reach here due to User Agent always returning true)
+  warn(
+    "ResponsiveWidth",
+    "All detection methods failed, using default fallback",
+  );
   return { width: 1200, source: "default-fallback" };
 }
 

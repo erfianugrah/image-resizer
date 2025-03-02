@@ -45,6 +45,20 @@ const defaultConfig = {
     "header": "header",
     "thumbnail": "thumbnail",
   },
+
+  // Default logging configuration
+  logging: {
+    level: "INFO",
+    includeTimestamp: true,
+    enableStructuredLogs: true,
+  },
+
+  // Default debug headers configuration
+  debugHeaders: {
+    enabled: true,
+    prefix: "debug-",
+    includeHeaders: ["ir", "cache", "mode", "client-hints", "ua"],
+  },
 };
 
 /**
@@ -130,6 +144,34 @@ export function getEnvironmentConfig(env = {}) {
           }
         } catch (e) {
           console.error("Failed to parse ROUTE_DERIVATIVES env variable", e);
+        }
+      },
+    },
+    // Add parser for logging configuration
+    {
+      key: "LOGGING_CONFIG",
+      handler: (value) => {
+        try {
+          config.logging = {
+            ...config.logging,
+            ...JSON.parse(value),
+          };
+        } catch (e) {
+          console.error("Failed to parse LOGGING_CONFIG env variable", e);
+        }
+      },
+    },
+    // Add parser for debug headers configuration
+    {
+      key: "DEBUG_HEADERS_CONFIG",
+      handler: (value) => {
+        try {
+          config.debugHeaders = {
+            ...config.debugHeaders,
+            ...JSON.parse(value),
+          };
+        } catch (e) {
+          console.error("Failed to parse DEBUG_HEADERS_CONFIG env variable", e);
         }
       },
     },

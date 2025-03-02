@@ -1,8 +1,5 @@
-/**
- * Utility for managing debug headers consistently
- * Centralizes all debug header logic in one place
- */
 import { debug } from "./loggerUtils.js";
+import { hasClientHints } from "./clientHints.js";
 
 // Default config for debug headers
 const defaultConfig = {
@@ -44,73 +41,6 @@ export function setDebugHeadersEnabled(enabled) {
 }
 
 /**
- * Apply debug headers to a response
- * @param {Request} request - Original request
- * @param {Response} response - Response to add headers to
- * @param {Object} debugData - Object containing debug data
- * @param {Object} debugData.options - Image options used
- * @param {Object} debugData.cache - Cache configuration used
- * @param {Object} debugData.debugInfo - Additional debug information
- * @returns {Response} - Response with debug headers
- */
-export function applyDebugHeaders(
-  request,
-  response,
-  { options, cache, debugInfo = {} },
-) {
-  // If debug headers are disabled, return the original response
-  if (!headerConfig.enabled) {
-    return response;
-  }
-
-  const newResponse = new Response(response.body, response);
-
-  // Define all debug data objects
-  const debugData = {
-    "ir": options,
-    "cache": cache,
-    "mode": debugInfo,
-    "client-hints": getClientHintsDebug(request),
-    "ua": request.headers.get("User-Agent") || "",
-  };
-
-  // Set prefixed debug headers that are enabled
-  headerConfig.includeHeaders.forEach((headerKey) => {
-    if (debugData[headerKey]) {
-      const headerName = `${headerConfig.prefix}${headerKey}`;
-      const headerValue = typeof debugData[headerKey] === "string"
-        ? debugData[headerKey]
-        : JSON.stringify(debugData[headerKey]);
-
-      newResponse.headers.set(headerName, headerValue);
-    }
-  });
-
-  // Set special headers
-  if (options) {
-    if (headerConfig.specialHeaders["x-processing-mode"]) {
-      const processingMode = options.derivative
-        ? `template:${options.derivative}`
-        : (options.source === "explicit-params" ? "explicit" : "responsive");
-      newResponse.headers.set("x-processing-mode", processingMode);
-    }
-
-    if (headerConfig.specialHeaders["x-size-source"] && options.source) {
-      newResponse.headers.set("x-size-source", options.source);
-    }
-
-    if (headerConfig.specialHeaders["x-actual-width"]) {
-      newResponse.headers.set("x-actual-width", options.width || "unknown");
-    }
-  }
-
-  // Add client hints headers for browsers
-  addClientHintsResponseHeaders(newResponse);
-
-  return newResponse;
-}
-
-/**
  * Extract client hints debug info from request
  * @param {Request} request - The request
  * @returns {Object} - Client hints debug info
@@ -146,4 +76,89 @@ function addClientHintsResponseHeaders(response) {
   Object.entries(clientHintsHeaders).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
+}
+
+/**
+ * Apply debug headers to a response
+ * @param {Request} request - Original request
+ * @param {Response} response - Response to add headers to
+ * @param {Object} debugData - Object containing debug data
+ * @param {Object} debugData.options - Image options used
+ * @param {Object} debugData.cache - Cache configuration used
+ * @param {Object} debugData.debugInfo - Additional debug information
+ * @returns {Response} - Response with debug headers
+ */
+export function applyDebugHeaders(
+  request,
+  response,
+  { options, cache, debugInfo = {} },
+) {
+  // If debug headers are disabled, return the original response
+  if (!headerConfig.enabled) {
+    return response;
+  }
+
+  const newResponse = new Response(response.body, response);
+
+  // Extract device information for debugging
+  const deviceInfo = {
+    "cf-device-type": request.headers.get("CF-Device-Type") || "not-available",
+    "client-hints-available": hasClientHints(request),
+    "device-detection-method": options?.source || "unknown",
+  };
+
+  // Define all debug data objects
+  const debugData = {
+    "ir": options,
+    "cache": cache,
+    "mode": debugInfo,
+    "client-hints": getClientHintsDebug(request),
+    "ua": request.headers.get("User-Agent") || "",
+    "device": deviceInfo,
+  };
+
+  // Set prefixed debug headers that are enabled
+  headerConfig.includeHeaders.forEach((headerKey) => {
+    if (debugData[headerKey]) {
+      const headerName = `${headerConfig.prefix}${headerKey}`;
+      const headerValue = typeof debugData[headerKey] === "string"
+        ? debugData[headerKey]
+        : JSON.stringify(debugData[headerKey]);
+
+      newResponse.headers.set(headerName, headerValue);
+    }
+  });
+
+  // Set special headers
+  if (options) {
+    if (headerConfig.specialHeaders["x-processing-mode"]) {
+      const processingMode = options.derivative
+        ? `template:${options.derivative}`
+        : (options.source === "explicit-params" ? "explicit" : "responsive");
+      newResponse.headers.set("x-processing-mode", processingMode);
+    }
+
+    if (headerConfig.specialHeaders["x-size-source"] && options.source) {
+      newResponse.headers.set("x-size-source", options.source);
+    }
+
+    if (headerConfig.specialHeaders["x-actual-width"]) {
+      newResponse.headers.set("x-actual-width", options.width || "unknown");
+    }
+
+    // Add a header to indicate if responsive sizing was used
+    newResponse.headers.set(
+      "x-responsive-sizing",
+      options.source?.includes("client-hints") ||
+        options.source?.includes("cf-device-type") ||
+        options.source?.includes("ua-")
+        ? "true"
+        : "false",
+    );
+  }
+
+  // Add client hints headers for browsers
+  addClientHintsResponseHeaders(newResponse);
+
+  return newResponse;
 }

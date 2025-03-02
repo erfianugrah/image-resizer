@@ -15,6 +15,29 @@ export function determineImageOptions(request, urlParams, path) {
   // Extract all image parameters from URL
   const params = extractImageParams(urlParams, path);
 
+  // Special case for width=auto - should trigger responsive sizing
+  if (params.width === "auto") {
+    const dimensions = getImageDimensions(
+      request,
+      "auto",
+      imageConfig.responsive.breakpoints,
+    );
+
+    // Start with the responsive defaults
+    const options = {
+      quality: imageConfig.responsive.quality,
+      fit: imageConfig.responsive.fit,
+      metadata: imageConfig.responsive.metadata,
+      ...dimensions, // This adds width and source properties
+      format: determineFormat(request, params.format),
+    };
+
+    // Apply any other explicit parameters
+    applyParameterOverrides(options, params);
+
+    return options;
+  }
+
   // Check if this is a direct request with explicit parameters
   const hasExplicitParams = Object.entries(params).some(([key, value]) =>
     value !== null &&
