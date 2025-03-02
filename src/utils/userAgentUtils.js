@@ -47,8 +47,8 @@ export function getWidthForDeviceType(
   isAutoRequested,
   availableWidths,
 ) {
-  // Default widths based on Cloudflare's recommendations
-  const standardWidths = [320, 768, 960, 1200];
+  // Default widths with higher resolution support
+  const standardWidths = [320, 768, 960, 1440, 1920, 2048];
   const sortedWidths = [...(availableWidths || standardWidths)].sort((a, b) =>
     a - b
   );
@@ -57,8 +57,8 @@ export function getWidthForDeviceType(
   const deviceMinWidthMap = {
     "mobile": 320,
     "tablet": 768,
-    "large-desktop": 1200,
-    "desktop": isAutoRequested ? 1200 : 960, // Special case for desktop
+    "large-desktop": 1920,
+    "desktop": isAutoRequested ? 1440 : 960, // Special case for desktop
   };
 
   // Get minimum width for the device type

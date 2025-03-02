@@ -59,7 +59,9 @@ export function getWidthFromClientHints(request) {
       { maxWidth: 640, width: 320 }, // mobile
       { maxWidth: 1024, width: 768 }, // tablet
       { maxWidth: 1440, width: 960 }, // desktop
-      { maxWidth: Infinity, width: 1200 }, // large desktop
+      { maxWidth: 1920, width: 1440 }, // full HD
+      { maxWidth: 2048, width: 1920 }, // 2K
+      { maxWidth: Infinity, width: 2048 }, // beyond 2K
     ];
 
     // Find appropriate width based on viewport
@@ -70,7 +72,7 @@ export function getWidthFromClientHints(request) {
     if (actualDpr && actualDpr !== "1") {
       const dprValue = parseFloat(actualDpr);
       if (dprValue > 1) {
-        optimizedWidth = Math.min(Math.round(optimizedWidth * dprValue), 2560);
+        optimizedWidth = Math.min(Math.round(optimizedWidth * dprValue), 3840); // Allow up to 4K with high DPR
       }
     }
 

@@ -23,8 +23,8 @@ export function getWidthFromCfDeviceType(request) {
   // Define device type to width mapping
   const deviceWidthMap = {
     "mobile": 480, // Mobile specific width (480p)
-    "tablet": 720, // Tablet specific width (720p)
-    "desktop": 1080, // Desktop specific width (1080p)
+    "tablet": 768, // Tablet specific width (768p)
+    "desktop": 1440, // Desktop specific width (1440p)
   };
 
   // Get width for the device type or use desktop default

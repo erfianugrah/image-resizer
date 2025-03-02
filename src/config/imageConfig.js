@@ -115,9 +115,9 @@ export const imageConfig = {
   // Responsive mode settings (not a derivative)
   responsive: {
     // Available widths for explicit width selection
-    availableWidths: [320, 640, 1024, 2048, 5000],
+    availableWidths: [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
     // Widths used for auto-responsive sizing
-    breakpoints: [320, 768, 960, 1200],
+    breakpoints: [320, 768, 960, 1440, 1920, 2048],
     // Default quality setting
     quality: 85,
     // Default fit setting
