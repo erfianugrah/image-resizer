@@ -6,8 +6,11 @@
 export function hasClientHints(request) {
   const viewportWidth = request.headers.get("Sec-CH-Viewport-Width");
   const dpr = request.headers.get("Sec-CH-DPR");
+  const width = request.headers.get("Width");
+  const viewportWithLegacy = request.headers.get("Viewport-Width");
 
-  return Boolean(viewportWidth) || Boolean(dpr);
+  return Boolean(viewportWidth) || Boolean(dpr) ||
+    Boolean(width) || Boolean(viewportWithLegacy);
 }
 
 /**
@@ -18,21 +21,23 @@ export function hasClientHints(request) {
 export function getWidthFromClientHints(request) {
   const viewportWidth = request.headers.get("Sec-CH-Viewport-Width");
   const dpr = request.headers.get("Sec-CH-DPR");
+  const width = request.headers.get("Width");
+  const viewportWithLegacy = request.headers.get("Viewport-Width");
 
   // Check if client hints are available
-  if (viewportWidth && dpr) {
+  if ((viewportWidth && dpr) || (viewportWithLegacy && width)) {
     // Best case: We have both width and DPR
     return {
       width: "auto", // Let Cloudflare handle with full client hints
       source: "client-hints-complete",
     };
-  } else if (viewportWidth) {
+  } else if (viewportWidth || viewportWithLegacy) {
     // We have viewport width but no DPR
     return {
       width: "auto",
       source: "client-hints-viewport",
     };
-  } else if (dpr) {
+  } else if (dpr || width) {
     // We have DPR but no viewport width - still use auto as Cloudflare can use DPR
     return {
       width: "auto",

@@ -12,11 +12,6 @@ import {
  * @returns {Promise<Response>} - The processed image response
  */
 export async function processImage(request, options, cache, debugInfo = {}) {
-  // First check if this is a request from image resizing to avoid loops
-  if (isImageResizingLoop(request)) {
-    return fetch(request);
-  }
-
   // Make the request with our configured options
   const newResponse = await fetchWithImageOptions(
     request,
@@ -24,19 +19,18 @@ export async function processImage(request, options, cache, debugInfo = {}) {
     cache,
     debugInfo,
   );
-  const response = buildResponse(newResponse, options, cache, debugInfo);
+
+  // Pass the request to buildResponse for debugging
+  const response = buildResponse(
+    request,
+    newResponse,
+    options,
+    cache,
+    debugInfo,
+  );
 
   // Return the response or fallback to original request if error
   return response.ok || response.redirected ? response : fetch(request);
-}
-
-/**
- * Check if this is a request that would cause an image resizing loop
- * @param {Request} request - The incoming request
- * @returns {boolean} - True if this would cause a loop
- */
-function isImageResizingLoop(request) {
-  return /image-resizing/.test(request.headers.get("via"));
 }
 
 /**
@@ -53,6 +47,9 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
   // Remove non-Cloudflare options that shouldn't be passed to the API
   delete imageOptions.source;
   delete imageOptions.derivative;
+
+  // Log options for debugging
+  console.log("Final image options:", JSON.stringify(imageOptions));
 
   return fetch(request, {
     headers: {
@@ -77,7 +74,7 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
  * @param {Object} debugInfo - Debug information
  * @returns {Response} - Final response with proper headers
  */
-function buildResponse(response, options, cache, debugInfo) {
+function buildResponse(request, response, options, cache, debugInfo) {
   const newResponse = new Response(response.body, response);
 
   // Set cache control headers
@@ -93,11 +90,15 @@ function buildResponse(response, options, cache, debugInfo) {
 
   // Enhanced client hints headers
   newResponse.headers.set("Accept-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
-  newResponse.headers.set("Critical-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
   newResponse.headers.set(
-    "Delegate-CH",
-    "Sec-CH-DPR https://*; Sec-CH-Viewport-Width https://*",
+    "Permissions-Policy",
+    "ch-dpr=(self), ch-viewport-width=(self)",
   );
+  newResponse.headers.set("Critical-CH", "Sec-CH-DPR, Sec-CH-Viewport-Width");
+
+  // Add debug info for user agent
+  const userAgent = request.headers.get("User-Agent") || "";
+  newResponse.headers.set("debug-ua", userAgent);
 
   return newResponse;
 }
