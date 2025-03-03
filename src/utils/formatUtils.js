@@ -6,7 +6,7 @@
  */
 export function determineFormat(request, formatParam) {
   // If format is explicitly specified, use that
-  if (formatParam) return formatParam;
+  if (formatParam && formatParam !== "auto") return formatParam;
 
   // Otherwise determine from Accept header
   const accept = request.headers.get("Accept");
