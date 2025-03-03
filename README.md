@@ -34,7 +34,7 @@
    npm install
    ```
 
-3. Update `wrangler.toml` with your Cloudflare account details and configuration
+3. Update `wrangler.jsonc` with your Cloudflare account details and configuration
 
 4. Deploy
    ```bash
@@ -50,144 +50,157 @@ The worker supports two deployment modes:
 - **Direct mode** - Worker runs directly on the zone containing your images
 - **Remote mode** - Worker runs as a proxy, fetching images from remote origins
 
-### Configuration in wrangler.toml
+### Configuration in wrangler.jsonc
 
 Key configuration sections:
 
-```toml
-[env.prod.vars]
-# Deployment mode (direct or remote)
-DEPLOYMENT_MODE = "remote"
-# Current version for tracking
-VERSION = "1.1.0"
-# Fallback bucket when no match is found
-FALLBACK_BUCKET = "https://cdn.example.com"
+```jsonc
+"env": {
+  "prod": {
+    "vars": {
+      // Deployment mode (direct or remote)
+      "DEPLOYMENT_MODE": "remote",
+      // Current version for tracking
+      "VERSION": "1.1.0",
+      // Fallback bucket when no match is found
+      "FALLBACK_BUCKET": "https://cdn.erfianugrah.com"
 
-# Predefined transformation templates
-DERIVATIVE_TEMPLATES = '''
-{
-  "header": {
-    "width": 1600,
-    "height": 73,
-    "quality": 80,
-    "fit": "scale-down"
-  },
-  "thumbnail": {
-    "width": 320,
-    "height": 150,
-    "quality": 85,
-    "fit": "scale-down",
-    "sharpen": 1
-  },
-  "avatar": {
-    "width": 180,
-    "height": 180,
-    "quality": 90,
-    "fit": "cover",
-    "metadata": "none",
-    "gravity": "face"
-  },
-  "product": {
-    "width": 800,
-    "height": 800,
-    "quality": 85,
-    "fit": "contain",
-    "background": "white"
+      // Predefined transformation templates
+      "DERIVATIVE_TEMPLATES": {
+        "header": {
+          "width": 1600,
+          "height": 73,
+          "quality": 80,
+          "fit": "scale-down",
+          "metadata": "copyright"
+        },
+        "thumbnail": {
+          "width": 320,
+          "height": 150,
+          "quality": 85,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "sharpen": 1
+        },
+        "avatar": {
+          "width": 180,
+          "height": 180,
+          "quality": 90,
+          "fit": "cover",
+          "metadata": "none",
+          "gravity": "face"
+        },
+        "product": {
+          "width": 800,
+          "height": 800,
+          "quality": 85,
+          "fit": "contain",
+          "background": "white"
+        }
+      }
+
+      // Path-to-template mappings
+      "PATH_TEMPLATES": {
+        "profile-pictures": "avatar",
+        "hero-banners": "header",
+        "header": "header",
+        "thumbnail": "thumbnail",
+        "avatars": "avatar",
+        "products": "product"
+      }
+
+      // Remote bucket configuration (for remote mode)
+      "REMOTE_BUCKETS": {
+        "default": "https://cdn.erfianugrah.com"
+      }
+
+      // Path transformation rules (for remote mode)
+      "PATH_TRANSFORMS": {
+        "images": {
+          "prefix": "",
+          "removePrefix": true
+        },
+        "assets": {
+          "prefix": "img/", 
+          "removePrefix": true
+        },
+        "content": {
+          "prefix": "content-images/",
+          "removePrefix": true
+        }
+      }
+
+      // Cache configuration
+      "CACHE_CONFIG": {
+        "image": {
+          "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+          "ttl": {
+            "ok": 31536000,
+            "redirects": 31536000,
+            "clientError": 10,
+            "serverError": 1
+          },
+          "cacheability": true,
+          "mirage": false,
+          "imageCompression": "off"
+        },
+        "staticAssets": {
+          "regex": "^.*\\.(css|js)$",
+          "ttl": {
+            "ok": 86400,
+            "redirects": 86400,
+            "clientError": 10,
+            "serverError": 1
+          },
+          "cacheability": true,
+          "mirage": false,
+          "imageCompression": "off"
+        }
+      }
+
+      // Responsive configuration
+      "RESPONSIVE_CONFIG": {
+        "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+        "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+        "deviceWidths": {
+          "mobile": 480,
+          "tablet": 768, 
+          "desktop": 1440
+        },
+        "deviceMinWidthMap": {
+          "mobile": 320,
+          "tablet": 768,
+          "large-desktop": 1920,
+          "desktop": 960
+        },
+        "quality": 85,
+        "fit": "scale-down",
+        "metadata": "copyright",
+        "format": "auto"
+      }
+
+      // Logging configuration
+      "LOGGING_CONFIG": {
+        "level": "DEBUG",
+        "includeTimestamp": true,
+        "enableStructuredLogs": true
+      }
+
+      // Debug headers configuration
+      "DEBUG_HEADERS_CONFIG": {
+        "enabled": true,
+        "prefix": "debug-",
+        "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua", "device"],
+        "specialHeaders": {
+          "x-processing-mode": true,
+          "x-size-source": true,
+          "x-actual-width": true,
+          "x-responsive-sizing": true
+        }
+      }
+    }
   }
 }
-'''
-
-# Path-to-template mappings
-PATH_TEMPLATES = '''
-{
-  "profile-pictures": "avatar",
-  "hero-banners": "header",
-  "header": "header",
-  "thumbnail": "thumbnail"
-}
-'''
-
-# Remote bucket configuration (for remote mode)
-REMOTE_BUCKETS = '''
-{
-  "default": "https://cdn.example.com",
-  "images": "https://images.example.com",
-  "content": "https://content.example.com"
-}
-'''
-
-# Path transformation rules (for remote mode)
-PATH_TRANSFORMS = '''
-{
-  "images": {
-    "prefix": "",
-    "removePrefix": true
-  },
-  "content": {
-    "prefix": "content-images/",
-    "removePrefix": true
-  }
-}
-'''
-
-# Cache configuration
-CACHE_CONFIG = '''
-{
-  "image": {
-    "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
-    "ttl": {
-      "ok": 31536000,
-      "redirects": 31536000,
-      "clientError": 10,
-      "serverError": 1
-    },
-    "cacheability": true,
-    "mirage": false,
-    "imageCompression": "off"
-  }
-}
-'''
-
-# Responsive configuration
-RESPONSIVE_CONFIG = '''
-{
-  "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
-  "breakpoints": [320, 768, 960, 1440, 1920, 2048],
-  "deviceWidths": {
-    "mobile": 480,
-    "tablet": 768, 
-    "desktop": 1440
-  },
-  "quality": 85,
-  "fit": "scale-down",
-  "metadata": "copyright",
-  "format": "auto"
-}
-'''
-
-# Logging configuration
-LOGGING_CONFIG = '''
-{
-  "level": "INFO",
-  "includeTimestamp": true,
-  "enableStructuredLogs": true
-}
-'''
-
-# Debug headers configuration
-DEBUG_HEADERS_CONFIG = '''
-{
-  "enabled": true,
-  "prefix": "debug-",
-  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua", "device"],
-  "specialHeaders": {
-    "x-processing-mode": true,
-    "x-size-source": true,
-    "x-actual-width": true,
-    "x-responsive-sizing": true
-  }
-}
-'''
 ```
 
 ## Usage
