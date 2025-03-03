@@ -118,6 +118,19 @@ export const imageConfig = {
     availableWidths: [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
     // Widths used for auto-responsive sizing
     breakpoints: [320, 768, 960, 1440, 1920, 2048],
+    // Cloudflare device type to width mapping
+    deviceWidths: {
+      "mobile": 480, // Mobile specific width (480p)
+      "tablet": 768, // Tablet specific width (768p)
+      "desktop": 1440, // Desktop specific width (1440p)
+    },
+    // Device type to minimum width mapping for user-agent detection
+    deviceMinWidthMap: {
+      "mobile": 320,
+      "tablet": 768,
+      "large-desktop": 1920,
+      "desktop": 960, // Default for desktop (will be 1440 if auto requested)
+    },
     // Default quality setting
     quality: 85,
     // Default fit setting
@@ -128,3 +141,45 @@ export const imageConfig = {
     format: "auto",
   },
 };
+
+/**
+ * Update imageConfig with environment settings
+ * @param {Object} envDerivatives - Derivatives from environment
+ */
+export function loadDerivativesFromEnv(envDerivatives) {
+  if (!envDerivatives) return;
+
+  // Properly merge environment derivatives with defaults
+  imageConfig.derivatives = {
+    ...imageConfig.derivatives,
+    ...envDerivatives,
+  };
+}
+
+/**
+ * Update cache configuration with environment settings
+ * @param {Object} envCache - Cache configuration from environment
+ */
+export function updateCacheConfig(envCache) {
+  if (!envCache) return;
+
+  // Properly merge environment cache settings with defaults
+  imageConfig.cache = {
+    ...imageConfig.cache,
+    ...envCache,
+  };
+}
+
+/**
+ * Update responsive configuration with environment settings
+ * @param {Object} envResponsive - Responsive configuration from environment
+ */
+export function updateResponsiveConfig(envResponsive) {
+  if (!envResponsive) return;
+
+  // Properly merge environment responsive settings with defaults
+  imageConfig.responsive = {
+    ...imageConfig.responsive,
+    ...envResponsive,
+  };
+}

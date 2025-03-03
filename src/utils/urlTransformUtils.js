@@ -4,6 +4,8 @@
  * @param {Object} config - Environment configuration
  * @returns {Object} - The transformed request details
  */
+import { imageConfig } from "../config/imageConfig.js";
+
 export function transformRequestUrl(request, config, env) {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -67,7 +69,8 @@ export function transformRequestUrl(request, config, env) {
  * @returns {string|null} - Derivative type or object
  */
 function getDerivativeForPath(segments, path, config) {
-  const knownDerivatives = ["header", "thumbnail", "avatar", "product"];
+  // Get known derivatives from imageConfig instead of hardcoding
+  const knownDerivatives = Object.keys(imageConfig.derivatives);
 
   // Check first segment if it's a known derivative
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
@@ -100,8 +103,10 @@ function getDerivativeForPath(segments, path, config) {
 function transformPathForRemote(path, segments, bucketName, config) {
   let transformedPath = path;
 
+  // Get known derivatives from imageConfig instead of hardcoding
+  const knownDerivatives = Object.keys(imageConfig.derivatives);
+
   // Remove derivative prefix if present
-  const knownDerivatives = ["header", "thumbnail", "avatar", "product"];
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
     transformedPath = `/${segments.slice(1).join("/")}`;
   }

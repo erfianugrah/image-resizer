@@ -1,5 +1,10 @@
 // Configuration for remote buckets and routes
 import { error } from "../utils/loggerUtils.js";
+import {
+  loadDerivativesFromEnv,
+  updateCacheConfig,
+  updateResponsiveConfig,
+} from "./imageConfig.js";
 
 // Default configuration
 const defaultConfig = {
@@ -108,14 +113,19 @@ export function getEnvironmentConfig(env = {}) {
         }
       },
     },
-    // New configuration for derivative templates
+    // Configuration for derivative templates
     {
       key: "DERIVATIVE_TEMPLATES",
       handler: (value) => {
         try {
+          const parsedDerivatives = JSON.parse(value);
+          // Use the new function to update imageConfig directly
+          loadDerivativesFromEnv(parsedDerivatives);
+
+          // Also keep a copy in the environment config for reference
           config.derivativeTemplates = {
             ...config.derivativeTemplates,
-            ...JSON.parse(value),
+            ...parsedDerivatives,
           };
         } catch (e) {
           error("Config", "Failed to parse DERIVATIVE_TEMPLATES env variable", {
@@ -124,7 +134,7 @@ export function getEnvironmentConfig(env = {}) {
         }
       },
     },
-    // New configuration for path-based derivative mappings
+    // Configuration for path-based derivative mappings
     {
       key: "PATH_TEMPLATES",
       handler: (value) => {
@@ -186,6 +196,51 @@ export function getEnvironmentConfig(env = {}) {
           };
         } catch (e) {
           error("Config", "Failed to parse DEBUG_HEADERS_CONFIG env variable", {
+            error: e.message,
+          });
+        }
+      },
+    },
+    // Add support for direct cache configuration
+    {
+      key: "CACHE_CONFIG",
+      handler: (value) => {
+        try {
+          const parsedCache = JSON.parse(value);
+
+          // Convert string regex patterns to actual RegExp objects
+          Object.values(parsedCache).forEach((cacheItem) => {
+            if (cacheItem.regex && typeof cacheItem.regex === "string") {
+              cacheItem.regex = new RegExp(cacheItem.regex);
+            }
+          });
+
+          // Update the imageConfig directly
+          updateCacheConfig(parsedCache);
+
+          // Also keep a reference in the environment config
+          config.cacheConfig = parsedCache;
+        } catch (e) {
+          error("Config", "Failed to parse CACHE_CONFIG env variable", {
+            error: e.message,
+          });
+        }
+      },
+    },
+    // Add support for responsive configuration
+    {
+      key: "RESPONSIVE_CONFIG",
+      handler: (value) => {
+        try {
+          const parsedResponsive = JSON.parse(value);
+
+          // Update the imageConfig directly
+          updateResponsiveConfig(parsedResponsive);
+
+          // Also keep a reference in the environment config
+          config.responsiveConfig = parsedResponsive;
+        } catch (e) {
+          error("Config", "Failed to parse RESPONSIVE_CONFIG env variable", {
             error: e.message,
           });
         }

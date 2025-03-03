@@ -1,4 +1,5 @@
 import { debug } from "./loggerUtils.js";
+import { imageConfig } from "../config/imageConfig.js";
 import {
   getDeviceTypeFromUserAgent,
   getWidthForDeviceType,
@@ -22,8 +23,8 @@ export function getWidthFromCfDeviceType(request) {
   const cfDeviceType = request.headers.get("CF-Device-Type");
   debug("DeviceUtils", "CF-Device-Type detection", { cfDeviceType });
 
-  // Define device type to width mapping
-  const deviceWidthMap = {
+  // Get device width mappings from config if available, or use defaults
+  const deviceWidthMap = imageConfig.responsive.deviceWidths || {
     "mobile": 480, // Mobile specific width (480p)
     "tablet": 768, // Tablet specific width (768p)
     "desktop": 1440, // Desktop specific width (1440p)

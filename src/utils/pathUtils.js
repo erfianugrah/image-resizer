@@ -4,9 +4,11 @@
  * @param {Object} config - Environment configuration
  * @returns {string|null} - Derivative type or null if no match
  */
+import { imageConfig } from "../config/imageConfig.js";
+
 export function getDerivativeFromPath(path, config = null) {
-  // Define known derivatives
-  const knownDerivatives = ["header", "thumbnail", "avatar", "product"];
+  // Get known derivatives from imageConfig instead of hardcoding
+  const knownDerivatives = Object.keys(imageConfig.derivatives);
 
   // Check for exact path segments to avoid partial matches
   const segments = path.split("/").filter((segment) => segment);

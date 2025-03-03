@@ -22,6 +22,11 @@ export function determineCacheConfig(url) {
   // Find matching cache configuration from config
   const cacheAsset = Object.values(imageConfig.cache).find((asset) => {
     if (!asset.regex) return false;
+
+    // Handle both regex and string pattern types
+    if (typeof asset.regex === "string") {
+      return new RegExp(asset.regex).test(url);
+    }
     return asset.regex.test(url);
   });
 

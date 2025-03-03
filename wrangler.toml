@@ -110,6 +110,59 @@ PATH_TEMPLATES = '''
 }
 '''
 
+# Cache configuration
+CACHE_CONFIG = '''
+{
+  "image": {
+    "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+    "ttl": {
+      "ok": 31536000,
+      "redirects": 31536000,
+      "clientError": 10,
+      "serverError": 1
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  },
+  "staticAssets": {
+    "regex": "^.*\\.(css|js)$",
+    "ttl": {
+      "ok": 86400,
+      "redirects": 86400,
+      "clientError": 10,
+      "serverError": 1
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  }
+}
+'''
+
+# Responsive configuration
+RESPONSIVE_CONFIG = '''
+{
+  "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+  "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+  "deviceWidths": {
+    "mobile": 480,
+    "tablet": 768, 
+    "desktop": 1440
+  },
+  "deviceMinWidthMap": {
+    "mobile": 320,
+    "tablet": 768,
+    "large-desktop": 1920,
+    "desktop": 960
+  },
+  "quality": 85,
+  "fit": "scale-down",
+  "metadata": "copyright",
+  "format": "auto"
+}
+'''
+
 [[env.direct.routes]]
 pattern = "dev-direct.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -221,6 +274,59 @@ PATH_TRANSFORMS = '''
 }
 '''
 
+# Cache configuration
+CACHE_CONFIG = '''
+{
+  "image": {
+    "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+    "ttl": {
+      "ok": 31536000,
+      "redirects": 31536000,
+      "clientError": 10,
+      "serverError": 1
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  },
+  "staticAssets": {
+    "regex": "^.*\\.(css|js)$",
+    "ttl": {
+      "ok": 86400,
+      "redirects": 86400,
+      "clientError": 10,
+      "serverError": 1
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  }
+}
+'''
+
+# Responsive configuration
+RESPONSIVE_CONFIG = '''
+{
+  "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+  "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+  "deviceWidths": {
+    "mobile": 480,
+    "tablet": 768, 
+    "desktop": 1440
+  },
+  "deviceMinWidthMap": {
+    "mobile": 320,
+    "tablet": 768,
+    "large-desktop": 1920,
+    "desktop": 960
+  },
+  "quality": 85,
+  "fit": "scale-down",
+  "metadata": "copyright",
+  "format": "auto"
+}
+'''
+
 [[env.remote.routes]]
 pattern = "dev-remote.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -327,6 +433,59 @@ PATH_TRANSFORMS = '''
 }
 '''
 
+# Cache configuration
+CACHE_CONFIG = '''
+{
+  "image": {
+    "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+    "ttl": {
+      "ok": 31536000,
+      "redirects": 31536000,
+      "clientError": 10,
+      "serverError": 1
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  },
+  "staticAssets": {
+    "regex": "^.*\\.(css|js)$",
+    "ttl": {
+      "ok": 86400,
+      "redirects": 86400,
+      "clientError": 10,
+      "serverError": 1
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  }
+}
+'''
+
+# Responsive configuration
+RESPONSIVE_CONFIG = '''
+{
+  "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+  "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+  "deviceWidths": {
+    "mobile": 480,
+    "tablet": 768, 
+    "desktop": 1440
+  },
+  "deviceMinWidthMap": {
+    "mobile": 320,
+    "tablet": 768,
+    "large-desktop": 1920,
+    "desktop": 960
+  },
+  "quality": 85,
+  "fit": "scale-down",
+  "metadata": "copyright",
+  "format": "auto"
+}
+'''
+
 [[env.staging.routes]]
 pattern = "staging.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -427,6 +586,59 @@ PATH_TRANSFORMS = '''
     "prefix": "content-images/",
     "removePrefix": true
   }
+}
+'''
+
+# Cache configuration - production may have longer TTLs
+CACHE_CONFIG = '''
+{
+  "image": {
+    "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+    "ttl": {
+      "ok": 31536000,
+      "redirects": 31536000,
+      "clientError": 60,
+      "serverError": 10
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  },
+  "staticAssets": {
+    "regex": "^.*\\.(css|js)$",
+    "ttl": {
+      "ok": 604800,
+      "redirects": 604800,
+      "clientError": 60,
+      "serverError": 10
+    },
+    "cacheability": true,
+    "mirage": false,
+    "imageCompression": "off"
+  }
+}
+'''
+
+# Responsive configuration - with slightly optimized quality for production
+RESPONSIVE_CONFIG = '''
+{
+  "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+  "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+  "deviceWidths": {
+    "mobile": 480,
+    "tablet": 768, 
+    "desktop": 1440
+  },
+  "deviceMinWidthMap": {
+    "mobile": 320,
+    "tablet": 768,
+    "large-desktop": 1920,
+    "desktop": 960
+  },
+  "quality": 80,
+  "fit": "scale-down",
+  "metadata": "copyright",
+  "format": "auto"
 }
 '''
 

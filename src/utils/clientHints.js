@@ -1,4 +1,5 @@
 import { debug } from "./loggerUtils.js";
+import { imageConfig } from "../config/imageConfig.js";
 
 /**
  * Check if client hints headers are present in the request
@@ -56,25 +57,45 @@ export function getWidthFromClientHints(request) {
   if (actualViewportWidth) {
     const vw = parseInt(actualViewportWidth);
 
-    // Define viewport breakpoints and corresponding widths
-    const breakpoints = [
-      { maxWidth: 640, width: 320 }, // mobile
-      { maxWidth: 1024, width: 768 }, // tablet
-      { maxWidth: 1440, width: 960 }, // desktop
-      { maxWidth: 1920, width: 1440 }, // full HD
-      { maxWidth: 2048, width: 1920 }, // 2K
-      { maxWidth: Infinity, width: 2048 }, // beyond 2K
-    ];
+    // Use breakpoints from responsive config instead of hardcoding
+    // Create viewport breakpoints from the responsive breakpoints
+    const availableBreakpoints = [...imageConfig.responsive.breakpoints].sort((
+      a,
+      b,
+    ) => a - b);
+
+    // Build the breakpoints array dynamically from config
+    const breakpoints = [];
+    for (let i = 0; i < availableBreakpoints.length; i++) {
+      const currentWidth = availableBreakpoints[i];
+      const maxWidth = i < availableBreakpoints.length - 1
+        ? availableBreakpoints[i + 1] - 1
+        : Infinity;
+
+      breakpoints.push({
+        maxWidth: maxWidth,
+        width: currentWidth,
+      });
+    }
+
+    // Ensure we have at least one breakpoint as fallback
+    if (breakpoints.length === 0) {
+      breakpoints.push({ maxWidth: Infinity, width: 1200 });
+    }
 
     // Find appropriate width based on viewport
-    const breakpoint = breakpoints.find((bp) => vw <= bp.maxWidth);
+    const breakpoint = breakpoints.find((bp) => vw <= bp.maxWidth) ||
+      breakpoints[breakpoints.length - 1];
     let optimizedWidth = breakpoint.width;
 
     // Apply DPR adjustment for high-DPI screens
     if (actualDpr && actualDpr !== "1") {
       const dprValue = parseFloat(actualDpr);
       if (dprValue > 1) {
-        optimizedWidth = Math.min(Math.round(optimizedWidth * dprValue), 3840); // Allow up to 4K with high DPR
+        optimizedWidth = Math.min(
+          Math.round(optimizedWidth * dprValue),
+          Math.max(...imageConfig.responsive.availableWidths) || 3840,
+        ); // Use max available width from config
       }
     }
 
