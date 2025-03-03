@@ -1,4 +1,5 @@
 // Configuration for remote buckets and routes
+import { error } from "../utils/loggerUtils.js";
 
 // Default configuration
 const defaultConfig = {
@@ -85,7 +86,10 @@ export function getEnvironmentConfig(env = {}) {
             ...JSON.parse(value),
           };
         } catch (e) {
-          console.error("Failed to parse REMOTE_BUCKETS env variable", e);
+          error("Config", "Failed to parse REMOTE_BUCKETS env variable", {
+            error: e.message,
+            value: value.substring(0, 100), // Only log first 100 chars to avoid huge logs
+          });
         }
       },
     },
@@ -98,7 +102,9 @@ export function getEnvironmentConfig(env = {}) {
             ...JSON.parse(value),
           };
         } catch (e) {
-          console.error("Failed to parse PATH_TRANSFORMS env variable", e);
+          error("Config", "Failed to parse PATH_TRANSFORMS env variable", {
+            error: e.message,
+          });
         }
       },
     },
@@ -112,7 +118,9 @@ export function getEnvironmentConfig(env = {}) {
             ...JSON.parse(value),
           };
         } catch (e) {
-          console.error("Failed to parse DERIVATIVE_TEMPLATES env variable", e);
+          error("Config", "Failed to parse DERIVATIVE_TEMPLATES env variable", {
+            error: e.message,
+          });
         }
       },
     },
@@ -126,7 +134,9 @@ export function getEnvironmentConfig(env = {}) {
             ...JSON.parse(value),
           };
         } catch (e) {
-          console.error("Failed to parse PATH_TEMPLATES env variable", e);
+          error("Config", "Failed to parse PATH_TEMPLATES env variable", {
+            error: e.message,
+          });
         }
       },
     },
@@ -143,7 +153,9 @@ export function getEnvironmentConfig(env = {}) {
             };
           }
         } catch (e) {
-          console.error("Failed to parse ROUTE_DERIVATIVES env variable", e);
+          error("Config", "Failed to parse ROUTE_DERIVATIVES env variable", {
+            error: e.message,
+          });
         }
       },
     },
@@ -157,7 +169,9 @@ export function getEnvironmentConfig(env = {}) {
             ...JSON.parse(value),
           };
         } catch (e) {
-          console.error("Failed to parse LOGGING_CONFIG env variable", e);
+          error("Config", "Failed to parse LOGGING_CONFIG env variable", {
+            error: e.message,
+          });
         }
       },
     },
@@ -171,7 +185,9 @@ export function getEnvironmentConfig(env = {}) {
             ...JSON.parse(value),
           };
         } catch (e) {
-          console.error("Failed to parse DEBUG_HEADERS_CONFIG env variable", e);
+          error("Config", "Failed to parse DEBUG_HEADERS_CONFIG env variable", {
+            error: e.message,
+          });
         }
       },
     },

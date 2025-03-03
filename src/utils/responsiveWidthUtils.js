@@ -19,7 +19,9 @@ export function getImageDimensions(
   requestedWidth,
   responsiveWidths,
 ) {
-  console.log("getImageDimensions - requestedWidth:", requestedWidth);
+  debug("ResponsiveWidth", "getImageDimensions - requestedWidth:", {
+    requestedWidth,
+  });
 
   // Define width determination strategies in order of priority
   const strategies = [
@@ -27,7 +29,7 @@ export function getImageDimensions(
     {
       condition: () => requestedWidth === "auto",
       action: () => {
-        console.log("Explicit auto width requested");
+        debug("ResponsiveWidth", "Explicit auto width requested");
         // Try client hints first, then CF device type, then user agent
         if (hasClientHints(request)) {
           return getWidthFromClientHints(request);
@@ -47,7 +49,7 @@ export function getImageDimensions(
       },
       action: () => {
         const parsedWidth = parseInt(requestedWidth);
-        console.log("Explicit width requested:", parsedWidth);
+        debug("ResponsiveWidth", "Explicit width requested:", { parsedWidth });
         return {
           width: parsedWidth, // Use exact requested width
           source: "explicit-width",
@@ -59,7 +61,10 @@ export function getImageDimensions(
     {
       condition: () => true, // default case
       action: () => {
-        console.log("No width specified, using responsive detection");
+        debug(
+          "ResponsiveWidth",
+          "No width specified, using responsive detection",
+        );
         return getResponsiveWidth(request, responsiveWidths);
       },
     },

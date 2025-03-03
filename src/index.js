@@ -1,17 +1,8 @@
 // Main Worker entry point
 import { handleImageRequest } from "./handlers/imageHandler.js";
 import { getEnvironmentConfig } from "./config/environmentConfig.js";
-import {
-  configureLogger,
-  error,
-  info,
-  logRequest,
-  setLogLevel,
-} from "./utils/loggerUtils.js";
-import {
-  configureDebugHeaders,
-  setDebugHeadersEnabled,
-} from "./utils/debugHeadersUtils.js";
+import { initializeLogging } from "./utils/loggingManager.js";
+import { error, info, logRequest } from "./utils/loggerUtils.js";
 
 // Global environment config that will be populated at runtime
 let runtimeConfig = null;
@@ -23,8 +14,8 @@ export default {
       if (!runtimeConfig) {
         runtimeConfig = getEnvironmentConfig(env);
 
-        // Initialize logging based on environment config
-        initializeLogging(runtimeConfig);
+        // Initialize logging using our centralized manager
+        initializeLogging(env);
 
         info(
           "Worker",
@@ -68,47 +59,3 @@ export default {
     }
   },
 };
-
-/**
- * Initialize logging based on configuration
- * @param {Object} config - Environment configuration
- */
-function initializeLogging(config) {
-  // Configure basic logger settings
-  configureLogger({
-    includeTimestamp: config.logging?.includeTimestamp !== false,
-    enableStructuredLogs: config.logging?.enableStructuredLogs !== false,
-    enableConsoleLogs: true,
-  });
-
-  // Set the log level separately - convert string level to numeric if needed
-  if (config.logging?.level) {
-    setLogLevel(config.logging.level);
-  }
-
-  // Configure debug headers
-  // Only check allowedEnvironments if it exists
-  let enableDebugHeaders = config.debugHeaders?.enabled !== false;
-
-  // Apply environment filtering only if allowedEnvironments is configured
-  if (config.debugHeaders?.allowedEnvironments) {
-    const isAllowedEnvironment = config.debugHeaders.allowedEnvironments
-      .includes(
-        config.ENVIRONMENT,
-      );
-    enableDebugHeaders = enableDebugHeaders && isAllowedEnvironment;
-  }
-
-  setDebugHeadersEnabled(enableDebugHeaders);
-
-  configureDebugHeaders({
-    prefix: config.debugHeaders?.prefix || "debug-",
-    includeHeaders: config.debugHeaders?.includeHeaders || [
-      "ir",
-      "cache",
-      "mode",
-      "client-hints",
-      "ua",
-    ],
-  });
-}

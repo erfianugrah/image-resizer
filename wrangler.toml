@@ -38,6 +38,30 @@ DEPLOYMENT_MODE = "direct"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
 
+# Centralized logging configuration
+LOGGING_CONFIG = '''
+{
+  "level": "DEBUG",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Centralized debug headers configuration
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": true,
+  "prefix": "debug-",
+  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua", "device"],
+  "specialHeaders": {
+    "x-processing-mode": true,
+    "x-size-source": true,
+    "x-actual-width": true,
+    "x-responsive-sizing": true
+  }
+}
+'''
+
 # Predefined image transformation templates
 DERIVATIVE_TEMPLATES = '''
 {
@@ -86,24 +110,6 @@ PATH_TEMPLATES = '''
 }
 '''
 
-# Logging configuration
-LOGGING_CONFIG = '''
-{
-  "level": "DEBUG",
-  "includeTimestamp": true,
-  "enableStructuredLogs": true
-}
-'''
-
-# Debug headers configuration
-DEBUG_HEADERS_CONFIG = '''
-{
-  "enabled": true,
-  "prefix": "debug-",
-  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua"]
-}
-'''
-
 [[env.direct.routes]]
 pattern = "dev-direct.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -117,6 +123,30 @@ ENVIRONMENT = "development"
 DEPLOYMENT_MODE = "remote"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Centralized logging configuration
+LOGGING_CONFIG = '''
+{
+  "level": "DEBUG",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Centralized debug headers configuration
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": true,
+  "prefix": "debug-",
+  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua", "device"],
+  "specialHeaders": {
+    "x-processing-mode": true,
+    "x-size-source": true, 
+    "x-actual-width": true,
+    "x-responsive-sizing": true
+  }
+}
+'''
 
 # Predefined image transformation templates
 DERIVATIVE_TEMPLATES = '''
@@ -191,24 +221,6 @@ PATH_TRANSFORMS = '''
 }
 '''
 
-# Logging configuration
-LOGGING_CONFIG = '''
-{
-  "level": "DEBUG",
-  "includeTimestamp": true,
-  "enableStructuredLogs": true
-}
-'''
-
-# Debug headers configuration
-DEBUG_HEADERS_CONFIG = '''
-{
-  "enabled": true,
-  "prefix": "debug-",
-  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua"]
-}
-'''
-
 [[env.remote.routes]]
 pattern = "dev-remote.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -222,6 +234,25 @@ ENVIRONMENT = "staging"
 DEPLOYMENT_MODE = "remote"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Centralized logging configuration - slightly less verbose for staging
+LOGGING_CONFIG = '''
+{
+  "level": "INFO",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Centralized debug headers configuration - enabled but limited for staging
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": true,
+  "prefix": "debug-",
+  "includeHeaders": ["ir", "cache", "mode"],
+  "allowedEnvironments": ["staging", "development"]
+}
+'''
 
 # Predefined image transformation templates (same as other environments)
 DERIVATIVE_TEMPLATES = '''
@@ -296,24 +327,6 @@ PATH_TRANSFORMS = '''
 }
 '''
 
-# Logging configuration
-LOGGING_CONFIG = '''
-{
-  "level": "INFO",
-  "includeTimestamp": true,
-  "enableStructuredLogs": true
-}
-'''
-
-# Debug headers configuration
-DEBUG_HEADERS_CONFIG = '''
-{
-  "enabled": true,
-  "prefix": "debug-",
-  "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua"]
-}
-'''
-
 [[env.staging.routes]]
 pattern = "staging.images.erfi.dev/*"
 zone_id = "d6260a9cd0c27db1e9c0a453b2e4761e"
@@ -327,6 +340,22 @@ ENVIRONMENT = "production"
 DEPLOYMENT_MODE = "remote"
 VERSION = "1.1.0"
 FALLBACK_BUCKET = "https://cdn.erfianugrah.com"
+
+# Centralized logging configuration - minimal for production
+LOGGING_CONFIG = '''
+{
+  "level": "WARN",
+  "includeTimestamp": true,
+  "enableStructuredLogs": true
+}
+'''
+
+# Debug headers disabled for production
+DEBUG_HEADERS_CONFIG = '''
+{
+  "enabled": false
+}
+'''
 
 # Predefined image transformation templates (same as other environments)
 DERIVATIVE_TEMPLATES = '''
@@ -398,22 +427,6 @@ PATH_TRANSFORMS = '''
     "prefix": "content-images/",
     "removePrefix": true
   }
-}
-'''
-
-# Logging configuration - less verbose for production
-LOGGING_CONFIG = '''
-{
-  "level": "DEBUG",
-  "includeTimestamp": true,
-  "enableStructuredLogs": true
-}
-'''
-
-# Debug headers configuration - disabled for production
-DEBUG_HEADERS_CONFIG = '''
-{
-  "enabled": false
 }
 '''
 

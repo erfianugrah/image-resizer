@@ -1,8 +1,5 @@
-import {
-  determineCacheControl,
-  generateCacheTags,
-} from "../utils/cacheControlUtils.js";
-import { debug, error, info, logResponse, warn } from "../utils/loggerUtils.js";
+import { generateCacheTags } from "../utils/cacheControlUtils.js";
+import { debug, error, info, logResponse } from "../utils/loggerUtils.js";
 import { applyDebugHeaders } from "../utils/debugHeadersUtils.js";
 import { getResponsiveWidth } from "../utils/responsiveWidthUtils.js";
 import { imageConfig } from "../config/imageConfig.js";
@@ -20,7 +17,7 @@ export async function processImage(request, options, cache, debugInfo = {}) {
 
   // Handle 'auto' width - not supported in Workers API
   if (options.width === "auto") {
-    warn(
+    debug(
       "ImageProcessor",
       "width=auto is not supported in Workers API. Using responsive sizing.",
     );
@@ -145,12 +142,10 @@ async function fetchWithImageOptions(request, options, cache, debugInfo) {
  * @returns {Response} - Final response with proper headers
  */
 function buildResponse(request, response, { options, cache, debugInfo }) {
+  // Create new response to avoid mutating the original
   const newResponse = new Response(response.body, response);
 
-  // Set cache control headers
-  const cacheControl = determineCacheControl(response.status, cache);
-  newResponse.headers.set("Cache-Control", cacheControl);
-
-  // Apply all debug headers through our utility
+  // Set cache control headers using determineCacheControl (this is already handled in applyDebugHeaders)
+  // Now we use applyDebugHeaders to ensure all headers are consistently managed
   return applyDebugHeaders(request, newResponse, { options, cache, debugInfo });
 }

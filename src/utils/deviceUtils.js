@@ -1,3 +1,4 @@
+import { debug } from "./loggerUtils.js";
 import {
   getDeviceTypeFromUserAgent,
   getWidthForDeviceType,
@@ -19,6 +20,7 @@ export function hasCfDeviceType(request) {
  */
 export function getWidthFromCfDeviceType(request) {
   const cfDeviceType = request.headers.get("CF-Device-Type");
+  debug("DeviceUtils", "CF-Device-Type detection", { cfDeviceType });
 
   // Define device type to width mapping
   const deviceWidthMap = {
@@ -45,6 +47,11 @@ export function getWidthFromCfDeviceType(request) {
 export function getWidthFromUserAgent(request, responsiveWidths) {
   const userAgent = request.headers.get("User-Agent") || "";
   const deviceType = getDeviceTypeFromUserAgent(userAgent);
+
+  debug("DeviceUtils", "User-Agent detection", {
+    userAgent: userAgent.substring(0, 50),
+    detectedDeviceType: deviceType,
+  });
 
   // Fallback: use specific width based on user agent detection
   return getWidthForDeviceType(deviceType, false, responsiveWidths);

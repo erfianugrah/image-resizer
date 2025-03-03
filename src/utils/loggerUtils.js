@@ -55,9 +55,47 @@ export function setLogLevel(level) {
     return;
   }
 
-  console.warn(
-    `Invalid log level: ${level}. Using default: ${loggerConfig.logLevel}`,
-  );
+  // Use warn when possible to avoid recursive issues
+  if (loggerConfig.enableConsoleLogs) {
+    console.warn(
+      `Invalid log level: ${level}. Using default: ${loggerConfig.logLevel}`,
+    );
+  }
+}
+
+/**
+ * Parse log level from string and return the numeric value
+ * @param {string} levelString - Log level string
+ * @returns {number|null} - Numeric log level or null if invalid
+ */
+export function parseLogLevel(levelString) {
+  if (!levelString) return null;
+
+  const upperLevel = levelString.toUpperCase();
+  return LOG_LEVEL_MAP[upperLevel] !== undefined
+    ? LOG_LEVEL_MAP[upperLevel]
+    : null;
+}
+
+/**
+ * Check if a log level is enabled
+ * @param {number|string} level - Log level to check
+ * @returns {boolean} - Whether the level is enabled
+ */
+export function isLevelEnabled(level) {
+  const numericLevel = typeof level === "string"
+    ? LOG_LEVEL_MAP[level.toUpperCase()]
+    : level;
+
+  return numericLevel !== undefined && numericLevel <= loggerConfig.logLevel;
+}
+
+/**
+ * Get current logger configuration
+ * @returns {Object} - Current logger configuration
+ */
+export function getLoggerConfig() {
+  return { ...loggerConfig };
 }
 
 /**

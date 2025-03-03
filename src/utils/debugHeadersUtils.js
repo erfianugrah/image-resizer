@@ -17,6 +17,7 @@ const defaultConfig = {
     "x-processing-mode": true,
     "x-size-source": true,
     "x-actual-width": true,
+    "x-responsive-sizing": true,
   },
 };
 
@@ -27,7 +28,17 @@ let headerConfig = { ...defaultConfig };
  * @param {Object} config - Configuration object
  */
 export function configureDebugHeaders(config = {}) {
-  headerConfig = { ...defaultConfig, ...config };
+  // Properly merge nested objects to avoid losing default specialHeaders
+  headerConfig = {
+    ...defaultConfig,
+    ...config,
+    // Ensure specialHeaders is properly merged - not overwritten
+    specialHeaders: {
+      ...defaultConfig.specialHeaders,
+      ...(config.specialHeaders || {}),
+    },
+  };
+
   debug("DebugHeaders", "Configured debug headers", { config: headerConfig });
 }
 
@@ -38,6 +49,22 @@ export function configureDebugHeaders(config = {}) {
 export function setDebugHeadersEnabled(enabled) {
   headerConfig.enabled = !!enabled;
   debug("DebugHeaders", `Debug headers ${enabled ? "enabled" : "disabled"}`);
+}
+
+/**
+ * Get current debug headers configuration
+ * @returns {Object} - Current configuration
+ */
+export function getDebugHeadersConfig() {
+  return { ...headerConfig };
+}
+
+/**
+ * Check if debug headers are enabled
+ * @returns {boolean} - Whether debug headers are enabled
+ */
+export function isDebugHeadersEnabled() {
+  return headerConfig.enabled;
 }
 
 /**
@@ -65,7 +92,7 @@ function getClientHintsDebug(request) {
 /**
  * Add standard client hints headers to responses
  * These headers are essential for responsive image sizing functionality
- * 
+ *
  * @param {Response} response - The response to add headers to
  */
 function addClientHintsResponseHeaders(response) {
@@ -100,7 +127,7 @@ export function applyDebugHeaders(
   // Always add client hints headers regardless of debug header settings
   // These are needed for responsive image functionality
   addClientHintsResponseHeaders(newResponse);
-  
+
   // If debug headers are disabled, return the response with only client hints headers
   if (!headerConfig.enabled) {
     return newResponse;
@@ -135,32 +162,35 @@ export function applyDebugHeaders(
     }
   });
 
-  // Set special headers
-  if (options) {
-    if (headerConfig.specialHeaders["x-processing-mode"]) {
+  // Set special headers - with safety check for specialHeaders
+  if (options && headerConfig.specialHeaders) {
+    const specialHeaders = headerConfig.specialHeaders;
+
+    if (specialHeaders["x-processing-mode"]) {
       const processingMode = options.derivative
         ? `template:${options.derivative}`
         : (options.source === "explicit-params" ? "explicit" : "responsive");
       newResponse.headers.set("x-processing-mode", processingMode);
     }
 
-    if (headerConfig.specialHeaders["x-size-source"] && options.source) {
+    if (specialHeaders["x-size-source"] && options.source) {
       newResponse.headers.set("x-size-source", options.source);
     }
 
-    if (headerConfig.specialHeaders["x-actual-width"]) {
+    if (specialHeaders["x-actual-width"]) {
       newResponse.headers.set("x-actual-width", options.width || "unknown");
     }
 
-    // Add a header to indicate if responsive sizing was used
-    newResponse.headers.set(
-      "x-responsive-sizing",
-      options.source?.includes("client-hints") ||
-        options.source?.includes("cf-device-type") ||
-        options.source?.includes("ua-")
-        ? "true"
-        : "false",
-    );
+    if (specialHeaders["x-responsive-sizing"]) {
+      newResponse.headers.set(
+        "x-responsive-sizing",
+        options.source?.includes("client-hints") ||
+          options.source?.includes("cf-device-type") ||
+          options.source?.includes("ua-")
+          ? "true"
+          : "false",
+      );
+    }
   }
 
   return newResponse;

@@ -1,3 +1,5 @@
+import { debug } from "./loggerUtils.js";
+
 /**
  * Check if client hints headers are present in the request
  * @param {Request} request - The incoming request
@@ -18,7 +20,7 @@ export function hasClientHints(request) {
     return debug;
   }, {});
 
-  console.log("Client Hints Headers:", hintsDebug);
+  debug("ClientHints", "Client Hints Headers", hintsDebug);
 
   // Check if any of the headers have a non-empty value
   return clientHintHeaders.some((header) => {
@@ -43,7 +45,7 @@ export function getWidthFromClientHints(request) {
   const actualViewportWidth = viewportWidth || viewportWithLegacy;
   const actualDpr = dpr || "1";
 
-  console.log("Client Hints Values:", {
+  debug("ClientHints", "Client Hints Values", {
     viewportWidth,
     dpr,
     width,
