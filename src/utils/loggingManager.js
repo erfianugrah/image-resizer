@@ -45,7 +45,7 @@ function parseLoggingConfig(env) {
     includeTimestamp: true,
     enableStructuredLogs: true,
     debugHeaders: {
-      enabled: true,
+      enabled: false, // Default to false so it must be explicitly enabled
       prefix: "debug-",
       includeHeaders: ["ir", "cache", "mode", "client-hints", "ua"],
     },
@@ -56,24 +56,57 @@ function parseLoggingConfig(env) {
 
   if (env.LOGGING_CONFIG) {
     try {
-      const parsed = JSON.parse(env.LOGGING_CONFIG);
-      loggingConfig = { ...loggingConfig, ...parsed };
+      // Handle both string and object values
+      let parsed = env.LOGGING_CONFIG;
+      
+      // If it's a string, try to parse it as JSON
+      if (typeof env.LOGGING_CONFIG === 'string') {
+        parsed = JSON.parse(env.LOGGING_CONFIG);
+      }
+      
+      if (parsed && typeof parsed === 'object') {
+        loggingConfig = { ...loggingConfig, ...parsed };
+      }
     } catch (err) {
-      warn("Config", "Failed to parse LOGGING_CONFIG", { error: err.message });
+      warn("Config", "Failed to parse LOGGING_CONFIG", { 
+        error: err.message,
+        type: typeof env.LOGGING_CONFIG 
+      });
     }
   }
 
   // Try to parse DEBUG_HEADERS_CONFIG if present
   if (env.DEBUG_HEADERS_CONFIG) {
     try {
-      const parsed = JSON.parse(env.DEBUG_HEADERS_CONFIG);
-      loggingConfig.debugHeaders = {
-        ...loggingConfig.debugHeaders,
-        ...parsed,
-      };
+      // Handle both string and object values
+      let parsed = env.DEBUG_HEADERS_CONFIG;
+      
+      // If it's a string, try to parse it as JSON
+      if (typeof env.DEBUG_HEADERS_CONFIG === 'string') {
+        parsed = JSON.parse(env.DEBUG_HEADERS_CONFIG);
+      }
+      
+      if (parsed && typeof parsed === 'object') {
+        // Log what we've parsed to help troubleshoot
+        debug("Config", "Parsed DEBUG_HEADERS_CONFIG", { 
+          type: typeof env.DEBUG_HEADERS_CONFIG,
+          parsed: JSON.stringify(parsed)
+        });
+        
+        loggingConfig.debugHeaders = {
+          ...loggingConfig.debugHeaders,
+          ...parsed,
+        };
+        
+        // Explicitly log the enabled state after parsing
+        debug("Config", "Debug headers enabled state after parsing", {
+          enabled: loggingConfig.debugHeaders.enabled
+        });
+      }
     } catch (err) {
       warn("Config", "Failed to parse DEBUG_HEADERS_CONFIG", {
         error: err.message,
+        type: typeof env.DEBUG_HEADERS_CONFIG
       });
     }
   }
@@ -105,8 +138,16 @@ function configureBasicLogging(config) {
  * @param {Object} env - Environment variables (for ENVIRONMENT check)
  */
 function configureDebugHeadersLogging(config, env) {
-  // Determine if debug headers should be enabled
-  let enableDebugHeaders = config.debugHeaders?.enabled !== false;
+  // Determine if debug headers should be enabled - check enabled is strictly true
+  // Default to false unless explicitly enabled
+  let enableDebugHeaders = config.debugHeaders && config.debugHeaders.enabled === true;
+  
+  // Log the debug headers config we received
+  debug("Logging", "Debug headers configuration received", { 
+    configValue: config.debugHeaders?.enabled,
+    enabledValue: enableDebugHeaders,
+    rawConfig: JSON.stringify(config.debugHeaders || {})
+  });
 
   // Apply environment filtering if configured
   if (config.debugHeaders?.allowedEnvironments && env.ENVIRONMENT) {
@@ -115,11 +156,13 @@ function configureDebugHeadersLogging(config, env) {
     enableDebugHeaders = enableDebugHeaders && isAllowedEnvironment;
   }
 
-  // Enable/disable debug headers
+  // Enable/disable debug headers - this is critical to set before configuring
   setDebugHeadersEnabled(enableDebugHeaders);
 
-  // Configure debug headers
+  // Configure debug headers - IMPORTANT: pass the enabled state explicitly 
+  // to prevent the default from overriding our setting
   configureDebugHeaders({
+    enabled: enableDebugHeaders, // Pass the enabled state explicitly
     prefix: config.debugHeaders?.prefix || "debug-",
     includeHeaders: config.debugHeaders?.includeHeaders || [
       "ir",
@@ -129,5 +172,10 @@ function configureDebugHeadersLogging(config, env) {
       "ua",
     ],
     specialHeaders: config.debugHeaders?.specialHeaders,
+  });
+  
+  // Log the final state to verify
+  debug("Logging", "Debug headers final configuration", {
+    enabled: enableDebugHeaders
   });
 }

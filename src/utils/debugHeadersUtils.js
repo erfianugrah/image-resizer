@@ -3,7 +3,7 @@ import { hasClientHints } from "./clientHints.js";
 
 // Default config for debug headers
 const defaultConfig = {
-  enabled: true,
+  enabled: false, // Default to false so it must be explicitly enabled
   prefix: "debug-",
   includeHeaders: [
     "ir", // Image resizing options
@@ -28,6 +28,10 @@ let headerConfig = { ...defaultConfig };
  * @param {Object} config - Configuration object
  */
 export function configureDebugHeaders(config = {}) {
+  // IMPORTANT: Don't overwrite the enabled property here
+  // Store the current enabled state
+  const currentEnabled = headerConfig.enabled;
+  
   // Properly merge nested objects to avoid losing default specialHeaders
   headerConfig = {
     ...defaultConfig,
@@ -37,6 +41,8 @@ export function configureDebugHeaders(config = {}) {
       ...defaultConfig.specialHeaders,
       ...(config.specialHeaders || {}),
     },
+    // Maintain the current enabled state - this is critical!
+    enabled: config.enabled !== undefined ? config.enabled : currentEnabled,
   };
 
   debug("DebugHeaders", "Configured debug headers", { config: headerConfig });
@@ -129,7 +135,9 @@ export function applyDebugHeaders(
   addClientHintsResponseHeaders(newResponse);
 
   // If debug headers are disabled, return the response with only client hints headers
+  // This check wasn't actually preventing debug headers from being added - fixed now
   if (!headerConfig.enabled) {
+    debug("DebugHeaders", "Debug headers are disabled, skipping", { enabled: headerConfig.enabled });
     return newResponse;
   }
 

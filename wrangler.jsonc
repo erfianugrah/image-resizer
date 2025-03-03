@@ -1,0 +1,598 @@
+{
+  // Cloudflare Image Resizing Worker Configuration
+  // ---
+  // This worker provides dynamic image resizing capabilities using 
+  // Cloudflare's Image Resizing service.
+
+  "name": "image-resizer",
+  "main": "src/index.js",
+  "compatibility_date": "2025-01-01",
+  "account_id": "25f21f141824546aa72c74451a11b419",
+
+  // Resource limits to prevent unexpected billing
+  "limits": {
+    "cpu_ms": 50,
+    "memory_mb": 128
+  },
+
+  // Observability settings
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+
+  // Development server configuration
+  "dev": {
+    "port": 9001,
+    "local_protocol": "http",
+    "upstream_protocol": "https"
+  },
+
+  //
+  // Environment Configurations
+  //
+
+  "env": {
+    // Direct mode deployment (worker runs on the bucket)
+    "direct": {
+      "name": "direct-resizer",
+      "vars": {
+        "ENVIRONMENT": "development",
+        "DEPLOYMENT_MODE": "direct",
+        "VERSION": "1.1.0",
+        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        
+        // Centralized logging configuration
+        "LOGGING_CONFIG": {
+          "level": "DEBUG",
+          "includeTimestamp": true,
+          "enableStructuredLogs": true
+        },
+        
+        // Centralized debug headers configuration
+        "DEBUG_HEADERS_CONFIG": {
+          "enabled": true,
+          "prefix": "debug-",
+          "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua", "device"],
+          "specialHeaders": {
+            "x-processing-mode": true,
+            "x-size-source": true,
+            "x-actual-width": true,
+            "x-responsive-sizing": true
+          }
+        },
+        
+        // Predefined image transformation templates
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        // Path-based derivative mappings
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        // Cache configuration
+        "CACHE_CONFIG": {
+          "image": {
+            "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+            "ttl": {
+              "ok": 31536000,
+              "redirects": 31536000,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          },
+          "staticAssets": {
+            "regex": "^.*\\.(css|js)$",
+            "ttl": {
+              "ok": 86400,
+              "redirects": 86400,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          }
+        },
+        
+        // Responsive configuration
+        "RESPONSIVE_CONFIG": {
+          "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+          "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768, 
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 85,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
+        }
+      },
+      "routes": [
+        {
+          "pattern": "dev-direct.images.erfi.dev/*",
+          "zone_id": "d6260a9cd0c27db1e9c0a453b2e4761e"
+        }
+      ]
+    },
+
+    // Remote mode deployment (worker fetches from remote buckets)
+    "remote": {
+      "name": "remote-resizer",
+      "vars": {
+        "ENVIRONMENT": "development",
+        "DEPLOYMENT_MODE": "remote",
+        "VERSION": "1.1.0",
+        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        
+        // Centralized logging configuration
+        "LOGGING_CONFIG": {
+          "level": "DEBUG",
+          "includeTimestamp": true,
+          "enableStructuredLogs": true
+        },
+        
+        // Centralized debug headers configuration
+        "DEBUG_HEADERS_CONFIG": {
+          "enabled": true,
+          "prefix": "debug-",
+          "includeHeaders": ["ir", "cache", "mode", "client-hints", "ua", "device"],
+          "specialHeaders": {
+            "x-processing-mode": true,
+            "x-size-source": true, 
+            "x-actual-width": true,
+            "x-responsive-sizing": true
+          }
+        },
+        
+        // Predefined image transformation templates - same as direct env
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        // Path-based derivative mappings - same as direct env
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        // Remote bucket configuration
+        "REMOTE_BUCKETS": {
+          "default": "https://cdn.erfianugrah.com"
+        },
+        
+        // Path transformation rules for remote buckets
+        "PATH_TRANSFORMS": {
+          "images": {
+            "prefix": "",
+            "removePrefix": true
+          },
+          "assets": {
+            "prefix": "img/", 
+            "removePrefix": true
+          },
+          "content": {
+            "prefix": "content-images/",
+            "removePrefix": true
+          }
+        },
+        
+        // Cache configuration - same as direct env
+        "CACHE_CONFIG": {
+          "image": {
+            "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+            "ttl": {
+              "ok": 31536000,
+              "redirects": 31536000,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          },
+          "staticAssets": {
+            "regex": "^.*\\.(css|js)$",
+            "ttl": {
+              "ok": 86400,
+              "redirects": 86400,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          }
+        },
+        
+        // Responsive configuration - same as direct env
+        "RESPONSIVE_CONFIG": {
+          "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+          "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768, 
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 85,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
+        }
+      },
+      "routes": [
+        {
+          "pattern": "dev-remote.images.erfi.dev/*",
+          "zone_id": "d6260a9cd0c27db1e9c0a453b2e4761e"
+        }
+      ]
+    },
+
+    // Staging environment
+    "staging": {
+      "name": "staging-resizer",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "DEPLOYMENT_MODE": "remote",
+        "VERSION": "1.1.0",
+        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        
+        // Centralized logging configuration - slightly less verbose for staging
+        "LOGGING_CONFIG": {
+          "level": "INFO",
+          "includeTimestamp": true,
+          "enableStructuredLogs": true
+        },
+        
+        // Centralized debug headers configuration - enabled but limited for staging
+        "DEBUG_HEADERS_CONFIG": {
+          "enabled": true,
+          "prefix": "debug-",
+          "includeHeaders": ["ir", "cache", "mode"],
+          "allowedEnvironments": ["staging", "development"]
+        },
+        
+        // Reusing the same templates, but could be customized if needed
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        "REMOTE_BUCKETS": {
+          "default": "https://cdn.erfianugrah.com"
+        },
+        
+        "PATH_TRANSFORMS": {
+          "images": {
+            "prefix": "",
+            "removePrefix": true
+          },
+          "assets": {
+            "prefix": "img/", 
+            "removePrefix": true
+          },
+          "content": {
+            "prefix": "content-images/",
+            "removePrefix": true
+          }
+        },
+        
+        "CACHE_CONFIG": {
+          "image": {
+            "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+            "ttl": {
+              "ok": 31536000,
+              "redirects": 31536000,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          },
+          "staticAssets": {
+            "regex": "^.*\\.(css|js)$",
+            "ttl": {
+              "ok": 86400,
+              "redirects": 86400,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          }
+        },
+        
+        "RESPONSIVE_CONFIG": {
+          "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+          "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768, 
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 85,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
+        }
+      },
+      "routes": [
+        {
+          "pattern": "staging.images.erfi.dev/*",
+          "zone_id": "d6260a9cd0c27db1e9c0a453b2e4761e"
+        }
+      ]
+    },
+
+    // Production environment
+    "prod": {
+      "name": "prod-resizer",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "DEPLOYMENT_MODE": "remote",
+        "VERSION": "1.1.0",
+        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        
+        // Centralized logging configuration - minimal for production
+        "LOGGING_CONFIG": {
+          "level": "WARN",
+          "includeTimestamp": true,
+          "enableStructuredLogs": true
+        },
+        
+        // Debug headers disabled for production
+        "DEBUG_HEADERS_CONFIG": {
+          "enabled": false
+        },
+        
+        // Same templates as other environments
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        "REMOTE_BUCKETS": {
+          "default": "https://cdn.erfianugrah.com"
+        },
+        
+        "PATH_TRANSFORMS": {
+          "images": {
+            "prefix": "",
+            "removePrefix": true
+          },
+          "assets": {
+            "prefix": "img/", 
+            "removePrefix": true
+          },
+          "content": {
+            "prefix": "content-images/",
+            "removePrefix": true
+          }
+        },
+        
+        // Cache configuration - production has longer TTLs for error cases
+        "CACHE_CONFIG": {
+          "image": {
+            "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+            "ttl": {
+              "ok": 31536000,
+              "redirects": 31536000,
+              "clientError": 60,
+              "serverError": 10
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          },
+          "staticAssets": {
+            "regex": "^.*\\.(css|js)$",
+            "ttl": {
+              "ok": 604800,
+              "redirects": 604800,
+              "clientError": 60,
+              "serverError": 10
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          }
+        },
+        
+        // Responsive configuration - with slightly optimized quality for production
+        "RESPONSIVE_CONFIG": {
+          "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
+          "breakpoints": [320, 768, 960, 1440, 1920, 2048],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768, 
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 80,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
+        }
+      },
+      "routes": [
+        {
+          "pattern": "images.erfi.dev/*",
+          "zone_id": "d6260a9cd0c27db1e9c0a453b2e4761e"
+        }
+      ]
+    }
+  }
+}

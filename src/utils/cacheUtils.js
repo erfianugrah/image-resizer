@@ -23,11 +23,28 @@ export function determineCacheConfig(url) {
   const cacheAsset = Object.values(imageConfig.cache).find((asset) => {
     if (!asset.regex) return false;
 
-    // Handle both regex and string pattern types
-    if (typeof asset.regex === "string") {
-      return new RegExp(asset.regex).test(url);
+    try {
+      // Handle various types of regex
+      if (asset.regex instanceof RegExp) {
+        // If it's already a RegExp, use it directly
+        return asset.regex.test(url);
+      } else if (typeof asset.regex === "string") {
+        // If it's a string, create a RegExp from it
+        return new RegExp(asset.regex).test(url);
+      } else if (typeof asset.regex === "object") {
+        // If it's an object but not a RegExp, try to convert it to a RegExp
+        const regexStr = asset.regex.toString();
+        const cleanRegexStr = regexStr.replace(/^\{|\}$/g, '');
+        return new RegExp(cleanRegexStr).test(url);
+      }
+    } catch (e) {
+      // Log the error and return false for this asset
+      console.error(`Error testing regex for cache asset: ${e.message}`);
+      return false;
     }
-    return asset.regex.test(url);
+    
+    // If we get here, we couldn't handle the regex type
+    return false;
   });
 
   if (!cacheAsset) {

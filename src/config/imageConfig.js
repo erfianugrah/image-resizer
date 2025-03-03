@@ -143,43 +143,76 @@ export const imageConfig = {
 };
 
 /**
- * Update imageConfig with environment settings
+ * Deep merge two objects
+ * @param {Object} target - Target object to merge into
+ * @param {Object} source - Source object to merge from
+ * @returns {Object} - Merged object
+ */
+function deepMerge(target, source) {
+  if (!source) return target;
+  
+  const output = { ...target };
+  
+  // Handle case where source is not an object
+  if (source && typeof source === 'object' && !Array.isArray(source)) {
+    Object.keys(source).forEach(key => {
+      if (source[key] && typeof source[key] === 'object' && 
+          !Array.isArray(source[key]) &&
+          target[key] && typeof target[key] === 'object' && 
+          !Array.isArray(target[key])) {
+        // Both source and target have objects at this key, recursively merge
+        output[key] = deepMerge(target[key], source[key]);
+      } else {
+        // Either source or target doesn't have an object at this key, or it's an array
+        // Just overwrite with source value
+        output[key] = source[key];
+      }
+    });
+  } else {
+    // Source is not an object or is an array, just return the target
+    return target;
+  }
+  
+  return output;
+}
+
+/**
+ * Update imageConfig with environment settings using deep merge
  * @param {Object} envDerivatives - Derivatives from environment
  */
 export function loadDerivativesFromEnv(envDerivatives) {
   if (!envDerivatives) return;
 
-  // Properly merge environment derivatives with defaults
-  imageConfig.derivatives = {
-    ...imageConfig.derivatives,
-    ...envDerivatives,
-  };
+  // For each derivative template in the environment config
+  Object.keys(envDerivatives).forEach(key => {
+    if (imageConfig.derivatives[key]) {
+      // If the derivative already exists, merge the properties
+      imageConfig.derivatives[key] = deepMerge(imageConfig.derivatives[key], envDerivatives[key]);
+    } else {
+      // If it doesn't exist, add it
+      imageConfig.derivatives[key] = envDerivatives[key];
+    }
+  });
 }
 
 /**
- * Update cache configuration with environment settings
+ * Update cache configuration with environment settings using deep merge
  * @param {Object} envCache - Cache configuration from environment
  */
 export function updateCacheConfig(envCache) {
   if (!envCache) return;
 
-  // Properly merge environment cache settings with defaults
-  imageConfig.cache = {
-    ...imageConfig.cache,
-    ...envCache,
-  };
+  // Use deep merge to properly handle nested objects
+  imageConfig.cache = deepMerge(imageConfig.cache, envCache);
 }
 
 /**
- * Update responsive configuration with environment settings
+ * Update responsive configuration with environment settings using deep merge
  * @param {Object} envResponsive - Responsive configuration from environment
  */
 export function updateResponsiveConfig(envResponsive) {
   if (!envResponsive) return;
 
-  // Properly merge environment responsive settings with defaults
-  imageConfig.responsive = {
-    ...imageConfig.responsive,
-    ...envResponsive,
-  };
+  // Use deep merge to properly handle nested objects
+  imageConfig.responsive = deepMerge(imageConfig.responsive, envResponsive);
 }
