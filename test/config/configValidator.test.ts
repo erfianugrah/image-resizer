@@ -4,7 +4,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   validateAppConfig,
-  validateDefaultConfig,
+  // validateDefaultConfig,  // Not used in this file currently
   validateDerivativeTemplate,
 } from '../../src/config/configValidator';
 import { imageConfig } from '../../src/config/imageConfig';

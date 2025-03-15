@@ -120,7 +120,12 @@ class ExplicitParamsStrategy implements OptionsStrategy {
 
       if (value !== null) {
         if (param === 'width' && value === 'auto') {
+          // Store 'auto' initially so we can adjust our response based on client hints
           options.width = 'auto';
+          debug('OptionsFactory', 'Width=auto detected, will use responsive sizing', {
+            param: 'width',
+            value: 'auto',
+          });
         } else {
           const numValue = Number(value);
           if (!isNaN(numValue)) {

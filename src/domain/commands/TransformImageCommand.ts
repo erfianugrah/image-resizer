@@ -345,30 +345,33 @@ export class TransformImageCommand {
 
   /**
    * Prepare the Cloudflare image resizing options object
+   * Based on main branch implementation in fetchWithImageOptions
    */
   private prepareImageResizingOptions(
     options: ImageTransformOptions
   ): Record<string, string | number | boolean | null | undefined> {
-    // Create a copy of options for the cf.image object - matching main branch behavior
+    // Create a copy of options for the cf.image object
+    // This matches the behavior in the main branch
     const imageOptions = { ...options };
 
-    // Remove non-Cloudflare options - matching main branch behavior
+    // Remove non-Cloudflare options
     const nonCloudflareOptions = ['source', 'derivative'];
     nonCloudflareOptions.forEach((opt) => {
       delete imageOptions[opt as keyof typeof imageOptions];
     });
 
-    // Special handling for auto parameters
+    // Special handling for width=auto since Cloudflare API doesn't support 'auto' directly
     if (imageOptions.width === 'auto') {
-      // Handle 'auto' width - Cloudflare API doesn't support it directly
-      // It should have been converted to a numeric width by imageOptionsService
+      debug('TransformImageCommand', 'Width=auto detected, not including width parameter', {
+        url: this.context.request.url,
+        options: options,
+      });
+      // Remove the width parameter entirely if it's still 'auto'
+      // It should have been converted to a number by imageOptionsService
       delete imageOptions.width;
     }
 
-    // Format=auto is directly supported by Cloudflare and doesn't need special handling
-    // Cloudflare will use the best format based on Accept header when format is 'auto'
-
-    // Only include defined parameters - matching main branch behavior
+    // Only include defined parameters
     const resizingOptions: Record<string, string | number | boolean | null | undefined> = {};
     Object.entries(imageOptions).forEach(([key, value]) => {
       if (value !== null && value !== undefined) {

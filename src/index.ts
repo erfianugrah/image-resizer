@@ -52,7 +52,7 @@ export default {
       // We skip only if this is a request from another image-resizing worker (prevent infinite loops)
       const skipPatterns = [(headers: Headers) => /image-resizing/.test(headers.get('via') || '')];
 
-      // Check if request has width=auto parameter - force these to be processed
+      // Check if request has width=auto parameter - main branch forces these to be processed
       const url = new URL(request.url);
       const hasWidthAuto =
         url.searchParams.has('width') && url.searchParams.get('width') === 'auto';
@@ -87,6 +87,7 @@ export default {
         },
       });
 
+      // Process the request if it shouldn't be skipped
       if (!shouldSkip) {
         try {
           // Pass full config to the handler - it will extract what it needs
