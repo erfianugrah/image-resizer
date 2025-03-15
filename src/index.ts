@@ -9,12 +9,12 @@
  */
 
 import { handleImageRequest } from './handlers/imageHandler';
-import { getEnvironmentConfig, EnvironmentConfig } from './config/environmentConfig';
 import { initializeLogging } from './utils/loggingManager';
 import { error, info, logRequest } from './utils/loggerUtils';
+import { ConfigurationManager } from './config/configManager';
 
-// Global environment config that will be populated at runtime
-let runtimeConfig: EnvironmentConfig | null = null;
+// Flag to track if initialization is complete
+let isInitialized = false;
 
 export default {
   async fetch(
@@ -23,25 +23,27 @@ export default {
     _ctx: ExecutionContext
   ): Promise<Response> {
     try {
-      // Initialize the runtime config if not already done
-      if (!runtimeConfig) {
-        runtimeConfig = getEnvironmentConfig(env);
+      // Initialize configuration and services if not already done
+      if (!isInitialized) {
+        // Initialize the configuration manager
+        const configManager = ConfigurationManager.getInstance();
+        configManager.initialize(env);
+        const config = configManager.getConfig();
 
         // Initialize logging using our centralized manager
         initializeLogging(env);
 
-        // Apply environment caching configuration to imageConfig
-        const { imageConfig } = await import('./config/imageConfig');
-        imageConfig.caching.method = runtimeConfig.cache.method;
-        imageConfig.caching.debug = runtimeConfig.cache.debug;
-
         info(
           'Worker',
-          `Initialized image-resizer v${
-            env.VERSION || '1.0.0'
-          } in ${runtimeConfig.mode} mode with ${runtimeConfig.cache.method} caching`
+          `Initialized image-resizer v${config.version} in ${config.mode} mode with ${config.cache.method} caching`
         );
+
+        isInitialized = true;
       }
+
+      // Get current configuration
+      const configManager = ConfigurationManager.getInstance();
+      const config = configManager.getConfig();
 
       // Log incoming request at debug level
       logRequest('Request', request);
@@ -52,8 +54,9 @@ export default {
       // Check if we should skip resizing
       const shouldSkip = skipPatterns.some((pattern) => pattern(request.headers));
 
-      if (!shouldSkip && runtimeConfig) {
-        return await handleImageRequest(request, runtimeConfig);
+      if (!shouldSkip) {
+        // Pass full config to the handler - it will extract what it needs
+        return await handleImageRequest(request, config);
       }
 
       info('Worker', 'Skipping image processing, passing through request');

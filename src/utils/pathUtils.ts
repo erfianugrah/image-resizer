@@ -17,55 +17,53 @@ export interface PathPattern {
 /**
  * Determine derivative type from URL path
  * @param path - The URL path
- * @param config - Environment configuration
+ * @param pathTemplates - Path to derivative name mappings
  * @returns Derivative type or null if no match
  */
-export interface DerivativeConfig {
-  derivatives?: Record<string, unknown>;
-  pathTemplates?: Record<string, string>;
-  [key: string]: unknown;
-}
-
 export function getDerivativeFromPath(
   path: string,
-  config: DerivativeConfig | null = null
+  pathTemplates?: Record<string, string>
 ): string | null {
-  // Import configuration dynamically to avoid circular dependencies
-  const _getDerivatives = async () => {
-    const { imageConfig } = await import('../config/imageConfig');
-    return Object.keys(imageConfig.derivatives || {});
-  };
-
-  // Use immediately available derivatives if possible
-  let knownDerivatives: string[] = [];
-  if (config?.derivatives) {
-    knownDerivatives = Object.keys(config.derivatives);
-  } else {
-    // For now, use a basic set until async imports are possible
-    knownDerivatives = ['thumbnail', 'header', 'avatar', 'product'];
+  // Check if we have path templates
+  if (!pathTemplates || Object.keys(pathTemplates).length === 0) {
+    // Use default templates when none are provided
+    pathTemplates = {
+      thumbnail: 'thumbnail',
+      header: 'header',
+      avatar: 'avatar',
+      product: 'product',
+      'profile-pictures': 'avatar',
+      'hero-banners': 'header',
+    };
   }
 
   // Check for exact path segments to avoid partial matches
   const segments = path.split('/').filter((segment) => segment);
 
   // Check first segment specifically
-  if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
-    return segments[0];
-  }
+  if (segments.length > 0) {
+    // Check if the segment is directly a template key
+    if (Object.keys(pathTemplates).includes(segments[0])) {
+      return pathTemplates[segments[0]];
+    }
 
-  // If config is available, check path templates
-  if (config && config.pathTemplates) {
-    const matchedPath = Object.keys(config.pathTemplates).find((pathPattern) =>
-      path.includes(`/${pathPattern}/`)
-    );
-
-    if (matchedPath) {
-      return config.pathTemplates[matchedPath];
+    // Check if the segment itself is a valid derivative name
+    if (Object.values(pathTemplates).includes(segments[0])) {
+      return segments[0];
     }
   }
 
-  // Fallback to substring check for backward compatibility
-  for (const derivative of knownDerivatives) {
+  // Check for path patterns
+  for (const [pathPattern, derivativeName] of Object.entries(pathTemplates)) {
+    // Check if the path includes the pattern as a segment
+    if (path.includes(`/${pathPattern}/`)) {
+      return derivativeName;
+    }
+  }
+
+  // Check if any derivative name itself is in the path (backward compatibility)
+  const derivativeNames = new Set(Object.values(pathTemplates));
+  for (const derivative of derivativeNames) {
     if (path.includes(`/${derivative}/`)) {
       return derivative;
     }

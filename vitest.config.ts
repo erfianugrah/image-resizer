@@ -12,7 +12,7 @@ export default defineConfig({
     deps: {
       // We're mocking the Cloudflare Workers environment
       // rather than using actual implementations
-      interopDefault: true
+      interopDefault: true,
     },
   },
 });

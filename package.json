@@ -8,13 +8,14 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "format": "prettier --write '**/*.{js,ts,css,json,md}'",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "build": "wrangler publish --dry-run",
-    "prepare": "tsc --noEmit && eslint src/**/*.ts"
+    "prepare": "tsc --noEmit && eslint ."
   },
   "keywords": [
     "cloudflare",
@@ -36,6 +37,7 @@
     "@vitest/coverage-v8": "^1.1.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.3",
     "prettier": "^3.1.1",
     "typescript": "^5.3.3",
     "vitest": "^1.6.1",
