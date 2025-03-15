@@ -196,8 +196,8 @@ class ResponsiveStrategy implements OptionsStrategy {
     // Apply responsive width
     options.width = responsiveWidth;
 
-    // Set source for debugging
-    options.source = widthParam === 'auto' ? 'explicit-params-fallback' : 'responsive-sizing';
+    // Set source for debugging - always use responsive-sizing for consistency with main branch
+    options.source = 'responsive-sizing';
 
     // Determine format
     const formatParam = urlParams.get('format');
@@ -242,14 +242,10 @@ export class ImageOptionsFactory {
       return new ExplicitParamsStrategy();
     }
 
-    // Default to responsive strategy
-    const clientHintsAvailable = hasClientHints(request) || hasCfDeviceType(request);
-    if (clientHintsAvailable) {
-      return new ResponsiveStrategy();
-    }
-
-    // Fallback to explicit strategy with defaults
-    return new ExplicitParamsStrategy();
+    // If no explicit parameters or derivative, use responsive strategy
+    // This matches the main branch behavior in determineImageOptions where it uses
+    // applyResponsiveSizing when no explicit params or derivative was found
+    return new ResponsiveStrategy();
   }
 
   /**

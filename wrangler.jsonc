@@ -23,168 +23,14 @@
     "local_protocol": "http",
     "upstream_protocol": "https"
   },
-  //
-  // Shared Configuration Templates
-  //
-  // These templates define common configuration blocks that
-  // are reused across different environments
-  //
-  "config_templates": {
-    // Image transformation templates used across all environments
-    "derivative_templates": {
-      "header": {
-        "width": 1600,
-        "height": 73,
-        "quality": 80,
-        "fit": "scale-down",
-        "metadata": "copyright"
-      },
-      "thumbnail": {
-        "width": 320,
-        "height": 150,
-        "quality": 85,
-        "fit": "scale-down", 
-        "metadata": "copyright",
-        "sharpen": 1
-      },
-      "avatar": {
-        "width": 180,
-        "height": 180,
-        "quality": 90,
-        "fit": "cover",
-        "metadata": "none",
-        "gravity": "face"
-      },
-      "product": {
-        "width": 800,
-        "height": 800,
-        "quality": 85,
-        "fit": "contain",
-        "background": "white"
-      }
-    },
-    
-    // Standard path-to-template mappings
-    "path_templates": {
-      "profile-pictures": "avatar",
-      "hero-banners": "header",
-      "header": "header",
-      "thumbnail": "thumbnail",
-      "avatars": "avatar",
-      "products": "product"
-    },
-    
-    // Standard path transformations for remote mode
-    "path_transforms": {
-      "images": {
-        "prefix": "",
-        "removePrefix": true
-      },
-      "assets": {
-        "prefix": "img/",
-        "removePrefix": true
-      },
-      "content": {
-        "prefix": "content-images/",
-        "removePrefix": true
-      }
-    },
-    
-    // Standard responsive configuration
-    "responsive_config": {
-      "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
-      "breakpoints": [320, 768, 960, 1440, 1920, 2048],
-      "deviceWidths": {
-        "mobile": 480,
-        "tablet": 768,
-        "desktop": 1440
-      },
-      "deviceMinWidthMap": {
-        "mobile": 320,
-        "tablet": 768,
-        "large-desktop": 1920,
-        "desktop": 960
-      },
-      "quality": 85,
-      "fit": "scale-down",
-      "metadata": "copyright",
-      "format": "auto"
-    },
-    
-    // Standard image cache configuration
-    "cache_config": {
-      "image": {
-        "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
-        "ttl": {
-          "ok": 31536000,
-          "redirects": 31536000,
-          "clientError": 10,
-          "serverError": 1
-        },
-        "cacheability": true,
-        "mirage": false,
-        "imageCompression": "off"
-      }
-    }
-  },
-  
+  // No shared templates - each environment has its own complete configuration
   //
   // Environment Configurations
   //
   "env": {
-    // Direct mode deployment (worker runs on the bucket)
-    "direct": {
-      "name": "direct-resizer",
-      "vars": {
-        // Core configuration
-        "ENVIRONMENT": "development",
-        "DEPLOYMENT_MODE": "direct",
-        "VERSION": "1.1.0",
-        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
-        
-        // Logging configuration
-        "LOGGING_CONFIG": {
-          "level": "DEBUG",
-          "includeTimestamp": true,
-          "enableStructuredLogs": true
-        },
-        
-        // Debug headers configuration
-        "DEBUG_HEADERS_CONFIG": {
-          "enabled": true,
-          "prefix": "debug-",
-          "includeHeaders": [
-            "ir",
-            "cache",
-            "mode",
-            "client-hints",
-            "ua",
-            "device"
-          ],
-          "specialHeaders": {
-            "x-processing-mode": true,
-            "x-size-source": true,
-            "x-actual-width": true,
-            "x-responsive-sizing": true
-          }
-        },
-        
-        // Reference to shared template configurations
-        "DERIVATIVE_TEMPLATES": "$config_templates.derivative_templates",
-        "PATH_TEMPLATES": "$config_templates.path_templates",
-        "CACHE_CONFIG": "$config_templates.cache_config",
-        "RESPONSIVE_CONFIG": "$config_templates.responsive_config"
-      },
-      "routes": [
-        {
-          "pattern": "dev-direct.images.erfi.dev/*",
-          "zone_id": "d6260a9cd0c27db1e9c0a453b2e4761e"
-        }
-      ]
-    },
-    // Remote mode deployment (worker fetches from remote buckets)
-    "remote": {
-      "name": "remote-resizer",
+    // Development environment - using workers dev mode
+    "dev": {
+      "name": "dev-resizer",
       "vars": {
         // Core configuration
         "ENVIRONMENT": "development",
@@ -224,19 +70,120 @@
           "default": "https://cdn.erfianugrah.com"
         },
         
-        // Reference to shared template configurations
-        "DERIVATIVE_TEMPLATES": "$config_templates.derivative_templates",
-        "PATH_TEMPLATES": "$config_templates.path_templates",
-        "PATH_TRANSFORMS": "$config_templates.path_transforms",
-        "CACHE_CONFIG": "$config_templates.cache_config",
-        "RESPONSIVE_CONFIG": "$config_templates.responsive_config"
-      },
-      "routes": [
-        {
-          "pattern": "dev-remote.images.erfi.dev/*",
-          "zone_id": "d6260a9cd0c27db1e9c0a453b2e4761e"
+        // Image transformation templates
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        // Path-to-template mappings
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        // Path transformations
+        "PATH_TRANSFORMS": {
+          "images": {
+            "prefix": "",
+            "removePrefix": true
+          },
+          "assets": {
+            "prefix": "img/",
+            "removePrefix": true
+          },
+          "content": {
+            "prefix": "content-images/",
+            "removePrefix": true
+          }
+        },
+        
+        // Cache configuration
+        "CACHE_CONFIG": {
+          "image": {
+            "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+            "ttl": {
+              "ok": 31536000,
+              "redirects": 31536000,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          }
+        },
+        
+        // Responsive configuration
+        "RESPONSIVE_CONFIG": {
+          "availableWidths": [
+            320,
+            640,
+            768,
+            960,
+            1024,
+            1440,
+            1920,
+            2048,
+            3840
+          ],
+          "breakpoints": [
+            320,
+            768,
+            960,
+            1440,
+            1920,
+            2048
+          ],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768,
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 85,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
         }
-      ]
+      }
     },
     // Staging environment
     "staging": {
@@ -275,12 +222,119 @@
           "default": "https://cdn.erfianugrah.com"
         },
         
-        // Reference to shared template configurations
-        "DERIVATIVE_TEMPLATES": "$config_templates.derivative_templates",
-        "PATH_TEMPLATES": "$config_templates.path_templates",
-        "PATH_TRANSFORMS": "$config_templates.path_transforms",
-        "CACHE_CONFIG": "$config_templates.cache_config",
-        "RESPONSIVE_CONFIG": "$config_templates.responsive_config"
+        // Image transformation templates
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        // Path-to-template mappings
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        // Path transformations
+        "PATH_TRANSFORMS": {
+          "images": {
+            "prefix": "",
+            "removePrefix": true
+          },
+          "assets": {
+            "prefix": "img/",
+            "removePrefix": true
+          },
+          "content": {
+            "prefix": "content-images/",
+            "removePrefix": true
+          }
+        },
+        
+        // Cache configuration
+        "CACHE_CONFIG": {
+          "image": {
+            "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
+            "ttl": {
+              "ok": 31536000,
+              "redirects": 31536000,
+              "clientError": 10,
+              "serverError": 1
+            },
+            "cacheability": true,
+            "mirage": false,
+            "imageCompression": "off"
+          }
+        },
+        
+        // Responsive configuration
+        "RESPONSIVE_CONFIG": {
+          "availableWidths": [
+            320,
+            640,
+            768,
+            960,
+            1024,
+            1440,
+            1920,
+            2048,
+            3840
+          ],
+          "breakpoints": [
+            320,
+            768,
+            960,
+            1440,
+            1920,
+            2048
+          ],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768,
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 85,
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
+        }
       },
       "routes": [
         {
@@ -316,11 +370,65 @@
           "default": "https://cdn.erfianugrah.com"
         },
         
-        // Reference to shared template configurations, with
-        // some production-specific overrides for cache
-        "DERIVATIVE_TEMPLATES": "$config_templates.derivative_templates",
-        "PATH_TEMPLATES": "$config_templates.path_templates",
-        "PATH_TRANSFORMS": "$config_templates.path_transforms",
+        // Image transformation templates
+        "DERIVATIVE_TEMPLATES": {
+          "header": {
+            "width": 1600,
+            "height": 73,
+            "quality": 80,
+            "fit": "scale-down",
+            "metadata": "copyright"
+          },
+          "thumbnail": {
+            "width": 320,
+            "height": 150,
+            "quality": 85,
+            "fit": "scale-down",
+            "metadata": "copyright",
+            "sharpen": 1
+          },
+          "avatar": {
+            "width": 180,
+            "height": 180,
+            "quality": 90,
+            "fit": "cover",
+            "metadata": "none",
+            "gravity": "face"
+          },
+          "product": {
+            "width": 800,
+            "height": 800,
+            "quality": 85,
+            "fit": "contain",
+            "background": "white"
+          }
+        },
+        
+        // Path-to-template mappings
+        "PATH_TEMPLATES": {
+          "profile-pictures": "avatar",
+          "hero-banners": "header",
+          "header": "header",
+          "thumbnail": "thumbnail",
+          "avatars": "avatar",
+          "products": "product"
+        },
+        
+        // Path transformations
+        "PATH_TRANSFORMS": {
+          "images": {
+            "prefix": "",
+            "removePrefix": true
+          },
+          "assets": {
+            "prefix": "img/",
+            "removePrefix": true
+          },
+          "content": {
+            "prefix": "content-images/",
+            "removePrefix": true
+          }
+        },
         
         // Cache configuration - production has longer TTLs for error cases
         "CACHE_CONFIG": {
@@ -338,10 +446,42 @@
           }
         },
         
-        // Responsive config with production-specific quality setting
+        // Responsive configuration - with production-specific quality setting
         "RESPONSIVE_CONFIG": {
-          "$extends": "$config_templates.responsive_config",
-          "quality": 80
+          "availableWidths": [
+            320,
+            640,
+            768,
+            960,
+            1024,
+            1440,
+            1920,
+            2048,
+            3840
+          ],
+          "breakpoints": [
+            320,
+            768,
+            960,
+            1440,
+            1920,
+            2048
+          ],
+          "deviceWidths": {
+            "mobile": 480,
+            "tablet": 768,
+            "desktop": 1440
+          },
+          "deviceMinWidthMap": {
+            "mobile": 320,
+            "tablet": 768,
+            "large-desktop": 1920,
+            "desktop": 960
+          },
+          "quality": 80, // Lower quality for production
+          "fit": "scale-down",
+          "metadata": "copyright",
+          "format": "auto"
         }
       },
       "routes": [
