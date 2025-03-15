@@ -9,7 +9,7 @@ import { debug, error } from '../utils/loggerUtils';
 
 /**
  * Transform an image using Cloudflare Image Resizing
- * 
+ *
  * @param request - The original request
  * @param options - Image transformation options
  * @param pathPatterns - Path patterns for matching URLs
@@ -22,7 +22,7 @@ export async function transformImage(
   options: ImageTransformOptions,
   pathPatterns: PathPattern[] = [],
   debugInfo?: DebugInfo,
-  config?: any
+  config?: unknown
 ): Promise<Response> {
   try {
     debug('ImageTransformationService', 'Transforming image', {
@@ -32,7 +32,7 @@ export async function transformImage(
 
     // Import dynamically to avoid circular dependencies
     const { TransformImageCommand } = await import('../domain/commands/TransformImageCommand');
-    
+
     // Create and execute the command
     const command = new TransformImageCommand({
       request,
@@ -56,14 +56,14 @@ export async function transformImage(
 
 /**
  * Get the format to use for the transformed image
- * 
+ *
  * @param request - The original request
  * @returns The best format based on Accept header
  */
 export function getBestImageFormat(request: Request): string {
   // Get Accept header
   const accept = request.headers.get('Accept') || '';
-  
+
   // Check for specific image formats in Accept header
   if (accept.includes('image/avif')) {
     return 'avif';
@@ -74,14 +74,14 @@ export function getBestImageFormat(request: Request): string {
   } else if (accept.includes('image/jpeg')) {
     return 'jpeg';
   }
-  
+
   // Default to auto to let Cloudflare decide
   return 'auto';
 }
 
 /**
  * Determine if responsive sizing should be used
- * 
+ *
  * @param width - Requested width
  * @param clientHintsAvailable - Whether client hints are available
  * @returns Whether to use responsive sizing

@@ -1,27 +1,57 @@
 /**
  * Transforms a request URL based on deployment mode and configuration
- * @param {Request} request - The original request
- * @param {Object} config - Environment configuration
- * @returns {Object} - The transformed request details
+ * @param request - The original request
+ * @param config - Environment configuration
+ * @returns The transformed request details
  */
-import { imageConfig } from "../config/imageConfig.js";
+import { imageConfig } from '../config/imageConfig';
 
-export function transformRequestUrl(request, config, env) {
+export interface RemoteTransformResult {
+  originRequest: Request;
+  bucketName: string;
+  originUrl: string;
+  derivative: string | null;
+  isRemoteFetch: boolean;
+}
+
+export interface PathTransform {
+  prefix: string;
+  removePrefix: boolean;
+}
+
+export interface UrlTransformConfig {
+  deploymentMode: string;
+  remoteBuckets?: Record<string, string>;
+  derivativeTemplates?: Record<string, string>;
+  pathTransforms?: Record<string, PathTransform>;
+  [key: string]: unknown;
+}
+
+export interface EnvironmentVariables {
+  FALLBACK_BUCKET?: string;
+  [key: string]: unknown;
+}
+
+export function transformRequestUrl(
+  request: Request,
+  config: UrlTransformConfig,
+  env?: EnvironmentVariables
+): RemoteTransformResult {
   const url = new URL(request.url);
   const path = url.pathname;
-  const segments = path.split("/").filter((segment) => segment);
+  const segments = path.split('/').filter((segment) => segment);
 
   // Default result assuming direct deployment
-  const result = {
+  const result: RemoteTransformResult = {
     originRequest: request,
-    bucketName: "default",
+    bucketName: 'default',
     originUrl: url.toString(),
     derivative: null,
     isRemoteFetch: false,
   };
 
   // Handle direct deployment
-  if (config.deploymentMode === "direct") {
+  if (config.deploymentMode === 'direct') {
     result.derivative = getDerivativeForPath(segments, path, config);
     return result;
   }
@@ -32,7 +62,7 @@ export function transformRequestUrl(request, config, env) {
   // Find matching bucket
   if (segments.length > 0) {
     const bucketMatch = Object.keys(config.remoteBuckets || {}).find(
-      (bucket) => segments[0] === bucket || path.includes(`/${bucket}/`),
+      (bucket) => segments[0] === bucket || path.includes(`/${bucket}/`)
     );
 
     if (bucketMatch) {
@@ -44,12 +74,7 @@ export function transformRequestUrl(request, config, env) {
   result.derivative = getDerivativeForPath(segments, path, config);
 
   // Transform the URL based on bucket and path transformation rules
-  const transformedPath = transformPathForRemote(
-    path,
-    segments,
-    result.bucketName,
-    config,
-  );
+  const transformedPath = transformPathForRemote(path, segments, result.bucketName, config);
   const remoteOrigin = getRemoteOrigin(result.bucketName, config, env);
 
   // Build the new origin URL
@@ -63,13 +88,17 @@ export function transformRequestUrl(request, config, env) {
 
 /**
  * Get derivative type based on path and configuration
- * @param {string[]} segments - Path segments
- * @param {string} path - Full path
- * @param {Object} config - Configuration
- * @returns {string|null} - Derivative type or object
+ * @param segments - Path segments
+ * @param path - Full path
+ * @param config - Configuration
+ * @returns Derivative type or object
  */
-function getDerivativeForPath(segments, path, config) {
-  // Get known derivatives from imageConfig instead of hardcoding
+function getDerivativeForPath(
+  segments: string[],
+  path: string,
+  config: UrlTransformConfig
+): string | null {
+  // Get known derivatives from imageConfig
   const knownDerivatives = Object.keys(imageConfig.derivatives);
 
   // Check first segment if it's a known derivative
@@ -77,7 +106,7 @@ function getDerivativeForPath(segments, path, config) {
     return segments[0];
   }
 
-  // Check derivative templates from config (previously called routeDerivatives)
+  // Check derivative templates from config
   if (config.derivativeTemplates) {
     // Look for the longest matching route to handle nested paths correctly
     const matchedRoutes = Object.keys(config.derivativeTemplates)
@@ -94,36 +123,40 @@ function getDerivativeForPath(segments, path, config) {
 
 /**
  * Transform path for remote buckets based on configuration
- * @param {string} path - Original path
- * @param {string[]} segments - Path segments
- * @param {string} bucketName - Bucket name
- * @param {Object} config - Configuration
- * @returns {string} - Transformed path
+ * @param path - Original path
+ * @param segments - Path segments
+ * @param bucketName - Bucket name
+ * @param config - Configuration
+ * @returns Transformed path
  */
-function transformPathForRemote(path, segments, bucketName, config) {
+function transformPathForRemote(
+  path: string,
+  segments: string[],
+  bucketName: string,
+  config: UrlTransformConfig
+): string {
   let transformedPath = path;
 
-  // Get known derivatives from imageConfig instead of hardcoding
+  // Get known derivatives from imageConfig
   const knownDerivatives = Object.keys(imageConfig.derivatives);
 
   // Remove derivative prefix if present
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
-    transformedPath = `/${segments.slice(1).join("/")}`;
+    transformedPath = `/${segments.slice(1).join('/')}`;
   }
 
   // Apply path transformations if configured
-  const pathTransform = config.pathTransforms &&
-    config.pathTransforms[bucketName];
+  const pathTransform = config.pathTransforms && config.pathTransforms[bucketName];
 
   if (pathTransform) {
     // Remove bucket prefix if configured
     if (pathTransform.removePrefix) {
-      transformedPath = transformedPath.replace(`/${bucketName}`, "");
+      transformedPath = transformedPath.replace(`/${bucketName}`, '');
     }
 
     // Add prefix if configured
     if (pathTransform.prefix) {
-      const pathWithoutLeadingSlash = transformedPath.startsWith("/")
+      const pathWithoutLeadingSlash = transformedPath.startsWith('/')
         ? transformedPath.substring(1)
         : transformedPath;
       transformedPath = `/${pathTransform.prefix}${pathWithoutLeadingSlash}`;
@@ -135,53 +168,59 @@ function transformPathForRemote(path, segments, bucketName, config) {
 
 /**
  * Get remote origin URL for bucket
- * @param {string} bucketName - Bucket name
- * @param {Object} config - Configuration
- * @param {Object} env - Environment variables
- * @returns {string} - Remote origin URL
+ * @param bucketName - Bucket name
+ * @param config - Configuration
+ * @param env - Environment variables
+ * @returns Remote origin URL
  */
-function getRemoteOrigin(bucketName, config, env) {
-  return (config.remoteBuckets && config.remoteBuckets[bucketName]) ||
+function getRemoteOrigin(
+  bucketName: string,
+  config: UrlTransformConfig,
+  env?: EnvironmentVariables
+): string {
+  return (
+    (config.remoteBuckets && config.remoteBuckets[bucketName]) ||
     (config.remoteBuckets && config.remoteBuckets.default) ||
     env?.FALLBACK_BUCKET ||
-    "https://placeholder.example.com";
+    'https://placeholder.example.com'
+  );
 }
 
 /**
  * Build origin URL by combining remote origin with path and non-image params
- * @param {URL} originalUrl - Original URL object
- * @param {string} transformedPath - Transformed path
- * @param {string} remoteOrigin - Remote origin URL
- * @returns {URL} - New origin URL
+ * @param originalUrl - Original URL object
+ * @param transformedPath - Transformed path
+ * @param remoteOrigin - Remote origin URL
+ * @returns New origin URL
  */
-function buildOriginUrl(originalUrl, transformedPath, remoteOrigin) {
+function buildOriginUrl(originalUrl: URL, transformedPath: string, remoteOrigin: string): URL {
   const originUrl = new URL(transformedPath, remoteOrigin);
 
   // List of image-specific params to exclude
   const imageParams = [
-    "width",
-    "height",
-    "fit",
-    "quality",
-    "format",
-    "metadata",
-    "derivative",
+    'width',
+    'height',
+    'fit',
+    'quality',
+    'format',
+    'metadata',
+    'derivative',
     // Additional Cloudflare parameters
-    "dpr",
-    "gravity",
-    "trim",
-    "brightness",
-    "contrast",
-    "gamma",
-    "rotate",
-    "sharpen",
-    "saturation",
-    "background",
-    "blur",
-    "border",
-    "compression",
-    "onerror",
-    "anim",
+    'dpr',
+    'gravity',
+    'trim',
+    'brightness',
+    'contrast',
+    'gamma',
+    'rotate',
+    'sharpen',
+    'saturation',
+    'background',
+    'blur',
+    'border',
+    'compression',
+    'onerror',
+    'anim',
   ];
 
   // Copy over search params, excluding image-specific ones
@@ -196,15 +235,15 @@ function buildOriginUrl(originalUrl, transformedPath, remoteOrigin) {
 
 /**
  * Create new request for the origin
- * @param {string} originUrl - URL to request
- * @param {Request} originalRequest - Original request
- * @returns {Request} - New request
+ * @param originUrl - URL to request
+ * @param originalRequest - Original request
+ * @returns New request
  */
-function createOriginRequest(originUrl, originalRequest) {
+function createOriginRequest(originUrl: string, originalRequest: Request): Request {
   return new Request(originUrl, {
     method: originalRequest.method,
     headers: originalRequest.headers,
     body: originalRequest.body,
-    redirect: "follow",
+    redirect: 'follow',
   });
 }

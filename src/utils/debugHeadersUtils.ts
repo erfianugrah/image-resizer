@@ -13,16 +13,31 @@ export interface DebugInfo {
 
 /**
  * Add debug headers to a response
- * 
+ *
  * @param response - Original response
  * @param debugInfo - Debug information
  * @param options - Image options
  * @returns Response with debug headers
  */
+export interface DebugOptions {
+  irOptions?: Record<string, unknown>;
+  cacheConfig?: Record<string, unknown>;
+  mode?: string;
+  requestTransform?: Record<string, unknown>;
+  clientHints?: Record<string, unknown>;
+  userAgent?: string;
+  device?: Record<string, unknown>;
+  sizeSource?: string;
+  actualWidth?: number;
+  processingMode?: string;
+  responsiveSizing?: boolean;
+  [key: string]: unknown;
+}
+
 export function addDebugHeaders(
   response: Response,
   debugInfo: DebugInfo,
-  options: Record<string, any>
+  options: DebugOptions
 ): Response {
   if (!debugInfo.isEnabled) {
     return response;
@@ -44,10 +59,13 @@ export function addDebugHeaders(
 
   // Add deployment mode
   if (options.mode) {
-    headers.set('debug-mode', JSON.stringify({
-      mode: options.mode,
-      ...(options.requestTransform || {})
-    }));
+    headers.set(
+      'debug-mode',
+      JSON.stringify({
+        mode: options.mode,
+        ...(options.requestTransform || {}),
+      })
+    );
   }
 
   // Add client hints
@@ -83,7 +101,9 @@ export function addDebugHeaders(
   }
 
   debug('DebugHeaders', 'Added debug headers', {
-    headers: [...headers.entries()].filter(([key]) => key.startsWith('debug-') || key.startsWith('x-'))
+    headers: [...headers.entries()].filter(
+      ([key]) => key.startsWith('debug-') || key.startsWith('x-')
+    ),
   });
 
   return enhancedResponse;

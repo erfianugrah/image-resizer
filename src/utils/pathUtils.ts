@@ -10,7 +10,7 @@ export interface PathPattern {
   processPath?: boolean;
   cacheTtl?: number;
   captureGroups?: boolean;
-  transformationOverrides?: Record<string, any>;
+  transformationOverrides?: Record<string, string | number | boolean | null | undefined>;
   quality?: string;
 }
 
@@ -20,10 +20,19 @@ export interface PathPattern {
  * @param config - Environment configuration
  * @returns Derivative type or null if no match
  */
-export function getDerivativeFromPath(path: string, config: any = null): string | null {
+export interface DerivativeConfig {
+  derivatives?: Record<string, unknown>;
+  pathTemplates?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+export function getDerivativeFromPath(
+  path: string,
+  config: DerivativeConfig | null = null
+): string | null {
   // Import configuration dynamically to avoid circular dependencies
-  const getDerivatives = async () => {
-    const { imageConfig } = await import("../config/imageConfig");
+  const _getDerivatives = async () => {
+    const { imageConfig } = await import('../config/imageConfig');
     return Object.keys(imageConfig.derivatives || {});
   };
 
@@ -37,7 +46,7 @@ export function getDerivativeFromPath(path: string, config: any = null): string 
   }
 
   // Check for exact path segments to avoid partial matches
-  const segments = path.split("/").filter((segment) => segment);
+  const segments = path.split('/').filter((segment) => segment);
 
   // Check first segment specifically
   if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
@@ -80,7 +89,7 @@ export function isImagePath(path: string): boolean {
  * @returns Filename
  */
 export function getFilenameFromPath(path: string): string {
-  const segments = path.split("/");
+  const segments = path.split('/');
   return segments[segments.length - 1];
 }
 
@@ -90,8 +99,11 @@ export function getFilenameFromPath(path: string): string {
  * @param patterns - Array of path patterns to match against
  * @returns Matching pattern or undefined if no match
  */
-export function findMatchingPathPattern(path: string, patterns: PathPattern[]): PathPattern | undefined {
-  return patterns.find(pattern => {
+export function findMatchingPathPattern(
+  path: string,
+  patterns: PathPattern[]
+): PathPattern | undefined {
+  return patterns.find((pattern) => {
     const regex = new RegExp(pattern.matcher);
     return regex.test(path);
   });
@@ -114,23 +126,23 @@ export function matchPathWithCaptures(path: string, patterns: PathPattern[]): Pa
     if (pattern.captureGroups) {
       const regex = new RegExp(pattern.matcher);
       const match = path.match(regex);
-      
+
       if (match) {
         const captures: Record<string, string> = {};
-        
+
         // Add numbered captures
         for (let i = 1; i < match.length; i++) {
           captures[i.toString()] = match[i];
         }
-        
+
         // Check for named capture groups if available
         if (match.groups) {
           Object.assign(captures, match.groups);
         }
-        
+
         return {
           pattern,
-          captures
+          captures,
         };
       }
     } else {
@@ -139,12 +151,12 @@ export function matchPathWithCaptures(path: string, patterns: PathPattern[]): Pa
       if (regex.test(path)) {
         return {
           pattern,
-          captures: {}
+          captures: {},
         };
       }
     }
   }
-  
+
   return null;
 }
 
@@ -161,14 +173,14 @@ export function extractVideoId(path: string, pattern: PathPattern): string | nul
       return match.captures['videoId'];
     }
   }
-  
+
   // Fallback to regex extraction
   const regex = new RegExp(pattern.matcher);
   const match = path.match(regex);
-  
+
   if (match && match.length > 1) {
     return match[1]; // Assume first capture group is the ID
   }
-  
+
   return null;
 }

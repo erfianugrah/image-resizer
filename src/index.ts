@@ -17,7 +17,11 @@ import { error, info, logRequest } from './utils/loggerUtils';
 let runtimeConfig: EnvironmentConfig | null = null;
 
 export default {
-  async fetch(request: Request, env: any, ctx: ExecutionContext): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Record<string, unknown>,
+    _ctx: ExecutionContext
+  ): Promise<Response> {
     try {
       // Initialize the runtime config if not already done
       if (!runtimeConfig) {
@@ -30,7 +34,7 @@ export default {
         const { imageConfig } = await import('./config/imageConfig');
         imageConfig.caching.method = runtimeConfig.cache.method;
         imageConfig.caching.debug = runtimeConfig.cache.debug;
-        
+
         info(
           'Worker',
           `Initialized image-resizer v${
@@ -57,7 +61,7 @@ export default {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       const errorStack = err instanceof Error ? err.stack : undefined;
-      
+
       error('Worker', 'Unexpected error in worker', {
         error: errorMessage,
         stack: errorStack,
