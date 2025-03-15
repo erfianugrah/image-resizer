@@ -37,14 +37,12 @@
         "DEPLOYMENT_MODE": "remote",
         "VERSION": "1.1.0",
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
-        
         // Logging configuration
         "LOGGING_CONFIG": {
           "level": "DEBUG",
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
-        
         // Debug headers configuration
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true,
@@ -64,12 +62,10 @@
             "x-responsive-sizing": true
           }
         },
-        
         // Remote bucket configuration
         "REMOTE_BUCKETS": {
           "default": "https://cdn.erfianugrah.com"
         },
-        
         // Image transformation templates
         "DERIVATIVE_TEMPLATES": {
           "header": {
@@ -103,7 +99,6 @@
             "background": "white"
           }
         },
-        
         // Path-to-template mappings
         "PATH_TEMPLATES": {
           "profile-pictures": "avatar",
@@ -113,7 +108,6 @@
           "avatars": "avatar",
           "products": "product"
         },
-        
         // Path transformations
         "PATH_TRANSFORMS": {
           "images": {
@@ -129,7 +123,6 @@
             "removePrefix": true
           }
         },
-        
         // Cache configuration
         "CACHE_CONFIG": {
           "image": {
@@ -145,7 +138,6 @@
             "imageCompression": "off"
           }
         },
-        
         // Responsive configuration
         "RESPONSIVE_CONFIG": {
           "availableWidths": [
@@ -194,14 +186,12 @@
         "DEPLOYMENT_MODE": "remote",
         "VERSION": "1.1.0",
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
-        
         // Logging configuration - less verbose for staging
         "LOGGING_CONFIG": {
           "level": "INFO",
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
-        
         // Debug headers configuration - limited for staging
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true,
@@ -216,12 +206,10 @@
             "development"
           ]
         },
-        
         // Remote bucket configuration
         "REMOTE_BUCKETS": {
           "default": "https://cdn.erfianugrah.com"
         },
-        
         // Image transformation templates
         "DERIVATIVE_TEMPLATES": {
           "header": {
@@ -255,7 +243,6 @@
             "background": "white"
           }
         },
-        
         // Path-to-template mappings
         "PATH_TEMPLATES": {
           "profile-pictures": "avatar",
@@ -265,7 +252,6 @@
           "avatars": "avatar",
           "products": "product"
         },
-        
         // Path transformations
         "PATH_TRANSFORMS": {
           "images": {
@@ -281,7 +267,6 @@
             "removePrefix": true
           }
         },
-        
         // Cache configuration
         "CACHE_CONFIG": {
           "image": {
@@ -297,7 +282,6 @@
             "imageCompression": "off"
           }
         },
-        
         // Responsive configuration
         "RESPONSIVE_CONFIG": {
           "availableWidths": [
@@ -352,24 +336,20 @@
         "DEPLOYMENT_MODE": "remote",
         "VERSION": "1.1.0",
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
-        
         // Logging configuration - minimal for production
         "LOGGING_CONFIG": {
-          "level": "WARN",
+          "level": "DEBUG",
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
-        
         // Debug headers disabled for production
         "DEBUG_HEADERS_CONFIG": {
-          "enabled": false
+          "enabled": true
         },
-        
         // Remote bucket configuration
         "REMOTE_BUCKETS": {
           "default": "https://cdn.erfianugrah.com"
         },
-        
         // Image transformation templates
         "DERIVATIVE_TEMPLATES": {
           "header": {
@@ -403,7 +383,6 @@
             "background": "white"
           }
         },
-        
         // Path-to-template mappings
         "PATH_TEMPLATES": {
           "profile-pictures": "avatar",
@@ -413,7 +392,6 @@
           "avatars": "avatar",
           "products": "product"
         },
-        
         // Path transformations
         "PATH_TRANSFORMS": {
           "images": {
@@ -429,7 +407,6 @@
             "removePrefix": true
           }
         },
-        
         // Cache configuration - production has longer TTLs for error cases
         "CACHE_CONFIG": {
           "image": {
@@ -445,7 +422,6 @@
             "imageCompression": "off"
           }
         },
-        
         // Responsive configuration - with production-specific quality setting
         "RESPONSIVE_CONFIG": {
           "availableWidths": [
