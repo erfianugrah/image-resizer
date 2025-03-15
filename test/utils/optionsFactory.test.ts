@@ -11,14 +11,22 @@ import { determineFormat } from '../../src/utils/formatUtils';
 // Mock dependencies
 vi.mock('../../src/utils/clientHints', () => ({
   hasClientHints: vi.fn().mockReturnValue(false),
+  getViewportWidth: vi.fn().mockReturnValue(1024),
+  getDevicePixelRatio: vi.fn().mockReturnValue(1.5),
 }));
 
 vi.mock('../../src/utils/deviceUtils', () => ({
   hasCfDeviceType: vi.fn().mockReturnValue(false),
+  getDeviceInfo: vi.fn().mockReturnValue({ width: 1440, type: 'desktop' }),
 }));
 
 vi.mock('../../src/utils/userAgentUtils', () => ({
   getDeviceTypeFromUserAgent: vi.fn().mockReturnValue('desktop'),
+}));
+
+vi.mock('../../src/utils/responsiveWidthUtils', () => ({
+  getResponsiveWidth: vi.fn().mockReturnValue(1440),
+  snapToBreakpoint: vi.fn().mockImplementation((width) => width),
 }));
 
 vi.mock('../../src/utils/formatUtils', () => ({
@@ -141,7 +149,8 @@ describe('ImageOptionsFactory', () => {
 
       // Assert
       expect(options).not.toHaveProperty('source', 'derivative-unknown');
-      // Should fall back to explicit params strategy
+      // Should fall back to responsive strategy per our update
+      expect(options).toHaveProperty('source', 'responsive-sizing');
       expect(options).toHaveProperty('quality', 85); // From defaults
     });
   });
