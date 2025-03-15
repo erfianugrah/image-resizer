@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Cloudflare Worker for image resizing with DDD and service architecture",
   "main": "src/index.ts",
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -10,7 +11,10 @@
     "lint": "eslint src/**/*.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "build": "wrangler publish --dry-run",
+    "prepare": "tsc --noEmit && eslint src/**/*.ts"
   },
   "keywords": [
     "cloudflare",
@@ -18,20 +22,32 @@
     "image",
     "resizing",
     "domain-driven-design",
-    "service-architecture"
+    "service-architecture",
+    "typescript",
+    "command-pattern"
   ],
   "author": "Erfi Anugrah",
   "license": "MIT",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20231218.0",
+    "@cloudflare/workers-types": "^4.20240508.0",
     "@types/node": "^20.10.5",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
+    "@vitest/coverage-v8": "^1.1.0",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "prettier": "^3.1.1",
     "typescript": "^5.3.3",
     "vitest": "^1.6.1",
-    "wrangler": "^3.22.1"
-  }
+    "wrangler": "^3.28.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ]
 }
