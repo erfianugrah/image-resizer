@@ -190,7 +190,8 @@ class ResponsiveStrategy implements OptionsStrategy {
     }
 
     // Determine width based on responsive logic
-    const widthParam = urlParams.get('width');
+    // Note: URL width parameter can override responsive width if needed in future
+    const _widthParam = urlParams.get('width'); // Prefixed with _ to indicate intentionally unused
     const responsiveWidth = getResponsiveWidth(request, deviceType);
 
     // Apply responsive width
