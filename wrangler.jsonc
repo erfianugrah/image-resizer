@@ -470,13 +470,13 @@
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
         // Centralized logging configuration - minimal for production
         "LOGGING_CONFIG": {
-          "level": "WARN",
+          "level": "DEBUG",
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
         // Debug headers disabled for production
         "DEBUG_HEADERS_CONFIG": {
-          "enabled": false
+          "enabled": true
         },
         // Same templates as other environments
         "DERIVATIVE_TEMPLATES": {
