@@ -9,13 +9,14 @@ vi.mock('../../src/utils/loggerUtils', () => ({
 
 describe('ConfigurationManager', () => {
   // Save the original ConfigurationManager instance
-  let originalInstance: any;
+  let originalInstance: ConfigurationManager | undefined;
 
   beforeEach(() => {
     // Store the original instance (if any)
-    originalInstance = (ConfigurationManager as any).instance;
+    originalInstance = (ConfigurationManager as unknown as { instance?: ConfigurationManager })
+      .instance;
     // Reset the instance
-    (ConfigurationManager as any).instance = undefined;
+    (ConfigurationManager as unknown as { instance?: ConfigurationManager }).instance = undefined;
 
     // Reset all mocks
     vi.resetAllMocks();
@@ -23,7 +24,8 @@ describe('ConfigurationManager', () => {
 
   afterEach(() => {
     // Restore the original instance
-    (ConfigurationManager as any).instance = originalInstance;
+    (ConfigurationManager as unknown as { instance?: ConfigurationManager }).instance =
+      originalInstance;
   });
 
   describe('getInstance', () => {

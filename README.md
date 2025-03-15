@@ -15,6 +15,34 @@ A TypeScript-based Cloudflare Worker that provides dynamic image transformation 
 - **Cache optimization** - Fine-grained cache control with TTL configuration
 - **Debug capabilities** - Detailed headers and logs for troubleshooting
 
+## New Configuration System
+
+This project now features an improved, user-friendly configuration management system:
+
+- **Configuration Assistant** - Simplified interfaces and templates for common use cases
+- **Configuration CLI** - Interactive command-line tool for creating and managing configurations
+- **Predefined Templates** - Ready-to-use configurations for e-commerce, blogs, and basic use cases
+- **Enhanced Validation** - Comprehensive validation with detailed error reporting
+- **Accessibility Features** - Colorblind mode and machine-readable outputs
+- **JSON/JSONC Support** - Configuration format conversion utilities (YAML available with optional package)
+- **Migration Utilities** - Tools for upgrading from older configuration versions
+
+```bash
+# View available configuration templates
+npm run config:list
+
+# Show details for a specific template
+npm run config -- show-template ecommerce
+
+# Create a new configuration using the interactive wizard
+npm run config:create
+
+# Validate an existing configuration
+npm run config:validate
+```
+
+For detailed documentation on the configuration system, see [CONFIG.md](docs/CONFIG.md).
+
 ## Step-by-Step Setup Guide
 
 This section provides a detailed, comprehensive guide to setting up and configuring the image-resizer worker.
@@ -30,7 +58,7 @@ This section provides a detailed, comprehensive guide to setting up and configur
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/yourusername/image-resizer.git
+   git clone https://github.com/erfianugrah/image-resizer.git
    cd image-resizer
    ```
 
@@ -45,7 +73,38 @@ This section provides a detailed, comprehensive guide to setting up and configur
    npm test
    ```
 
-### 2. Configuring wrangler.jsonc
+### 2. Configuration Management
+
+The worker offers two ways to manage configuration:
+
+1. **Configuration CLI** - An interactive command-line tool for template-based configuration
+2. **Manual Configuration** - Direct editing of the wrangler.jsonc file
+
+#### Using the Configuration CLI
+
+The configuration CLI provides an intuitive way to create and manage configurations:
+
+```bash
+# View available configuration templates
+npm run config:list
+
+# Show details for a specific template
+npm run config -- show-template ecommerce
+
+# Create a new configuration using the interactive wizard
+npm run config:create
+
+# Validate an existing configuration
+npm run config:validate
+
+# Convert between JSON and JSONC formats
+npm run config:convert -- --input=config.json --output=wrangler.jsonc
+
+# Migrate from older versions
+npm run config:migrate -- --input=old-config.jsonc --output=new-config.jsonc --version=2.0
+```
+
+#### Manual wrangler.jsonc Configuration
 
 The wrangler.jsonc file controls how your worker is deployed and configured. Let's break down each section:
 
@@ -257,125 +316,7 @@ The worker supports multiple deployment environments:
 3. Configure `REMOTE_BUCKETS` to point to your image origins
 4. Customize environment-specific settings
 
-### 3. Customizing Core Settings
-
-#### Account and Zone IDs
-
-1. Find your Cloudflare account ID:
-   - Log in to Cloudflare dashboard
-   - Go to Workers & Pages
-   - Your account ID is shown in the right sidebar
-
-2. Find your zone ID:
-   - Log in to Cloudflare dashboard
-   - Select your domain
-   - Zone ID is shown on the Overview page
-   
-3. Update wrangler.jsonc:
-   ```jsonc
-   "account_id": "your-account-id",
-   // And in each environment's routes:
-   "routes": [
-     {
-       "pattern": "your-domain.com/*",
-       "zone_id": "your-zone-id" 
-     }
-   ]
-   ```
-
-#### Resource Limits
-
-Adjust CPU and memory limits based on your needs:
-```jsonc
-"limits": {
-  "cpu_ms": 50,    // Increase for more complex processing
-  "memory_mb": 128 // Increase if handling very large images
-}
-```
-
-### 4. Configuring Image Templates
-
-Image templates define preset transformations:
-
-1. Think about your common image use cases (thumbnails, headers, etc.)
-2. Define dimensions, quality, and other parameters for each
-3. Add to the `derivative_templates` section:
-
-```jsonc
-"large_banner": {
-  "width": 1920,
-  "height": 600,
-  "quality": 85,
-  "fit": "cover",
-  "metadata": "none",
-  "gravity": "auto"
-}
-```
-
-4. Add path mappings in `path_templates`:
-```jsonc
-"banners": "large_banner"
-```
-
-### 5. Setting Up Remote Origins
-
-If you're using remote mode to fetch images from external sources:
-
-1. Configure your origins in `REMOTE_BUCKETS`:
-```jsonc
-"REMOTE_BUCKETS": {
-  "default": "https://cdn.example.com",
-  "marketing": "https://marketing-assets.example.com",
-  "products": "https://product-images.example.com"
-}
-```
-
-2. Set up path transformations if needed:
-```jsonc
-"PATH_TRANSFORMS": {
-  "marketing": {
-    "prefix": "campaign-images/",
-    "removePrefix": true
-  }
-}
-```
-
-This would transform `/marketing/summer-sale.jpg` to fetch from `https://marketing-assets.example.com/campaign-images/summer-sale.jpg`.
-
-### 6. DNS Configuration
-
-1. Set up a DNS record to point to your worker:
-
-```
-# CNAME record (in your DNS provider or Cloudflare dashboard)
-images.example.com.  IN  CNAME  your-worker.your-zone.workers.dev.
-```
-
-2. Configure route patterns in wrangler.jsonc:
-```jsonc
-"routes": [
-  {
-    "pattern": "images.example.com/*",
-    "zone_id": "your-zone-id"
-  }
-]
-```
-
-3. For multiple domains:
-```jsonc
-"routes": [
-  {
-    "pattern": "images.example.com/*",
-    "zone_id": "your-zone-id"
-  },
-  {
-    "pattern": "media.example.org/*",
-    "zone_id": "your-other-zone-id"
-  }
-]
-```
-
-### 7. Deployment
+### 3. Deployment
 
 1. Development deployment:
    ```bash
@@ -395,48 +336,6 @@ images.example.com.  IN  CNAME  your-worker.your-zone.workers.dev.
    ```bash
    wrangler deploy --env staging
    ```
-
-### 8. Testing Your Deployment
-
-After deployment, verify functionality with these real-world examples:
-
-1. Basic image request:
-   ```
-   https://images.erfi.dev/Granna_1.JPG
-   ```
-   ![Original Image](https://images.erfi.dev/Granna_1.JPG)
-
-2. Resized image:
-   ```
-   https://images.erfi.dev/Granna_1.JPG?width=800&height=600
-   ```
-   ![Resized Image](https://images.erfi.dev/Granna_1.JPG?width=800&height=600)
-
-3. Template-based transformation (thumbnail):
-   ```
-   https://images.erfi.dev/thumbnail/Granna_1.JPG
-   ```
-   ![Thumbnail](https://images.erfi.dev/thumbnail/Granna_1.JPG)
-
-4. Responsive image:
-   ```
-   https://images.erfi.dev/Granna_1.JPG?width=auto
-   ```
-   ![Responsive Image](https://images.erfi.dev/Granna_1.JPG?width=auto)
-
-5. Format conversion (WebP):
-   ```
-   https://images.erfi.dev/Granna_1.JPG?format=webp
-   ```
-   ![WebP Format](https://images.erfi.dev/Granna_1.JPG?format=webp)
-
-6. Advanced transformation (fit cover + gravity):
-   ```
-   https://images.erfi.dev/Granna_1.JPG?width=800&height=400&fit=cover
-   ```
-   ![Advanced Transformation](https://images.erfi.dev/Granna_1.JPG?width=800&height=400&fit=cover)
-
-If you receive errors, enable debug headers in your environment config and check the response headers for diagnostic information.
 
 ## Deployment Modes
 
@@ -475,233 +374,6 @@ This mode is optimal when:
 - Your images are hosted on external services
 - You need to transform images from multiple sources
 - You want to use Cloudflare as a CDN/transformer without migrating assets
-
-## Configuration Reference
-
-### Environment Variables
-
-All configuration is done through environment variables in wrangler.jsonc:
-
-#### Core Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ENVIRONMENT` | Environment name (development, staging, production) | `"development"` |
-| `DEPLOYMENT_MODE` | Deployment mode (direct, remote) | `"direct"` |
-| `VERSION` | Worker version | `"1.0.0"` |
-| `FALLBACK_BUCKET` | Default bucket for unmatched paths | - |
-
-#### Image Transformation Templates
-
-Define reusable sets of transformation parameters:
-
-```jsonc
-"DERIVATIVE_TEMPLATES": {
-  "thumbnail": {
-    "width": 320,
-    "height": 150,
-    "quality": 85,
-    "fit": "scale-down",
-    "metadata": "copyright",
-    "sharpen": 1
-  },
-  "avatar": {
-    "width": 180,
-    "height": 180,
-    "quality": 90,
-    "fit": "cover",
-    "metadata": "none",
-    "gravity": "face"
-  },
-  "product": {
-    "width": 800,
-    "height": 800,
-    "quality": 85,
-    "fit": "contain",
-    "background": "white"
-  }
-}
-```
-
-#### Path-based Template Mapping
-
-Map URL path segments to templates:
-
-```jsonc
-"PATH_TEMPLATES": {
-  "profile-pictures": "avatar",
-  "hero-banners": "header",
-  "thumbnails": "thumbnail", 
-  "avatars": "avatar",
-  "products": "product"
-}
-```
-
-When the URL path contains one of these segments, the corresponding template is automatically applied.
-
-#### Remote Bucket Configuration
-
-For remote mode, define the origins to fetch from:
-
-```jsonc
-"REMOTE_BUCKETS": {
-  "default": "https://cdn.example.com",
-  "marketing": "https://marketing-assets.example.com",
-  "products": "https://product-images.example.com"
-}
-```
-
-#### Path Transformation Rules
-
-Modify paths when fetching from remote buckets:
-
-```jsonc
-"PATH_TRANSFORMS": {
-  "images": {
-    "prefix": "",
-    "removePrefix": true
-  },
-  "assets": {
-    "prefix": "img/",
-    "removePrefix": true
-  },
-  "content": {
-    "prefix": "content-images/",
-    "removePrefix": true
-  }
-}
-```
-
-#### Cache Configuration
-
-Configure caching behavior by file type:
-
-```jsonc
-"CACHE_CONFIG": {
-  "image": {
-    "regex": "^.*\\.(jpe?g|JPG|png|gif|webp|svg)$",
-    "ttl": {
-      "ok": 31536000,        // 1 year for successful responses
-      "redirects": 31536000, // 1 year for redirects
-      "clientError": 60,     // 1 minute for client errors
-      "serverError": 0       // No caching for server errors
-    },
-    "cacheability": true,
-    "mirage": false,
-    "imageCompression": "off"
-  },
-  "staticAssets": {
-    "regex": "^.*\\.(css|js)$",
-    "ttl": {
-      "ok": 86400,           // 1 day
-      "redirects": 86400,    // 1 day
-      "clientError": 10,     // 10 seconds
-      "serverError": 0       // No caching
-    },
-    "cacheability": true
-  }
-}
-```
-
-#### Responsive Configuration
-
-Configure responsive sizing behavior:
-
-```jsonc
-"RESPONSIVE_CONFIG": {
-  "availableWidths": [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
-  "breakpoints": [320, 768, 960, 1440, 1920, 2048],
-  "deviceWidths": {
-    "mobile": 480,
-    "tablet": 768,
-    "desktop": 1440
-  },
-  "deviceMinWidthMap": {
-    "mobile": 320,
-    "tablet": 768,
-    "large-desktop": 1920,
-    "desktop": 960
-  },
-  "quality": 85,
-  "fit": "scale-down",
-  "metadata": "copyright",
-  "format": "auto"
-}
-```
-
-#### Debug Configuration
-
-Configure debug headers:
-
-```jsonc
-"DEBUG_HEADERS_CONFIG": {
-  "enabled": true,           // Set to false in production
-  "prefix": "debug-",
-  "includeHeaders": [
-    "ir",                    // Image resizing parameters
-    "cache",                 // Cache configuration
-    "mode",                  // Deployment mode
-    "client-hints",          // Client hints info
-    "ua",                    // User-Agent info
-    "device"                 // Device detection info
-  ],
-  "specialHeaders": {
-    "x-processing-mode": true,
-    "x-size-source": true,
-    "x-actual-width": true,
-    "x-responsive-sizing": true
-  },
-  "allowedEnvironments": [   // Restrict debugging to specific environments
-    "development",
-    "staging"
-  ]
-}
-```
-
-#### Logging Configuration
-
-Configure logging behavior:
-
-```jsonc
-"LOGGING_CONFIG": {
-  "level": "INFO",           // ERROR, WARN, INFO, DEBUG, TRACE
-  "includeTimestamp": true,
-  "enableStructuredLogs": true
-}
-```
-
-### Security Configuration
-
-#### CORS Configuration
-
-```jsonc
-"CORS_CONFIG": {
-  "allowOrigins": ["https://example.com", "https://*.example.org"],
-  "allowMethods": ["GET", "HEAD", "OPTIONS"],
-  "allowHeaders": ["Content-Type", "If-Modified-Since"],
-  "exposeHeaders": ["Content-Length", "Content-Type"],
-  "maxAge": 86400,
-  "credentials": false
-}
-```
-
-#### Security Settings
-
-```jsonc
-"SECURITY_CONFIG": {
-  "enableRateLimit": true,
-  "requestsPerMinute": 300,
-  "blockOverages": true,
-  "allowedOrigins": [
-    "https://cdn.example.com",
-    "https://assets.example.com"
-  ],
-  "restrictReferrers": false,
-  "allowedReferrers": [
-    "https://example.com"
-  ]
-}
-```
 
 ## Usage
 
@@ -776,16 +448,16 @@ For optimal responsive image implementation:
 ```html
 <!-- Enable client hints -->
 <meta http-equiv="Accept-CH" content="DPR, Width, Viewport-Width">
-<meta http-equiv="Delegate-CH" content="Sec-CH-DPR https://images.erfi.dev; Sec-CH-Width https://images.erfi.dev; Sec-CH-Viewport-Width https://images.erfi.dev">
+<meta http-equiv="Delegate-CH" content="Sec-CH-DPR https://images.example.com; Sec-CH-Width https://images.example.com; Sec-CH-Viewport-Width https://images.example.com">
 
 <!-- Basic responsive image -->
 <img 
-  src="https://images.erfi.dev/Granna_1.JPG?width=800" 
+  src="https://images.example.com/photo.jpg?width=800" 
   srcset="
-    https://images.erfi.dev/Granna_1.JPG?width=320 320w,
-    https://images.erfi.dev/Granna_1.JPG?width=768 768w,
-    https://images.erfi.dev/Granna_1.JPG?width=1024 1024w,
-    https://images.erfi.dev/Granna_1.JPG?width=1440 1440w
+    https://images.example.com/photo.jpg?width=320 320w,
+    https://images.example.com/photo.jpg?width=768 768w,
+    https://images.example.com/photo.jpg?width=1024 1024w,
+    https://images.example.com/photo.jpg?width=1440 1440w
   "
   sizes="(max-width: 768px) 100vw, 800px"
   alt="Mountain landscape"
@@ -793,20 +465,18 @@ For optimal responsive image implementation:
 
 <!-- Template-based image -->
 <img 
-  src="https://images.erfi.dev/thumbnail/Granna_1.JPG" 
+  src="https://images.example.com/thumbnail/photo.jpg" 
   alt="Thumbnail mountain image"
 />
 
 <!-- Automatic responsive sizing (no srcset needed) -->
 <img 
-  src="https://images.erfi.dev/Granna_1.JPG?width=auto" 
+  src="https://images.example.com/photo.jpg?width=auto" 
   alt="Auto-responsive mountain image"
 />
 ```
 
 ## Supported Parameters
-
-The worker supports all Cloudflare Image Resizing parameters:
 
 | Parameter | Description | Values | Example |
 |-----------|-------------|--------|---------|
@@ -823,93 +493,52 @@ The worker supports all Cloudflare Image Resizing parameters:
 | `contrast` | Contrast adjustment | -1 to 1 | `contrast=0.1` |
 | `derivative` | Template to apply | (configured templates) | `derivative=thumbnail` |
 
-Additional parameters from Cloudflare are also supported. See [Cloudflare Image Resizing documentation](https://developers.cloudflare.com/images/image-resizing/url-format/) for a complete list.
+See [Cloudflare Image Resizing documentation](https://developers.cloudflare.com/images/image-resizing/url-format/) for a complete list.
 
-## Response Headers
+## Advanced Features
 
-### Standard Headers
+### Security Configuration
 
-The worker sets the following headers on responses:
-
-- `Content-Type` - Based on the image format
-- `Cache-Control` - Based on cache configuration
-- `CF-Cache-Status` - Cloudflare cache hit/miss status
-- `CF-Polished` - If Cloudflare Polish was applied
-
-### Client Hints Headers
-
-To enable client hints in browsers:
-
-- `Accept-CH` - Tells browsers which client hints are accepted
-- `Critical-CH` - Marks critical client hints
-- `Permissions-Policy` - Sets permissions for client hints
-
-### Debug Headers
-
-When debug mode is enabled:
-
-- `debug-ir` - Image resizing parameters
-- `debug-cache` - Cache configuration
-- `debug-mode` - Processing mode information
-- `debug-client-hints` - Client hints values
-- `debug-ua` - User-Agent string
-- `debug-device` - Device detection information
-
-Special debug headers:
-
-- `x-size-source` - How the size was determined
-- `x-actual-width` - Actual width used
-- `x-processing-mode` - Processing mode used
-- `x-responsive-sizing` - Whether responsive sizing was used
-
-## Troubleshooting
-
-### Common Issues
-
-| Issue | Description | Solution |
-|-------|-------------|----------|
-| 503 Service Unavailable | Image origin unreachable | Check that source images exist and are accessible |
-| 400 Bad Request | Parameter validation error | Check parameter values against validation rules |
-| 404 Not Found | Image not found | Verify image path and remote bucket configuration |
-| 413 Payload Too Large | Source image too large | Ensure source image is within Cloudflare's size limits |
-| Loop detection | Recursive request detected | Check for circular references in URL transformation |
-| CORS errors | Cross-origin issues | Configure CORS_CONFIG with appropriate settings |
-| Cache issues | Unexpected caching behavior | Check CACHE_CONFIG and Cache-Control headers |
-
-### Debug Mode
-
-Enable debug mode to get detailed information:
-
-```
-# Example debug header values
-debug-ir: {"width":800,"height":600,"fit":"cover","format":"webp"}
-debug-cache: {"cacheability":true,"ttl":{"ok":31536000}}
-debug-mode: {"deploymentMode":"remote","transformedUrl":"..."}
-debug-client-hints: {"sec-ch-viewport-width":"1024","sec-ch-dpr":"2"}
-debug-device: {"type":"desktop","client-hints-available":true}
+```jsonc
+"SECURITY_CONFIG": {
+  "enableRateLimit": true,
+  "requestsPerMinute": 300,
+  "blockOverages": true,
+  "allowedOrigins": [
+    "https://cdn.example.com",
+    "https://assets.example.com"
+  ],
+  "restrictReferrers": false,
+  "allowedReferrers": [
+    "https://example.com"
+  ]
+}
 ```
 
-### Performance Optimization
+### Watermarking
 
-1. **Cache Configuration**
-   - Set appropriate TTLs for your content
-   - Enable cacheability for static images
-   - Configure appropriate client error caching (to avoid repeated bad requests)
+```jsonc
+"WATERMARK_CONFIG": {
+  "enabled": true,
+  "image": "https://example.com/watermark.png",
+  "position": "center",  // center, bottom-right, top-left, etc.
+  "opacity": 0.5,
+  "scale": 0.2, // relative to image size
+  "excludePaths": ["thumbnails", "avatars"]
+}
+```
 
-2. **Format Optimization**
-   - Use `format=auto` to serve modern formats to compatible browsers
-   - Set quality around 80-85% for best size/quality balance
-   - Use WebP or AVIF for best compression
+### Resource Limits
 
-3. **Responsive Sizing**
-   - Implement client hints for precise sizing
-   - Configure appropriate breakpoints for your site design
-   - Use appropriate fit modes for your content
-
-4. **Worker Configuration**
-   - Disable debug headers in production
-   - Optimize cache settings for your traffic patterns
-   - Implement rate limiting for public-facing deployments
+```jsonc
+"RESOURCE_LIMITS": {
+  "maxWidth": 4000,
+  "maxHeight": 4000,
+  "maxPixels": 16000000, // 16MP
+  "maxConcurrentRequests": 100,
+  "timeoutMs": 15000
+}
+```
 
 ## Development
 
@@ -959,28 +588,32 @@ Automatically fix linting issues:
 npm run lint:fix
 ```
 
-### Production Build
+### Configuration Validation
 
-Build for production:
+Validate configuration files:
 
 ```bash
-npm run build
+npm run config:validate -- --file=wrangler.jsonc
 ```
 
-### Deployment
+### Configuration Tools
 
-Deploy to Cloudflare:
+Create a new configuration:
 
 ```bash
-npm run deploy
+npm run config:create
 ```
 
-Deploy to a specific environment:
+List available templates:
 
 ```bash
-npm run deploy:staging
-# or
-wrangler deploy --env staging
+npm run config:list
+```
+
+Show template details:
+
+```bash
+npm run config -- show-template blog
 ```
 
 ## Project Architecture
@@ -990,10 +623,15 @@ The project uses a service-oriented architecture with domain-driven design princ
 ### Directory Structure
 
 ```
+├── docs/                         # Documentation
+│   ├── CONFIG.md                 # Configuration guide
+│   └── API.md                    # API documentation
 ├── src/
 │   ├── index.ts                  # Main entry point
 │   ├── config/                   # Configuration
 │   │   ├── configManager.ts      # Configuration management
+│   │   ├── configAssistant.ts    # User-friendly config assistance
+│   │   ├── configValidator.ts    # Configuration validation
 │   │   ├── environmentConfig.ts  # Environment settings
 │   │   └── imageConfig.ts        # Image config schemas
 │   ├── domain/                   # Domain model
@@ -1007,6 +645,8 @@ The project uses a service-oriented architecture with domain-driven design princ
 │   │   ├── cacheManagementService.ts # Cache management
 │   │   ├── debugService.ts       # Debug functionality
 │   │   └── imageTransformationService.ts # Image transformation
+│   ├── tools/                    # CLI tools and utilities
+│   │   └── config-cli.ts         # Configuration CLI tool
 │   └── utils/                    # Utilities
 │       ├── cacheControlUtils.ts  # Cache control headers
 │       ├── cacheUtils.ts         # Cache configuration
@@ -1024,28 +664,7 @@ The project uses a service-oriented architecture with domain-driven design princ
 │       └── userAgentUtils.ts     # User-Agent parsing
 ```
 
-### Key Components
-
-- **Configuration Manager** - Centralized configuration management
-- **Image Handler** - Main request processing coordination
-- **Image Options Service** - Determines transformation parameters
-- **Image Transformation Service** - Performs image transformations
-- **Cache Management Service** - Handles caching operations
-- **Debug Service** - Provides debug functionality
-- **Command Pattern** - Encapsulates business logic in commands
-
-### Request Flow
-
-1. Request enters via `index.ts`
-2. ConfigurationManager loads environment configuration
-3. Request is checked for loops or bypass conditions
-4. imageHandler coordinates processing:
-   - Determines correct derivative/template
-   - Processes URL parameters
-   - Manages caching behavior
-5. imageOptionsService determines transformation parameters
-6. imageTransformationService transforms the image
-7. Response is returned with appropriate headers and caching
+For more details on the architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## License
 

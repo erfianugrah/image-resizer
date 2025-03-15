@@ -241,8 +241,11 @@ export class TransformImageCommand {
     }
 
     // Check for custom status code property
-    if ('statusCode' in error && typeof (error as any).statusCode === 'number') {
-      return (error as any).statusCode;
+    if (
+      'statusCode' in error &&
+      typeof (error as Record<string, unknown>).statusCode === 'number'
+    ) {
+      return (error as Record<string, unknown>).statusCode as number;
     }
 
     // Default to 500 Internal Server Error
@@ -250,9 +253,23 @@ export class TransformImageCommand {
   }
 
   private validateOptions(options: ImageTransformOptions): void {
+    // Define interface for validation configuration
+    interface ValidationConfig {
+      fit: string[];
+      format: string[];
+      metadata: string[];
+      gravity: string[];
+      minWidth?: number;
+      maxWidth?: number;
+      minHeight?: number;
+      maxHeight?: number;
+      minQuality?: number;
+      maxQuality?: number;
+    }
+
     // Access validation config from context
-    const config = this.context.config as any;
-    const validation = config.validation || {
+    const config = this.context.config as Record<string, unknown>;
+    const validation = (config.validation as ValidationConfig) || {
       fit: ['scale-down', 'contain', 'cover', 'crop', 'pad'],
       format: ['auto', 'webp', 'avif', 'json', 'jpeg', 'png', 'gif'],
       metadata: ['keep', 'copyright', 'none'],
