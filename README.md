@@ -259,7 +259,7 @@ The worker supports multiple deployment environments:
     // Routes for this environment
     "routes": [
       {
-        "pattern": "dev.images.example.com/*", // URL pattern to match
+        "pattern": "dev.images.erfi.dev/*", // URL pattern to match
         "zone_id": "YOUR_ZONE_ID"              // Your zone ID
       }
     ]
@@ -381,34 +381,34 @@ This mode is optimal when:
 
 ```
 # Original image (uses automatic responsive sizing)
-https://images.example.com/photo.jpg
+https://images.erfi.dev/photo.jpg
 
 # Explicit width
-https://images.example.com/photo.jpg?width=800
+https://images.erfi.dev/photo.jpg?width=800
 
 # Width and height
-https://images.example.com/photo.jpg?width=800&height=600
+https://images.erfi.dev/photo.jpg?width=800&height=600
 
 # Width and quality
-https://images.example.com/photo.jpg?width=800&quality=90
+https://images.erfi.dev/photo.jpg?width=800&quality=90
 
 # Force format
-https://images.example.com/photo.jpg?format=webp
+https://images.erfi.dev/photo.jpg?format=webp
 
 # Auto format (sends WebP/AVIF to supported browsers)
-https://images.example.com/photo.jpg?format=auto
+https://images.erfi.dev/photo.jpg?format=auto
 
 # Fit mode (cover, contain, scale-down, crop)
-https://images.example.com/photo.jpg?width=800&height=600&fit=cover
+https://images.erfi.dev/photo.jpg?width=800&height=600&fit=cover
 
 # Metadata handling (keep, copyright, none)
-https://images.example.com/photo.jpg?metadata=none
+https://images.erfi.dev/photo.jpg?metadata=none
 
 # DPR (device pixel ratio)
-https://images.example.com/photo.jpg?width=800&dpr=2
+https://images.erfi.dev/photo.jpg?width=800&dpr=2
 
 # Gravity (auto, center, face, etc)
-https://images.example.com/photo.jpg?width=800&height=800&fit=cover&gravity=face
+https://images.erfi.dev/photo.jpg?width=800&height=800&fit=cover&gravity=face
 ```
 
 ### Using Templates
@@ -417,10 +417,10 @@ Apply predefined templates in two ways:
 
 ```
 # Via path-based detection
-https://images.example.com/thumbnails/photo.jpg
+https://images.erfi.dev/thumbnails/photo.jpg
 
 # Via explicit parameter
-https://images.example.com/photo.jpg?derivative=thumbnail
+https://images.erfi.dev/photo.jpg?derivative=thumbnail
 ```
 
 ### Responsive Images
@@ -435,10 +435,10 @@ Enable responsive sizing:
 
 ```
 # Explicit auto mode
-https://images.example.com/photo.jpg?width=auto
+https://images.erfi.dev/photo.jpg?width=auto
 
 # Default mode (when no width is specified)
-https://images.example.com/photo.jpg
+https://images.erfi.dev/photo.jpg
 ```
 
 ### HTML Implementation
@@ -448,16 +448,16 @@ For optimal responsive image implementation:
 ```html
 <!-- Enable client hints -->
 <meta http-equiv="Accept-CH" content="DPR, Width, Viewport-Width">
-<meta http-equiv="Delegate-CH" content="Sec-CH-DPR https://images.example.com; Sec-CH-Width https://images.example.com; Sec-CH-Viewport-Width https://images.example.com">
+<meta http-equiv="Delegate-CH" content="Sec-CH-DPR https://images.erfi.dev; Sec-CH-Width https://images.erfi.dev; Sec-CH-Viewport-Width https://images.erfi.dev">
 
 <!-- Basic responsive image -->
 <img 
-  src="https://images.example.com/photo.jpg?width=800" 
+  src="https://images.erfi.dev/photo.jpg?width=800" 
   srcset="
-    https://images.example.com/photo.jpg?width=320 320w,
-    https://images.example.com/photo.jpg?width=768 768w,
-    https://images.example.com/photo.jpg?width=1024 1024w,
-    https://images.example.com/photo.jpg?width=1440 1440w
+    https://images.erfi.dev/photo.jpg?width=320 320w,
+    https://images.erfi.dev/photo.jpg?width=768 768w,
+    https://images.erfi.dev/photo.jpg?width=1024 1024w,
+    https://images.erfi.dev/photo.jpg?width=1440 1440w
   "
   sizes="(max-width: 768px) 100vw, 800px"
   alt="Mountain landscape"
@@ -465,13 +465,13 @@ For optimal responsive image implementation:
 
 <!-- Template-based image -->
 <img 
-  src="https://images.example.com/thumbnail/photo.jpg" 
+  src="https://images.erfi.dev/thumbnail/photo.jpg" 
   alt="Thumbnail mountain image"
 />
 
 <!-- Automatic responsive sizing (no srcset needed) -->
 <img 
-  src="https://images.example.com/photo.jpg?width=auto" 
+  src="https://images.erfi.dev/photo.jpg?width=auto" 
   alt="Auto-responsive mountain image"
 />
 ```
