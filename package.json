@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env prod",
+    "deploy:staging": "wrangler deploy --env staging",
     "format": "prettier --write '**/*.{js,ts,css,json,md}'",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
