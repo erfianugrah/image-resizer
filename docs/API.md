@@ -222,47 +222,63 @@ Error responses include debug headers when enabled.
 ### Basic Transformations
 
 Resize to specific dimensions:
+
+![Resized Image](https://images.erfi.dev/Granna_1.JPG?width=800&height=600)
 ```
-https://images.example.com/photo.jpg?width=800&height=600
+https://images.erfi.dev/Granna_1.JPG?width=800&height=600
 ```
 
 Resize and convert format:
+
+![WebP Format](https://images.erfi.dev/Granna_1.JPG?width=800&format=webp)
 ```
-https://images.example.com/photo.jpg?width=800&format=webp
+https://images.erfi.dev/Granna_1.JPG?width=800&format=webp
 ```
 
 Resize with a specific fit:
+
+![Cover Fit](https://images.erfi.dev/Granna_1.JPG?width=800&height=800&fit=cover)
 ```
-https://images.example.com/photo.jpg?width=800&height=800&fit=cover
+https://images.erfi.dev/Granna_1.JPG?width=800&height=800&fit=cover
 ```
 
 Apply image enhancements:
+
+![Enhanced Image](https://images.erfi.dev/Granna_1.JPG?width=800&sharpen=1&brightness=0.1&contrast=0.1)
 ```
-https://images.example.com/photo.jpg?width=800&sharpen=1&brightness=0.1&contrast=0.1
+https://images.erfi.dev/Granna_1.JPG?width=800&sharpen=1&brightness=0.1&contrast=0.1
 ```
 
 ### Using Derivatives
 
 Apply the "thumbnail" derivative:
+
+![Thumbnail Derivative](https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail)
 ```
-https://images.example.com/photo.jpg?derivative=thumbnail
+https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail
 ```
 
 Or use the path-based approach:
+
+![Path-based Thumbnail](https://images.erfi.dev/thumbnail/Granna_1.JPG)
 ```
-https://images.example.com/thumbnail/photo.jpg
+https://images.erfi.dev/thumbnail/Granna_1.JPG
 ```
 
 ### Responsive Images
 
 Automatic responsive sizing:
+
+![Auto Width](https://images.erfi.dev/Granna_1.JPG?width=auto)
 ```
-https://images.example.com/photo.jpg?width=auto
+https://images.erfi.dev/Granna_1.JPG?width=auto
 ```
 
 Responsive with format conversion:
+
+![Auto Format](https://images.erfi.dev/Granna_1.JPG?width=auto&format=auto)
 ```
-https://images.example.com/photo.jpg?width=auto&format=auto
+https://images.erfi.dev/Granna_1.JPG?width=auto&format=auto
 ```
 
 ## Client Hints Integration
@@ -275,7 +291,7 @@ Add these meta tags to your HTML to enable client hints:
 
 ```html
 <meta http-equiv="Accept-CH" content="DPR, Width, Viewport-Width">
-<meta http-equiv="Delegate-CH" content="Sec-CH-DPR https://images.example.com; Sec-CH-Width https://images.example.com; Sec-CH-Viewport-Width https://images.example.com">
+<meta http-equiv="Delegate-CH" content="Sec-CH-DPR https://images.erfi.dev; Sec-CH-Width https://images.erfi.dev; Sec-CH-Viewport-Width https://images.erfi.dev">
 ```
 
 ### Using Client Hints with the Image Resizer
@@ -290,8 +306,10 @@ When client hints are enabled, the Image Resizer will:
 For best results, use the `width=auto` parameter:
 
 ```html
-<img src="https://images.example.com/photo.jpg?width=auto" alt="Responsive image">
+<img src="https://images.erfi.dev/Granna_1.JPG?width=auto" alt="Responsive image">
 ```
+
+![Responsive Image](https://images.erfi.dev/Granna_1.JPG?width=auto)
 
 ### Fallback Behavior
 
@@ -307,8 +325,9 @@ When client hints are not available, the Image Resizer falls back to:
 
 You can chain multiple transformations:
 
+![Chained Transformations](https://images.erfi.dev/Granna_1.JPG?width=800&format=webp&quality=90&sharpen=1)
 ```
-https://images.example.com/photo.jpg?width=800&format=webp&quality=90&sharpen=1
+https://images.erfi.dev/Granna_1.JPG?width=800&format=webp&quality=90&sharpen=1
 ```
 
 ### Conditional Transformations
@@ -316,12 +335,12 @@ https://images.example.com/photo.jpg?width=800&format=webp&quality=90&sharpen=1
 Apply transformations based on query parameters:
 
 ```
-https://images.example.com/photo.jpg?derivative=thumbnail&quality=if(dpr>1,85,75)
+https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail&quality=if(dpr>1,85,75)
 ```
 
 ### URL Parameter API
 
-The full API for URL parameters can be found in the [Cloudflare Image Resizing documentation](https://developers.cloudflare.com/images/image-resizing/url-format/).
+The full API for URL parameters can be found in the [Cloudflare Image Resizing documentation](https://developers.cloudflare.com/images/transform-images/).
 
 ## Need Help?
 

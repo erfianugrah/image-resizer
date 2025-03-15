@@ -379,48 +379,56 @@ This mode is optimal when:
 
 ### Basic Image Transformations
 
+# Original image
+![Original Image](https://images.erfi.dev/Granna_1.JPG)
 ```
-# Original image (uses automatic responsive sizing)
-https://images.erfi.dev/photo.jpg
+https://images.erfi.dev/Granna_1.JPG
+```
 
-# Explicit width
-https://images.erfi.dev/photo.jpg?width=800
+# Explicit width (800px)
+![Resized Image](https://images.erfi.dev/Granna_1.JPG?width=800)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800
+```
 
-# Width and height
-https://images.erfi.dev/photo.jpg?width=800&height=600
+# Width and height with fit=cover
+![Fixed Dimensions](https://images.erfi.dev/Granna_1.JPG?width=800&height=600&fit=cover)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800&height=600&fit=cover
+```
 
 # Width and quality
-https://images.erfi.dev/photo.jpg?width=800&quality=90
+![Quality Adjusted](https://images.erfi.dev/Granna_1.JPG?width=800&quality=60)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800&quality=60
+```
 
-# Force format
-https://images.erfi.dev/photo.jpg?format=webp
+# Format conversion (WebP)
+![WebP Format](https://images.erfi.dev/Granna_1.JPG?width=800&format=webp)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800&format=webp
+```
 
-# Auto format (sends WebP/AVIF to supported browsers)
-https://images.erfi.dev/photo.jpg?format=auto
-
-# Fit mode (cover, contain, scale-down, crop)
-https://images.erfi.dev/photo.jpg?width=800&height=600&fit=cover
-
-# Metadata handling (keep, copyright, none)
-https://images.erfi.dev/photo.jpg?metadata=none
-
-# DPR (device pixel ratio)
-https://images.erfi.dev/photo.jpg?width=800&dpr=2
-
-# Gravity (auto, center, face, etc)
-https://images.erfi.dev/photo.jpg?width=800&height=800&fit=cover&gravity=face
+# Advanced transformations
+![Advanced](https://images.erfi.dev/Granna_1.JPG?width=800&height=400&fit=cover&sharpen=1&brightness=0.1)
+```
+https://images.erfi.dev/Granna_1.JPG?width=800&height=400&fit=cover&sharpen=1&brightness=0.1
 ```
 
 ### Using Templates
 
 Apply predefined templates in two ways:
 
-```
 # Via path-based detection
-https://images.erfi.dev/thumbnails/photo.jpg
+![Thumbnail via Path](https://images.erfi.dev/thumbnail/Granna_1.JPG)
+```
+https://images.erfi.dev/thumbnail/Granna_1.JPG
+```
 
 # Via explicit parameter
-https://images.erfi.dev/photo.jpg?derivative=thumbnail
+![Thumbnail via Parameter](https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail)
+```
+https://images.erfi.dev/Granna_1.JPG?derivative=thumbnail
 ```
 
 ### Responsive Images
@@ -433,12 +441,16 @@ The worker supports automatic responsive image sizing using:
 
 Enable responsive sizing:
 
+# Explicit auto mode (resizes based on device)
+![Auto Width](https://images.erfi.dev/Granna_1.JPG?width=auto)
 ```
-# Explicit auto mode
-https://images.erfi.dev/photo.jpg?width=auto
+https://images.erfi.dev/Granna_1.JPG?width=auto
+```
 
 # Default mode (when no width is specified)
-https://images.erfi.dev/photo.jpg
+![Default Responsive](https://images.erfi.dev/Granna_1.JPG)
+```
+https://images.erfi.dev/Granna_1.JPG
 ```
 
 ### HTML Implementation
@@ -452,12 +464,12 @@ For optimal responsive image implementation:
 
 <!-- Basic responsive image -->
 <img 
-  src="https://images.erfi.dev/photo.jpg?width=800" 
+  src="https://images.erfi.dev/Granna_1.JPG?width=800" 
   srcset="
-    https://images.erfi.dev/photo.jpg?width=320 320w,
-    https://images.erfi.dev/photo.jpg?width=768 768w,
-    https://images.erfi.dev/photo.jpg?width=1024 1024w,
-    https://images.erfi.dev/photo.jpg?width=1440 1440w
+    https://images.erfi.dev/Granna_1.JPG?width=320 320w,
+    https://images.erfi.dev/Granna_1.JPG?width=768 768w,
+    https://images.erfi.dev/Granna_1.JPG?width=1024 1024w,
+    https://images.erfi.dev/Granna_1.JPG?width=1440 1440w
   "
   sizes="(max-width: 768px) 100vw, 800px"
   alt="Mountain landscape"
@@ -465,13 +477,13 @@ For optimal responsive image implementation:
 
 <!-- Template-based image -->
 <img 
-  src="https://images.erfi.dev/thumbnail/photo.jpg" 
+  src="https://images.erfi.dev/thumbnail/Granna_1.JPG" 
   alt="Thumbnail mountain image"
 />
 
 <!-- Automatic responsive sizing (no srcset needed) -->
 <img 
-  src="https://images.erfi.dev/photo.jpg?width=auto" 
+  src="https://images.erfi.dev/Granna_1.JPG?width=auto" 
   alt="Auto-responsive mountain image"
 />
 ```
