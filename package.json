@@ -1,8 +1,56 @@
 {
-    "name": "image-resizer",
-    "version": "1.0.0",
-    "description": "image-resizer",
-    "main": "resizer.js",
-    "author": "Erfi Anugrah",
-    "license": "ISC"
+  "name": "image-resizer",
+  "version": "2.0.0",
+  "description": "Cloudflare Worker for image resizing with DDD and service architecture",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy:prod": "wrangler deploy --env prod",
+    "deploy:staging": "wrangler deploy --env staging",
+    "format": "prettier --write '**/*.{js,ts,css,json,md}'",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "build": "wrangler publish --dry-run",
+    "prepare": "tsc --noEmit && eslint ."
+  },
+  "keywords": [
+    "cloudflare",
+    "workers",
+    "image",
+    "resizing",
+    "domain-driven-design",
+    "service-architecture",
+    "typescript",
+    "command-pattern"
+  ],
+  "author": "Erfi Anugrah",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240508.0",
+    "@types/node": "^20.10.5",
+    "@typescript-eslint/eslint-plugin": "^6.16.0",
+    "@typescript-eslint/parser": "^6.16.0",
+    "@vitest/coverage-v8": "^1.1.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.3",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.1",
+    "wrangler": "^3.28.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ]
 }
