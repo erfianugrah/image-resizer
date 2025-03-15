@@ -1,6 +1,7 @@
 /**
  * Configuration for the image resizer
  */
+import { z } from 'zod';
 
 // Define TypeScript interfaces for our config
 export interface DerivativeTemplate {
@@ -242,3 +243,66 @@ export const imageConfig: {
     },
   },
 };
+
+// Create a Zod schema for validating the image configuration
+export const imageConfigSchema = z.object({
+  derivatives: z.record(
+    z
+      .object({
+        width: z.number().int().min(10).max(8192).optional(),
+        height: z.number().int().min(10).max(8192).optional(),
+        quality: z.number().int().min(1).max(100).optional(),
+        fit: z.enum(['scale-down', 'contain', 'cover', 'crop', 'pad']).optional(),
+        metadata: z.enum(['keep', 'copyright', 'none']).optional(),
+        sharpen: z.number().min(0).max(10).optional(),
+        gravity: z.enum(['auto', 'center', 'top', 'bottom', 'left', 'right', 'face']).optional(),
+        background: z
+          .string()
+          .regex(/^([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i)
+          .optional(),
+      })
+      .passthrough()
+  ),
+  responsive: z.object({
+    availableWidths: z.array(z.number()),
+    breakpoints: z.array(z.number()),
+    deviceWidths: z.record(z.number()),
+    deviceMinWidthMap: z.record(z.number()),
+    quality: z.number().int().min(1).max(100),
+    fit: z.string(),
+    metadata: z.string(),
+    format: z.string(),
+  }),
+  validation: z.object({
+    fit: z.array(z.string()),
+    format: z.array(z.string()),
+    metadata: z.array(z.string()),
+    gravity: z.array(z.string()),
+    minWidth: z.number().optional(),
+    maxWidth: z.number().optional(),
+    minHeight: z.number().optional(),
+    maxHeight: z.number().optional(),
+    minQuality: z.number().optional(),
+    maxQuality: z.number().optional(),
+  }),
+  defaults: z.object({
+    quality: z.number().int().min(1).max(100),
+    fit: z.string(),
+    format: z.string(),
+    metadata: z.string(),
+  }),
+  paramMapping: z.record(z.string()).optional(),
+  caching: z
+    .object({
+      method: z.string(),
+      debug: z.boolean(),
+      ttl: z.object({
+        ok: z.number(),
+        redirects: z.number(),
+        clientError: z.number(),
+        serverError: z.number(),
+      }),
+    })
+    .optional(),
+  cacheConfig: z.record(z.any()).optional(),
+});

@@ -20,7 +20,7 @@ export interface PathTransform {
 }
 
 export interface UrlTransformConfig {
-  deploymentMode: string;
+  mode: string; // Updated to match AppConfig
   remoteBuckets?: Record<string, string>;
   derivativeTemplates?: Record<string, string>;
   pathTransforms?: Record<string, PathTransform>;
@@ -51,7 +51,7 @@ export function transformRequestUrl(
   };
 
   // Handle direct deployment
-  if (config.deploymentMode === 'direct') {
+  if (config.mode === 'direct') {
     result.derivative = getDerivativeForPath(segments, path, config);
     return result;
   }

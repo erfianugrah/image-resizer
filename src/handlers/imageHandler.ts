@@ -7,6 +7,7 @@ import { transformImage } from '../services/imageTransformationService';
 import { debug, error, info } from '../utils/loggerUtils';
 import { getDerivativeFromPath } from '../utils/pathUtils';
 import { AppConfig } from '../config/configManager';
+import { transformRequestUrl } from '../utils/urlTransformUtils';
 
 /**
  * Main handler for image requests
@@ -32,16 +33,36 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
       return cachedResponse;
     }
 
+    // Transform the request URL based on deployment mode - matching main branch behavior
+    const transformedRequest = transformRequestUrl(request, config);
+    const {
+      originRequest,
+      bucketName,
+      originUrl,
+      derivative: routeDerivative,
+      isRemoteFetch,
+    } = transformedRequest;
+
     // Extract information from request - using path-based derivative detection
     const pathDerivative = getDerivativeFromPath(url.pathname, config.pathTemplates);
 
-    // Determine which derivative to use (URL param > path-based)
-    if (pathDerivative && !urlParams.get('derivative')) {
-      urlParams.set('derivative', pathDerivative);
+    // Determine which derivative to use (URL param > path > route)
+    // Order of precedence matching main branch
+    const derivativeSources = [
+      { type: 'explicit', value: urlParams.get('derivative') },
+      { type: 'path', value: pathDerivative },
+      { type: 'route', value: routeDerivative },
+    ];
 
-      debug('ImageHandler', 'Applied path-based derivative', {
+    // Find first non-null derivative and set it as a parameter
+    const derivativeSource = derivativeSources.find((source) => source.value);
+    if (derivativeSource?.value && !urlParams.get('derivative')) {
+      urlParams.set('derivative', derivativeSource.value);
+
+      debug('ImageHandler', `Applied ${derivativeSource.type}-based derivative`, {
         path: url.pathname,
-        derivative: pathDerivative,
+        derivative: derivativeSource.value,
+        source: derivativeSource.type,
       });
     }
 
@@ -52,6 +73,9 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
       url: url.toString(),
       path: url.pathname,
       options: imageOptions,
+      isRemoteFetch,
+      bucketName,
+      originUrl: isRemoteFetch ? originUrl : url.toString(),
     });
 
     // Prepare debug information from configuration
@@ -60,13 +84,30 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
       isVerbose: config.debug.verbose,
       includeHeaders: config.debug.includeHeaders,
       includePerformance: true,
+      deploymentMode: config.mode,
+      isRemoteFetch,
+      originalUrl: request.url,
+      transformedUrl: originUrl,
+      bucketName,
+      pathDerivative,
+      routeDerivative,
     };
 
     // Get path patterns from config
     const pathPatterns = config.pathPatterns || [];
 
+    // Process the image - use appropriate request based on mode
+    // matching main branch behavior
+    const processingRequest = isRemoteFetch ? originRequest : request;
+
     // Use the image transformation service
-    const response = await transformImage(request, imageOptions, pathPatterns, debugInfo, config);
+    const response = await transformImage(
+      processingRequest,
+      imageOptions,
+      pathPatterns,
+      debugInfo,
+      config
+    );
 
     // Store the response in cache if it's cacheable
     if (response.headers.get('Cache-Control')?.includes('max-age=')) {

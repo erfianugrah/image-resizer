@@ -99,12 +99,58 @@ export class TransformImageCommand {
       // Set up the image resizing options for Cloudflare
       const imageResizingOptions = this.prepareImageResizingOptions(options);
 
-      // Fetch the image with resizing options
-      const response = await fetch(request, {
-        cf: {
+      // Fetch the image with resizing options - match main branch behavior
+      let response;
+      try {
+        // Create request options for fetch
+        const cfProperties: Record<string, unknown> = {
           image: imageResizingOptions,
-        },
-      });
+        };
+
+        // Get cache config if available from context
+        const configObject = this.context.config as {
+          cache?: {
+            cacheability?: boolean;
+            ttl?: { ok?: number };
+            imageCompression?: string;
+            mirage?: boolean;
+          };
+        };
+        if (configObject?.cache) {
+          // Add cache-related properties
+          cfProperties.polish = configObject.cache.imageCompression || 'off';
+          cfProperties.mirage = configObject.cache.mirage || false;
+          cfProperties.cacheEverything = configObject.cache.cacheability || false;
+          if (configObject.cache.ttl?.ok) {
+            cfProperties.cacheTtl = configObject.cache.ttl.ok;
+          }
+        }
+
+        // Create fetch options
+        const fetchOptions: RequestInit = {
+          cf: cfProperties,
+        };
+
+        // Perform the fetch with enhanced options
+        response = await fetch(request, fetchOptions);
+
+        // Log details about the response for debugging
+        debug('TransformImageCommand', 'Image fetch response', {
+          url: request.url,
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+        });
+      } catch (fetchErr) {
+        // Enhanced error handling matching the main branch
+        error('TransformImageCommand', 'Error fetching image', {
+          error: fetchErr instanceof Error ? fetchErr.message : 'Unknown fetch error',
+          stack: fetchErr instanceof Error ? fetchErr.stack : undefined,
+        });
+
+        // Rethrow to be handled by outer try/catch
+        throw fetchErr;
+      }
 
       // Calculate processing time
       diagnosticsInfo.processingTimeMs = Math.round(performance.now() - startTime);
@@ -303,35 +349,32 @@ export class TransformImageCommand {
   private prepareImageResizingOptions(
     options: ImageTransformOptions
   ): Record<string, string | number | boolean | null | undefined> {
+    // Create a copy of options for the cf.image object - matching main branch behavior
+    const imageOptions = { ...options };
+
+    // Remove non-Cloudflare options - matching main branch behavior
+    const nonCloudflareOptions = ['source', 'derivative'];
+    nonCloudflareOptions.forEach((opt) => {
+      delete imageOptions[opt as keyof typeof imageOptions];
+    });
+
+    // Special handling for auto parameters
+    if (imageOptions.width === 'auto') {
+      // Handle 'auto' width - Cloudflare API doesn't support it directly
+      // It should have been converted to a numeric width by imageOptionsService
+      delete imageOptions.width;
+    }
+
+    // Format=auto is directly supported by Cloudflare and doesn't need special handling
+    // Cloudflare will use the best format based on Accept header when format is 'auto'
+
+    // Only include defined parameters - matching main branch behavior
     const resizingOptions: Record<string, string | number | boolean | null | undefined> = {};
-
-    // Map our options to Cloudflare image resizing parameters
-    if (options.width === 'auto') {
-      // Handle 'auto' width separately - will use responsive sizing
-    } else if (options.width !== null && options.width !== undefined) {
-      resizingOptions.width = Number(options.width);
-    }
-
-    // Map other parameters
-    const paramsToMap = [
-      'height',
-      'fit',
-      'quality',
-      'format',
-      'dpr',
-      'metadata',
-      'gravity',
-      'sharpen',
-      'brightness',
-      'contrast',
-    ];
-
-    for (const param of paramsToMap) {
-      const key = param as keyof ImageTransformOptions;
-      if (options[key] !== null && options[key] !== undefined) {
-        resizingOptions[param] = options[key];
+    Object.entries(imageOptions).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        resizingOptions[key] = value;
       }
-    }
+    });
 
     return resizingOptions;
   }

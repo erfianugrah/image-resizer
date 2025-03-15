@@ -39,6 +39,7 @@ export interface AppConfig {
   mode: string;
   version: string;
   fallbackBucket?: string;
+  [key: string]: unknown;
 
   // Debug settings
   debug: DebugConfig;
@@ -55,6 +56,7 @@ export interface AppConfig {
   responsive: ResponsiveConfig;
   validation: ValidationConfig;
   defaults: DefaultsConfig;
+  paramMapping?: Record<string, string>;
 
   // URL transformation settings
   pathTemplates: Record<string, string>;

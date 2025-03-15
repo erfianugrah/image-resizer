@@ -2,11 +2,17 @@
  * Service for determining image transformation options
  * Uses configManager and strategy pattern for cleaner control flow
  */
-import { error } from '../utils/loggerUtils';
+import { debug, error } from '../utils/loggerUtils';
 import { ConfigurationManager } from '../config/configManager';
 import { extractImageParams } from '../utils/urlParamUtils';
 import { ImageTransformOptions } from '../domain/commands/TransformImageCommand';
 import { ImageOptionsFactory } from '../utils/optionsFactory';
+// Import utility functions
+import { hasClientHints } from '../utils/clientHints';
+import { hasCfDeviceType } from '../utils/deviceUtils';
+import { getDeviceTypeFromUserAgent } from '../utils/userAgentUtils';
+import { snapToBreakpoint } from '../utils/responsiveWidthUtils';
+import { getDeviceInfo } from '../utils/deviceUtils';
 
 /**
  * Determine image options for a request
@@ -24,6 +30,9 @@ export async function determineImageOptions(
     // Extract all image parameters from URL and add them to urlParams
     extractImageParams(urlParams, pathname);
 
+    // Check for width=auto specifically before passing to options factory
+    const hasWidthAuto = urlParams.get('width') === 'auto';
+
     // Get configuration from the manager
     const configManager = ConfigurationManager.getInstance();
     const config = configManager.getConfig();
@@ -36,7 +45,20 @@ export async function determineImageOptions(
     });
 
     // Use the factory to create image options based on the request
-    return await optionsFactory.createImageOptions(request, urlParams);
+    let imageOptions = await optionsFactory.createImageOptions(request, urlParams);
+
+    // Special handling for width=auto parameter - convert to numeric value
+    // for Cloudflare Image Resizing API
+    if (hasWidthAuto && imageOptions.width === 'auto') {
+      imageOptions = handleAutoWidth(request, imageOptions);
+
+      debug('ImageOptionsService', 'Processed width=auto to numeric width', {
+        url: request.url,
+        finalWidth: imageOptions.width,
+      });
+    }
+
+    return imageOptions;
   } catch (err) {
     error('ImageOptionsService', 'Error determining image options', {
       error: err instanceof Error ? err.message : 'Unknown error',
@@ -46,4 +68,128 @@ export async function determineImageOptions(
     // Return empty options on error
     return {};
   }
+}
+
+/**
+ * Handle width=auto by determining appropriate responsive width
+ * Priority: Client Hints → CF-Device-Type → User Agent
+ * @param request - Original request
+ * @param options - Current image options with width=auto
+ * @returns Updated options with width as a number
+ */
+function handleAutoWidth(request: Request, options: ImageTransformOptions): ImageTransformOptions {
+  debug('ImageOptionsService', 'Processing width=auto parameter');
+
+  // Get configuration for responsive settings
+  const configManager = ConfigurationManager.getInstance();
+  const config = configManager.getConfig();
+  const responsiveConfig = config.responsive;
+
+  // Consistent with main branch: try client hints first
+  if (hasClientHints(request)) {
+    // Extract viewport width and DPR from client hints
+    const viewportWidth = getViewportWidth(request);
+    const dpr = getDevicePixelRatio(request) || 1;
+
+    if (viewportWidth) {
+      // Apply DPR scaling
+      const scaledWidth = Math.round(viewportWidth * dpr);
+
+      // Snap to nearest breakpoint width
+      const breakpoints = responsiveConfig.breakpoints || [320, 768, 960, 1440, 1920, 2048];
+      const finalWidth = snapToBreakpoint(scaledWidth, breakpoints);
+
+      debug('ImageOptionsService', 'Using client hints for width=auto', {
+        viewportWidth,
+        dpr,
+        scaledWidth,
+        finalWidth,
+      });
+
+      return {
+        ...options,
+        width: finalWidth,
+        source: 'client-hints-responsive',
+      };
+    }
+  }
+
+  // Try CF-Device-Type next
+  if (hasCfDeviceType(request)) {
+    const deviceType = request.headers.get('CF-Device-Type') || 'desktop';
+    const deviceInfo = getDeviceInfo(deviceType);
+
+    debug('ImageOptionsService', 'Using CF-Device-Type for width=auto', {
+      deviceType,
+      width: deviceInfo.width,
+    });
+
+    return {
+      ...options,
+      width: deviceInfo.width,
+      source: 'cf-device-responsive',
+    };
+  }
+
+  // Finally, fall back to user agent detection
+  const deviceType = getDeviceTypeFromUserAgent(request.headers.get('User-Agent') || '');
+  const defaultWidths = {
+    mobile: 480,
+    tablet: 768,
+    desktop: 1440,
+  };
+
+  // Get width based on device type
+  const deviceWidth =
+    responsiveConfig.deviceWidths?.[deviceType as keyof typeof responsiveConfig.deviceWidths] ||
+    defaultWidths[deviceType as keyof typeof defaultWidths] ||
+    1440;
+
+  debug('ImageOptionsService', 'Using User-Agent detection for width=auto', {
+    deviceType,
+    width: deviceWidth,
+  });
+
+  return {
+    ...options,
+    width: deviceWidth,
+    source: 'user-agent-responsive',
+  };
+}
+
+// Helper function to get viewport width from client hints
+function getViewportWidth(request: Request): number | null {
+  const viewportWidth = request.headers.get('Sec-CH-Viewport-Width');
+
+  if (viewportWidth) {
+    const width = parseInt(viewportWidth, 10);
+    if (!isNaN(width)) {
+      return width;
+    }
+  }
+
+  // Try legacy width header
+  const width = request.headers.get('Width');
+  if (width) {
+    const parsedWidth = parseInt(width, 10);
+    if (!isNaN(parsedWidth)) {
+      return parsedWidth;
+    }
+  }
+
+  return null;
+}
+
+// Helper function to get device pixel ratio from client hints
+function getDevicePixelRatio(request: Request): number | null {
+  const dpr = request.headers.get('Sec-CH-DPR');
+
+  if (dpr) {
+    const ratio = parseFloat(dpr);
+    if (!isNaN(ratio)) {
+      return ratio;
+    }
+  }
+
+  return null;
 }
