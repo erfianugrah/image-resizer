@@ -331,8 +331,8 @@ sequenceDiagram
     Worker->>Cache: Check Cache
     
     alt Cache Hit
-        Cache->>Worker: Cached Image
-        Worker->>Client: Return Image
+        Cache-->>Worker: Cached Image
+        Worker-->>Client: Return Image
     else Cache Miss
         Worker->>Opt: Determine Options
         
@@ -344,19 +344,19 @@ sequenceDiagram
             Opt->>Opt: Detect Device & Select Size
         end
         
-        Opt->>Worker: Image Options
+        Opt-->>Worker: Image Options
         Worker->>Transf: Transform Image
         Transf->>Cmd: Execute Command
         
         Cmd->>CF: Image Resize Request
-        CF->>Cmd: Resized Image
+        CF-->>Cmd: Resized Image
         
         Cmd->>Cmd: Add Debug Headers
-        Cmd->>Transf: Response
-        Transf->>Worker: Image Response
+        Cmd-->>Transf: Response
+        Transf-->>Worker: Image Response
         
         Worker->>Cache: Store in Cache
-        Worker->>Client: Return Image
+        Worker-->>Client: Return Image
     end
 ```
 
