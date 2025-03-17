@@ -70,3 +70,4 @@ logs/
 
 # docs
 CLAUDE.md*
+.internal-docs/
