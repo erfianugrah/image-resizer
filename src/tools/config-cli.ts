@@ -289,9 +289,7 @@ program
  */
 program
   .command('convert <inputFile> <outputFile>')
-  .description(
-    'Convert configuration to JSON format'
-  )
+  .description('Convert configuration to JSON format')
   .option('--no-comments', 'Remove comments from output file')
   .option('--no-color', 'Disable color output')
   .action(async (inputFile, outputFile, options) => {
@@ -367,9 +365,7 @@ ${outputContent.substring(1)}`;
 
       // Write to output file
       fs.writeFileSync(outputFile, outputContent);
-      console.log(
-        chalk.green(`Configuration migrated and saved to ${outputFile}`)
-      );
+      console.log(chalk.green(`Configuration migrated and saved to ${outputFile}`));
     } catch (err) {
       console.error(chalk.red(`Error migrating configuration: ${err.message}`));
       process.exit(1);
@@ -421,7 +417,10 @@ function migrateConfig(config) {
 }
 
 // Parse command line arguments
-program.name('config-cli').description('Configuration management tool for Image Resizer').version('1.0.0');
+program
+  .name('config-cli')
+  .description('Configuration management tool for Image Resizer')
+  .version('1.0.0');
 
 // Display help if no arguments
 if (process.argv.length <= 2) {

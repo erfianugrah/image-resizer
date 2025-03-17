@@ -557,6 +557,7 @@ export function createConfigValidator(dependencies: ConfigValidatorDependencies)
 export function validateAppConfig(config: unknown): boolean {
   try {
     // Import dynamically to avoid circular dependencies
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createLogger } = require('../core/logger');
     const logger = createLogger('ConfigValidator');
     const validator = createConfigValidator({ logger });
@@ -582,6 +583,7 @@ export function validateAppConfig(config: unknown): boolean {
 export function validateAppConfigWithDetails(config: unknown): ValidationResult {
   try {
     // Import dynamically to avoid circular dependencies
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createLogger } = require('../core/logger');
     const logger = createLogger('ConfigValidator');
     const validator = createConfigValidator({ logger });
@@ -607,6 +609,7 @@ export function validateAppConfigWithDetails(config: unknown): ValidationResult 
 export function validateDefaultConfig(): boolean {
   try {
     // Import dynamically to avoid circular dependencies
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createLogger } = require('../core/logger');
     const logger = createLogger('ConfigValidator');
     const validator = createConfigValidator({ logger });
@@ -632,6 +635,7 @@ export function validateDefaultConfig(): boolean {
 export function validateDerivativeTemplate(derivativeName: string): boolean {
   try {
     // Import dynamically to avoid circular dependencies
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createLogger } = require('../core/logger');
     const logger = createLogger('ConfigValidator');
     const validator = createConfigValidator({ logger });

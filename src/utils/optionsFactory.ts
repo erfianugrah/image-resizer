@@ -176,7 +176,7 @@ class ResponsiveStrategy implements OptionsStrategy {
     // Basic quality and fit settings from responsive config
     const options: ImageTransformOptions = {
       quality: config.responsive.quality,
-      fit: config.responsive.fit,
+      fit: config.responsive.fit, // Using 'contain' instead of 'cover' avoids needing both width and height
       metadata: config.responsive.metadata,
     };
 

@@ -36,10 +36,10 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
     const logger = createLogger('CacheUtils');
     const configManager = createConfigManager({ logger });
     const appConfig = configManager.getConfig();
-    
+
     // Get current environment for comparison
     const currentEnv = (globalThis as any).process?.env || {};
-    
+
     // Debug log to see what's coming from the environment
     logger.debug('CacheUtils', '🔍 DIAGNOSTICS - Environment config loaded', {
       environment: appConfig.environment,
@@ -47,13 +47,13 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
       envVarCacheMethod: currentEnv.CACHE_METHOD || 'env-not-available',
       configSource: 'configManager.getConfig()',
       url,
-      config_cache_json: JSON.stringify(appConfig.cache)
+      config_cache_json: JSON.stringify(appConfig.cache),
     });
 
     // Import image config (for structure only)
     const { imageConfig } = await import('../config/imageConfig');
     const { createErrorFactory } = await import('../types/utils/errors');
-    const errorFactory = createErrorFactory();
+    const _errorFactory = createErrorFactory();
 
     // Start with default configuration
     const config = { ...defaultCacheConfig };
@@ -86,12 +86,12 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
         } else {
           config.method = appConfig.cache.method;
         }
-        
+
         logger.debug('CacheUtils', '🔧 OVERRIDE - Applied cache method from environment', {
           method: config.method,
           originalMethod: appConfig.cache.method,
           envOverride: appConfig.environment === 'production' ? 'forced-cf' : 'from-config',
-          url
+          url,
         });
       }
     }

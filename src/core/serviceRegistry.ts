@@ -18,7 +18,7 @@ let globalRegistryInstance: IServiceRegistry | null = null;
  * @returns A ServiceRegistry instance
  */
 export function createServiceRegistry(
-  dependencies?: ServiceRegistryDependencies
+  _dependencies?: ServiceRegistryDependencies
 ): IServiceRegistry {
   const registry = new ServiceRegistryImpl();
 

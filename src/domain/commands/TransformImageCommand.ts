@@ -320,7 +320,7 @@ export function createTransformImageCommand(
         }
 
         // Get cache configuration using simpler dynamic import approach
-        const cacheUtils = dependencies?.cacheUtils || await import('../../utils/cacheUtils');
+        const cacheUtils = dependencies?.cacheUtils || (await import('../../utils/cacheUtils'));
         const cacheConfig = await cacheUtils.determineCacheConfig(url.toString());
 
         // Get logging functions - either from dependencies or global imports
@@ -358,16 +358,15 @@ export function createTransformImageCommand(
         diagnosticsInfo.pathMatch = context.pathPatterns?.length
           ? context.pathPatterns[0].name
           : undefined;
-          
+
         // Add environment information for header decision making
         const configObject = context.config as Record<string, unknown>;
         diagnosticsInfo.environment = (configObject?.environment as string) || 'unknown';
-        
+
         // Force cache method to 'cf' in production - ensure consistency with actual behavior
-        const actualCacheMethod = diagnosticsInfo.environment === 'production' 
-          ? 'cf' 
-          : (cacheConfig.method || 'default');
-        
+        const actualCacheMethod =
+          diagnosticsInfo.environment === 'production' ? 'cf' : cacheConfig.method || 'default';
+
         // Also update the diagnostics info to show the correct cache method
         diagnosticsInfo.cachingMethod = actualCacheMethod;
 
@@ -375,7 +374,7 @@ export function createTransformImageCommand(
         logDebug('TransformImageCommand', 'Cache configuration', {
           url: url.toString(),
           method: actualCacheMethod,
-          environment: diagnosticsInfo.environment as string
+          environment: diagnosticsInfo.environment as string,
         });
 
         // Set up the image resizing options for Cloudflare
@@ -395,8 +394,9 @@ export function createTransformImageCommand(
             // Force environment-specific settings in production
             if (diagnosticsInfo.environment === 'production') {
               // Cast config to access cache properties
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const cacheConfig = (context.config as Record<string, any>)?.cache || {};
-              
+
               // Add CF-specific cache properties for production
               cfProperties.polish = cacheConfig.imageCompression || 'off';
               cfProperties.mirage = cacheConfig.mirage || false;
@@ -404,8 +404,9 @@ export function createTransformImageCommand(
               cfProperties.cacheTtl = cacheConfig.ttl?.ok || 31536000; // 1 year default
             } else {
               // Cast config to access cache properties
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const contextCache = (context.config as Record<string, any>)?.cache || {};
-              
+
               // Use standard settings for non-production environments
               cfProperties.polish = contextCache.imageCompression || 'off';
               cfProperties.mirage = contextCache.mirage || false;
@@ -420,12 +421,12 @@ export function createTransformImageCommand(
           const fetchOptions: RequestInit = {
             cf: cfProperties,
           };
-          
+
           // Log the fetch options for debugging
           logDebug('TransformImageCommand', 'Fetch options with CF object', {
             cf: JSON.stringify(cfProperties),
             method: actualCacheMethod,
-            requestUrl: request.url
+            requestUrl: request.url,
           });
 
           // Perform the fetch with enhanced options

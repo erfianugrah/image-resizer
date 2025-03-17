@@ -176,7 +176,12 @@ export function createImageOptionsService(
       pathname: string
     ): Promise<ImageTransformOptions> {
       try {
-        const { debug, error } = dependencies.logger;
+        const { debug } = dependencies.logger;
+
+        debug('ImageOptionsService', 'Determining image options', {
+          pathname,
+          hasParams: urlParams.toString().length > 0,
+        });
 
         // Extract all image parameters from URL and add them to urlParams
         dependencies.urlUtils.extractImageParams(urlParams, pathname);

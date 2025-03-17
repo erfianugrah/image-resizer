@@ -32,6 +32,13 @@ export async function transformImage(
     // Import logging utilities
     const { debug, error } = await import('../utils/loggerUtils');
 
+    // Log any errors that might occur during processing
+    process.on('unhandledRejection', (reason) => {
+      error('ImageTransformationService', 'Unhandled rejection in transformation', {
+        reason: reason instanceof Error ? reason.message : String(reason),
+      });
+    });
+
     debug('ImageTransformationService', 'Transforming image', {
       url: request.url,
       options,
@@ -154,7 +161,7 @@ export function createImageTransformationService(
             },
             // Only provide the required dependencies, let the command load the rest dynamically
             cacheUtils: {
-              determineCacheConfig: async (url: string) => ({
+              determineCacheConfig: async (_url: string) => ({
                 cacheability: true,
                 ttl: { ok: 86400 },
                 method: 'cache-api',

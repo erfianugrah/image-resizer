@@ -262,7 +262,9 @@ export function transformRequestUrl(
   env?: EnvironmentVariables
 ): RemoteTransformResult {
   // Import modules needed for backward compatibility
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { extractDefaultImageParams } = require('./urlParamUtils');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { getDerivativeFromPath } = require('./pathUtils');
 
   // Create minimal dependencies objects with just what we need for backward compatibility

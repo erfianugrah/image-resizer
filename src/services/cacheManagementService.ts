@@ -3,13 +3,12 @@
  * Provides a unified interface for cache operations using both
  * Cache API and CF object approaches
  */
-import { debug, error } from '../utils/loggerUtils';
+// Import dependencies but mark unused ones with underscore prefix
 import {
   CacheConfig,
   ICacheManagementService,
   CacheManagementDependencies,
 } from '../types/utils/cache';
-import { buildCacheKey, determineCacheControl, generateCacheTags } from '../utils/cacheUtils';
 
 // Legacy function removed - use createCacheManagementService factory function instead
 
@@ -29,7 +28,7 @@ export function createCacheManagementService(
   const determineCacheMethod = (): string => {
     const config = dependencies.config.getConfig();
     // Use the configured method, but force 'cf' in production
-    return config.environment === 'production' ? 'cf' : (config.caching?.method || 'cache-api');
+    return config.environment === 'production' ? 'cf' : config.caching?.method || 'cache-api';
   };
   return {
     /**
@@ -37,15 +36,15 @@ export function createCacheManagementService(
      */
     async getCachedResponse(request: Request): Promise<Response | null> {
       try {
-        const { debug, error } = dependencies.logger;
+        const { debug } = dependencies.logger;
         const cacheKey = dependencies.utils.buildCacheKey(request);
 
         // Get cache method from helper function
         const cacheMethod = determineCacheMethod();
-        
+
         // Log what's happening
         debug('CacheManagementService', 'Cache method determined', {
-          method: cacheMethod
+          method: cacheMethod,
         });
 
         // If using Cache API method
@@ -83,7 +82,7 @@ export function createCacheManagementService(
      */
     async cacheResponse(request: Request, response: Response): Promise<boolean> {
       try {
-        const { debug, error } = dependencies.logger;
+        const { debug } = dependencies.logger;
 
         // Check if response is cacheable based on Cache-Control header
         const cacheControl = response.headers.get('Cache-Control') || '';
@@ -100,7 +99,7 @@ export function createCacheManagementService(
 
         // Log what's happening
         debug('CacheManagementService', 'Cache method for caching response', {
-          method: cacheMethod
+          method: cacheMethod,
         });
 
         // If using Cache API method
@@ -138,7 +137,7 @@ export function createCacheManagementService(
       derivative?: string
     ): Response {
       try {
-        const { error } = dependencies.logger;
+        // Logger available if needed in the future
 
         // If no cache config, return original response
         if (!cacheConfig) {

@@ -26,7 +26,7 @@ export interface LoggerFactoryDependencies {
  * @param dependencies - Optional dependencies for the logger factory
  * @returns A logger factory instance
  */
-export function createLoggerFactory(dependencies?: LoggerFactoryDependencies): ILoggerFactory {
+export function createLoggerFactory(_dependencies?: LoggerFactoryDependencies): ILoggerFactory {
   return {
     createLogger: (name: string): ILogger => {
       return createLogger(name);

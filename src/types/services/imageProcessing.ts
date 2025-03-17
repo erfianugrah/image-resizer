@@ -4,7 +4,8 @@
 import { CacheConfig } from '../utils/cache';
 import { DiagnosticsInfo, DebugInfo } from '../utils/debug';
 import { ImageTransformOptions } from './image';
-import { ILogger } from '../core/logger';
+// We don't need ILogger directly in this file
+import { _ILogger } from '../core/logger';
 
 /**
  * Interface for the image processing service

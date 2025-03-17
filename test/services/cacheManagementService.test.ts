@@ -80,7 +80,7 @@ describe('CacheManagementService', () => {
     mockUtils.buildCacheKey.mockImplementation((req) => req.url);
     mockUtils.determineCacheControl.mockImplementation(() => 'public, max-age=86400');
     mockUtils.generateCacheTags.mockImplementation(() => ['image', 'source:test']);
-    
+
     // Fix for Response objects in tests - use mockResolvedValue for match
     (caches.default.match as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockResponse);
     // Fix for put operation - default to success
@@ -99,28 +99,28 @@ describe('CacheManagementService', () => {
       // Create a fresh service with fresh mocks to avoid any shared state
       const freshMockLogger = { debug: vi.fn(), error: vi.fn() };
       const freshMatchMock = vi.fn().mockResolvedValue(mockResponse);
-      
+
       // Create mock cache with controlled match function
       const freshCachesMock = {
         default: {
           match: freshMatchMock,
-          put: vi.fn()
-        }
+          put: vi.fn(),
+        },
       };
-      
+
       // Store global caches
       const originalCaches = global.caches;
-      
+
       // Replace global caches for this test
       global.caches = freshCachesMock as any;
-      
+
       const testService = createCacheManagementService({
         logger: freshMockLogger,
         config: {
           getConfig: vi.fn().mockReturnValue({
             environment: 'development',
-            caching: { method: 'cache-api' }
-          })
+            caching: { method: 'cache-api' },
+          }),
         },
         utils: mockUtils,
       });
@@ -128,7 +128,7 @@ describe('CacheManagementService', () => {
       try {
         // Act
         const result = await testService.getCachedResponse(mockRequest);
-  
+
         // Assert
         expect(result).toBe(mockResponse);
         expect(freshMatchMock).toHaveBeenCalledWith(mockRequest);
@@ -142,28 +142,28 @@ describe('CacheManagementService', () => {
       // Create a fresh service with fresh mocks to avoid any shared state
       const freshMockLogger = { debug: vi.fn(), error: vi.fn() };
       const freshMatchMock = vi.fn().mockResolvedValue(null);
-      
+
       // Create mock cache with controlled match function
       const freshCachesMock = {
         default: {
           match: freshMatchMock,
-          put: vi.fn()
-        }
+          put: vi.fn(),
+        },
       };
-      
+
       // Store global caches
       const originalCaches = global.caches;
-      
+
       // Replace global caches for this test
       global.caches = freshCachesMock as any;
-      
+
       const testService = createCacheManagementService({
         logger: freshMockLogger,
         config: {
           getConfig: vi.fn().mockReturnValue({
             environment: 'development',
-            caching: { method: 'cache-api' }
-          })
+            caching: { method: 'cache-api' },
+          }),
         },
         utils: mockUtils,
       });
@@ -171,13 +171,13 @@ describe('CacheManagementService', () => {
       try {
         // Act
         const result = await testService.getCachedResponse(mockRequest);
-  
+
         // Assert
         expect(result).toBeNull();
         expect(freshMatchMock).toHaveBeenCalledWith(mockRequest);
         expect(freshMockLogger.debug).toHaveBeenCalledWith(
-          'CacheManagementService', 
-          'Cache miss', 
+          'CacheManagementService',
+          'Cache miss',
           expect.any(Object)
         );
       } finally {
@@ -188,68 +188,74 @@ describe('CacheManagementService', () => {
 
     it('should handle errors gracefully', async () => {
       // Arrange
-      (caches.default.match as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Cache error'));
+      (caches.default.match as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Cache error')
+      );
 
       // Act
       const result = await cacheService.getCachedResponse(mockRequest);
 
       // Assert
       expect(result).toBeNull();
-      expect(mockLogger.error).toHaveBeenCalledWith('CacheManagementService', 'Error retrieving from cache', expect.any(Object));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'CacheManagementService',
+        'Error retrieving from cache',
+        expect.any(Object)
+      );
     });
 
     it('should use environment-specific caching method in production', async () => {
       // Arrange - Create a production service with fresh mocks
       const mockProdLogger = { debug: vi.fn(), error: vi.fn() };
-      
+
       const prodCacheService = createCacheManagementService({
         logger: mockProdLogger,
         config: {
           getConfig: vi.fn().mockReturnValue({
             environment: 'production',
-            caching: { method: 'cf' }
-          })
+            caching: { method: 'cf' },
+          }),
         },
         utils: mockUtils,
       });
 
       // Act - Production should not use Cache API
       await prodCacheService.getCachedResponse(mockRequest);
-      
+
       // Assert debug was called with production method
       expect(mockProdLogger.debug).toHaveBeenCalledWith(
-        'CacheManagementService', 
-        'Cache method determined', 
+        'CacheManagementService',
+        'Cache method determined',
         expect.objectContaining({ method: 'cf' })
       );
     });
-    
+
     it('should use configured caching method in development', async () => {
       // Arrange - Create a development service with fresh mocks
       const mockDevLogger = { debug: vi.fn(), error: vi.fn() };
-      
+
       // Create mock cache with controlled match function
       const freshMatchMock = vi.fn().mockResolvedValue(null);
       const freshCachesMock = {
         default: {
           match: freshMatchMock,
-          put: vi.fn()
-        }
+          put: vi.fn(),
+        },
       };
-      
+
       // Store global caches
       const originalCaches = global.caches;
-      
+
       // Replace global caches for this test
       global.caches = freshCachesMock as any;
-      
+
       const devCacheService = createCacheManagementService({
         logger: mockDevLogger,
         config: {
           getConfig: vi.fn().mockReturnValue({
             environment: 'development',
-            caching: { method: 'cache-api' }
-          })
+            caching: { method: 'cache-api' },
+          }),
         },
         utils: mockUtils,
       });
@@ -257,14 +263,14 @@ describe('CacheManagementService', () => {
       try {
         // Act - Development should use Cache API
         await devCacheService.getCachedResponse(mockRequest);
-        
+
         // Assert debug was called with development method
         expect(mockDevLogger.debug).toHaveBeenCalledWith(
-          'CacheManagementService', 
-          'Cache method determined', 
+          'CacheManagementService',
+          'Cache method determined',
           expect.objectContaining({ method: 'cache-api' })
         );
-        
+
         // Also verify Cache API is called for 'cache-api' method
         expect(freshMatchMock).toHaveBeenCalledWith(mockRequest);
       } finally {
@@ -283,12 +289,12 @@ describe('CacheManagementService', () => {
         config: {
           getConfig: vi.fn().mockReturnValue({
             environment: 'development',
-            caching: { method: 'cache-api' }
-          })
+            caching: { method: 'cache-api' },
+          }),
         },
         utils: mockUtils,
       });
-      
+
       // Setup cache.put mock to succeed
       (caches.default.put as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
 
@@ -299,8 +305,8 @@ describe('CacheManagementService', () => {
       expect(result).toBe(true);
       expect(caches.default.put).toHaveBeenCalledWith(mockRequest, expect.any(Response));
       expect(mockDevLogger.debug).toHaveBeenCalledWith(
-        'CacheManagementService', 
-        'Cache method for caching response', 
+        'CacheManagementService',
+        'Cache method for caching response',
         expect.objectContaining({ method: 'cache-api' })
       );
     });
@@ -313,12 +319,12 @@ describe('CacheManagementService', () => {
         config: {
           getConfig: vi.fn().mockReturnValue({
             environment: 'production',
-            caching: { method: 'cf' }
-          })
+            caching: { method: 'cf' },
+          }),
         },
         utils: mockUtils,
       });
-      
+
       // Reset cache API mock
       (caches.default.put as unknown as ReturnType<typeof vi.fn>).mockClear();
 
@@ -330,8 +336,8 @@ describe('CacheManagementService', () => {
       // In production mode with 'cf' method, we should NOT call cache.put
       expect(caches.default.put).not.toHaveBeenCalled();
       expect(mockProdLogger.debug).toHaveBeenCalledWith(
-        'CacheManagementService', 
-        'Cache method for caching response', 
+        'CacheManagementService',
+        'Cache method for caching response',
         expect.objectContaining({ method: 'cf' })
       );
     });
@@ -350,22 +356,28 @@ describe('CacheManagementService', () => {
       expect(result).toBe(false);
       expect(caches.default.put).not.toHaveBeenCalled();
       expect(mockLogger.debug).toHaveBeenCalledWith(
-        'CacheManagementService', 
-        'Skipping cache for non-cacheable response', 
+        'CacheManagementService',
+        'Skipping cache for non-cacheable response',
         expect.any(Object)
       );
     });
 
     it('should handle errors gracefully', async () => {
       // Arrange
-      (caches.default.put as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Cache error'));
+      (caches.default.put as unknown as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('Cache error')
+      );
 
       // Act
       const result = await cacheService.cacheResponse(mockRequest, mockResponse);
 
       // Assert
       expect(result).toBe(false);
-      expect(mockLogger.error).toHaveBeenCalledWith('CacheManagementService', 'Error storing in cache', expect.any(Object));
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'CacheManagementService',
+        'Error storing in cache',
+        expect.any(Object)
+      );
     });
   });
 
@@ -382,10 +394,20 @@ describe('CacheManagementService', () => {
         },
       };
       mockUtils.determineCacheControl.mockReturnValue('public, max-age=3600');
-      mockUtils.generateCacheTags.mockReturnValue(['image', 'source:test-source', 'derivative:thumbnail']);
+      mockUtils.generateCacheTags.mockReturnValue([
+        'image',
+        'source:test-source',
+        'derivative:thumbnail',
+      ]);
 
       // Act
-      const result = cacheService.applyCacheHeaders(mockResponse, 200, cacheConfig, 'test-source', 'thumbnail');
+      const result = cacheService.applyCacheHeaders(
+        mockResponse,
+        200,
+        cacheConfig,
+        'test-source',
+        'thumbnail'
+      );
 
       // Assert
       expect(result.headers.get('Cache-Control')).toBe('public, max-age=3600');
@@ -406,10 +428,20 @@ describe('CacheManagementService', () => {
         },
       };
       mockUtils.determineCacheControl.mockReturnValue('public, max-age=60');
-      mockUtils.generateCacheTags.mockReturnValue(['image', 'source:test-source', 'derivative:thumbnail']);
+      mockUtils.generateCacheTags.mockReturnValue([
+        'image',
+        'source:test-source',
+        'derivative:thumbnail',
+      ]);
 
       // Act
-      const result = cacheService.applyCacheHeaders(mockResponse, 404, cacheConfig, 'test-source', 'thumbnail');
+      const result = cacheService.applyCacheHeaders(
+        mockResponse,
+        404,
+        cacheConfig,
+        'test-source',
+        'thumbnail'
+      );
 
       // Assert
       expect(result.headers.get('Cache-Control')).toBe('public, max-age=60');
@@ -421,12 +453,12 @@ describe('CacheManagementService', () => {
       // Reset mocks
       mockUtils.determineCacheControl.mockReset();
       mockUtils.generateCacheTags.mockReset();
-      
+
       // Create a fresh response to avoid reference issues
       const testResponse = new Response('Test data', {
-        headers: { 'X-Test': 'value' }
+        headers: { 'X-Test': 'value' },
       });
-      
+
       // Create a fresh service that returns a new Response object
       const serviceMock = createCacheManagementService({
         logger: { debug: vi.fn(), error: vi.fn() },
@@ -435,9 +467,9 @@ describe('CacheManagementService', () => {
           determineCacheControl: vi.fn(),
           generateCacheTags: vi.fn(),
           buildCacheKey: vi.fn(),
-        }
+        },
       });
-      
+
       // Act
       const result = serviceMock.applyCacheHeaders(testResponse, 200);
 
@@ -447,13 +479,13 @@ describe('CacheManagementService', () => {
       expect(result.headers.get('Cache-Control')).toBeNull();
       expect(result.headers.get('Cache-Tag')).toBeNull();
     });
-    
+
     it('should handle errors gracefully and return original response', () => {
       // Arrange - Make the utility throw an error
       mockUtils.determineCacheControl.mockImplementation(() => {
         throw new Error('Test error');
       });
-      
+
       const cacheConfig = {
         cacheability: true,
         ttl: {
@@ -463,15 +495,15 @@ describe('CacheManagementService', () => {
           serverError: 0,
         },
       };
-      
+
       // Act
       const result = cacheService.applyCacheHeaders(mockResponse, 200, cacheConfig);
-      
+
       // Assert
       expect(result).toBe(mockResponse); // Should return original on error
       expect(mockLogger.error).toHaveBeenCalledWith(
-        'CacheManagementService', 
-        'Error applying cache headers', 
+        'CacheManagementService',
+        'Error applying cache headers',
         expect.any(Object)
       );
     });
@@ -480,29 +512,33 @@ describe('CacheManagementService', () => {
   describe('generateCacheTags', () => {
     it('should generate correct cache tags', () => {
       // Arrange
-      mockUtils.generateCacheTags.mockReturnValue(['image', 'source:test-source', 'derivative:thumbnail']);
-      
+      mockUtils.generateCacheTags.mockReturnValue([
+        'image',
+        'source:test-source',
+        'derivative:thumbnail',
+      ]);
+
       // Act
       const result = cacheService.generateCacheTags('test-source', 'thumbnail');
-      
+
       // Assert
       expect(result).toEqual(['image', 'source:test-source', 'derivative:thumbnail']);
       expect(mockUtils.generateCacheTags).toHaveBeenCalledWith('test-source', 'thumbnail');
     });
-    
+
     it('should handle missing parameters', () => {
       // Arrange
       mockUtils.generateCacheTags.mockReturnValue(['image']);
-      
+
       // Act
       const result = cacheService.generateCacheTags();
-      
+
       // Assert
       expect(result).toEqual(['image']);
       expect(mockUtils.generateCacheTags).toHaveBeenCalledWith(undefined, undefined);
     });
   });
-  
+
   describe('createCfObjectParams utility', () => {
     it('should create correct CF object parameters for successful responses', () => {
       // Arrange
@@ -588,7 +624,7 @@ describe('CacheManagementService', () => {
       // Assert
       expect(result.cacheTtl).toBe(3600); // Default 1 hour
     });
-    
+
     it('should apply cache tags when source and derivative are provided', () => {
       // Arrange
       const cacheConfig = {
@@ -600,10 +636,10 @@ describe('CacheManagementService', () => {
           serverError: 0,
         },
       };
-      
+
       // Act
       const result = createCfObjectParams(200, cacheConfig, 'test-bucket', 'thumbnail');
-      
+
       // Assert
       expect(result.cacheTags).toEqual(expect.any(Array));
       expect(Array.isArray(result.cacheTags)).toBe(true);

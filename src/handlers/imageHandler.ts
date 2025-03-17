@@ -159,7 +159,7 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
             ? { ...config.defaults }
             : {
                 quality: 80,
-                fit: 'cover',
+                fit: 'contain',
                 format: 'auto',
                 metadata: 'none',
               },
@@ -184,7 +184,7 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
             derivatives: factoryConfig.derivatives,
             responsive: {
               quality: 80,
-              fit: 'cover',
+              fit: 'contain',
               metadata: 'none',
               format: 'auto',
               availableWidths: [320, 480, 640, 768, 1024, 1366, 1600, 1920],
@@ -195,7 +195,7 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
             },
             defaults: {
               quality: 80,
-              fit: 'cover',
+              fit: 'contain',
               format: 'auto',
               metadata: 'none',
               ...(factoryConfig.defaults as any),

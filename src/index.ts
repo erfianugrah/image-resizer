@@ -222,9 +222,9 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
         config: {
           getConfig: () => {
             const appConfig = configManagerService.getConfig();
-            return { 
+            return {
               caching: appConfig.cache,
-              environment: appConfig.environment 
+              environment: appConfig.environment,
             };
           },
         },
@@ -378,8 +378,9 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
     factory: (deps) => {
       const logger = deps.ILogger as ILogger;
       const clientDetectionUtils = deps.IClientDetectionUtils;
-      const validationUtils = deps.IValidationUtils;
-      const pathUtils = deps.IPathUtils;
+      // These dependencies may be used in the future
+      const _validationUtils = deps.IValidationUtils;
+      const _pathUtils = deps.IPathUtils;
 
       return createImageProcessingService({
         logger: {

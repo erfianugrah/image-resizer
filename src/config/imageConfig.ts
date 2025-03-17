@@ -161,7 +161,7 @@ export const imageConfig: {
       desktop: 960,
     },
     quality: 85,
-    fit: 'scale-down',
+    fit: 'contain',
     metadata: 'copyright',
     format: 'auto',
   },

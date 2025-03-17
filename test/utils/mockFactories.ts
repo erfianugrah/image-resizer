@@ -5,12 +5,12 @@
  */
 
 import { vi } from 'vitest';
-import { IPathUtils, PathMatch, PathPattern } from '../../src/types/utils/path';
+import { IPathUtils } from '../../src/types/utils/path';
 import { IUrlParamUtils } from '../../src/types/utils/urlParam';
 import { IUrlTransformUtils } from '../../src/types/utils/urlTransform';
-import { IClientDetectionUtils, DeviceInfo } from '../../src/types/utils/clientDetection';
+import { IClientDetectionUtils } from '../../src/types/utils/clientDetection';
 import { IFormatUtils } from '../../src/types/utils/format';
-import { IValidationUtils, ValidationResult } from '../../src/types/utils/validation';
+import { IValidationUtils } from '../../src/types/utils/validation';
 import { ILogger } from '../../src/types/core/logger';
 import { IConfigManager } from '../../src/types/core/config';
 
@@ -54,6 +54,7 @@ export function createMockUrlParamUtils(): IUrlParamUtils {
     }),
     createQueryString: vi.fn().mockReturnValue('width=800&height=600'),
     getParamValue: vi.fn().mockImplementation((params, name, defaultValue) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockParams: Record<string, any> = {
         width: 800,
         height: 600,

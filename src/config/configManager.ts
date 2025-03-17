@@ -5,10 +5,13 @@
 import {
   DerivativeTemplate,
   ResponsiveConfig,
-  CachingConfig,
-  ValidationConfig,
-  DefaultsConfig,
   CacheConfigEntry,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _CachingConfig,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _ValidationConfig,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _DefaultsConfig,
 } from './imageConfig';
 import { PathPattern } from '../utils/pathUtils';
 import {
@@ -444,6 +447,7 @@ export class ConfigurationManager {
   private constructor() {
     try {
       // Import dynamically to avoid circular dependencies
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { createLogger } = require('../core/logger');
       const logger = createLogger('ConfigurationManager');
       this.configManager = createConfigManager({ logger });
