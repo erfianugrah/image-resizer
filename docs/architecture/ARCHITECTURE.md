@@ -320,42 +320,42 @@ The following diagram illustrates the data flow for image processing:
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Worker as Cloudflare Worker
-    participant Opt as OptionsService
-    participant Transf as TransformationService
-    participant Cmd as TransformCommand
-    participant CF as Cloudflare API
-    participant Cache as Cache Service
+    participant Worker
+    participant OptionsService
+    participant TransformService
+    participant Command
+    participant CloudflareAPI
+    participant CacheService
     
     Client->>Worker: Image Request
-    Worker->>Cache: Check Cache
+    Worker->>CacheService: Check Cache
     
     alt Cache Hit
-        Cache-->>Worker: Cached Image
+        CacheService-->>Worker: Cached Image
         Worker-->>Client: Return Image
     else Cache Miss
-        Worker->>Opt: Determine Options
+        Worker->>OptionsService: Determine Options
         
         alt Has Explicit Params
-            Opt->>Opt: Use Explicit Params
+            OptionsService->>OptionsService: Use Explicit Params
         else Has Derivative
-            Opt->>Opt: Use Derivative Template
+            OptionsService->>OptionsService: Use Derivative Template
         else Responsive Sizing
-            Opt->>Opt: Detect Device & Select Size
+            OptionsService->>OptionsService: Detect Device & Select Size
         end
         
-        Opt-->>Worker: Image Options
-        Worker->>Transf: Transform Image
-        Transf->>Cmd: Execute Command
+        OptionsService-->>Worker: Image Options
+        Worker->>TransformService: Transform Image
+        TransformService->>Command: Execute Command
         
-        Cmd->>CF: Image Resize Request
-        CF-->>Cmd: Resized Image
+        Command->>CloudflareAPI: Image Resize Request
+        CloudflareAPI-->>Command: Resized Image
         
-        Cmd->>Cmd: Add Debug Headers
-        Cmd-->>Transf: Response
-        Transf-->>Worker: Image Response
+        Command->>Command: Add Debug Headers
+        Command-->>TransformService: Response
+        TransformService-->>Worker: Image Response
         
-        Worker->>Cache: Store in Cache
+        Worker->>CacheService: Store in Cache
         Worker-->>Client: Return Image
     end
 ```
