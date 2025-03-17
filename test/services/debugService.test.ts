@@ -7,6 +7,225 @@ import {
 
 vi.mock('../../src/utils/loggerUtils', async () => ({
   debug: vi.fn(),
+  extractRequestHeaders: vi.fn((request) => {
+    // Mock implementation that returns headers from the request
+    const headers: Record<string, string> = {};
+    const headersToExtract = [
+      'user-agent',
+      'accept',
+      'referer',
+      'sec-ch-viewport-width',
+      'sec-ch-dpr',
+      'width',
+      'cf-device-type',
+      'cf-ipcountry',
+      'cf-ray',
+      'save-data',
+      'x-forwarded-for',
+    ];
+
+    for (const headerName of headersToExtract) {
+      const value = request.headers.get(headerName);
+      if (value) {
+        headers[headerName] = value;
+      }
+    }
+    return headers;
+  }),
+
+  addDebugHeaders: vi.fn((response, debugInfo, diagnosticsInfo) => {
+    // Return original response if debug is not enabled
+    if (!debugInfo.isEnabled) {
+      return response;
+    }
+
+    // Clone response to add headers
+    const enhancedResponse = new Response(response.body, response);
+
+    // Add performance timing
+    if (debugInfo.includePerformance && diagnosticsInfo.processingTimeMs) {
+      enhancedResponse.headers.set('x-processing-time', `${diagnosticsInfo.processingTimeMs}ms`);
+    }
+
+    // Add debug headers based on diagnostic info
+    if (diagnosticsInfo.transformParams) {
+      enhancedResponse.headers.set('debug-ir', JSON.stringify(diagnosticsInfo.transformParams));
+    }
+
+    if (diagnosticsInfo.pathMatch) {
+      enhancedResponse.headers.set('debug-path-match', diagnosticsInfo.pathMatch);
+    }
+
+    if (diagnosticsInfo.transformSource) {
+      enhancedResponse.headers.set('x-size-source', diagnosticsInfo.transformSource);
+    }
+
+    // Add verbose debug info if enabled
+    if (debugInfo.isVerbose) {
+      if (diagnosticsInfo.browserCapabilities) {
+        enhancedResponse.headers.set(
+          'debug-browser',
+          JSON.stringify(diagnosticsInfo.browserCapabilities)
+        );
+      }
+
+      if (diagnosticsInfo.networkQuality) {
+        enhancedResponse.headers.set('debug-network', diagnosticsInfo.networkQuality);
+      }
+
+      if (diagnosticsInfo.errors?.length) {
+        enhancedResponse.headers.set('debug-errors', JSON.stringify(diagnosticsInfo.errors));
+      }
+
+      if (diagnosticsInfo.warnings?.length) {
+        enhancedResponse.headers.set('debug-warnings', JSON.stringify(diagnosticsInfo.warnings));
+      }
+    }
+
+    return enhancedResponse;
+  }),
+
+  createDebugReport: vi.fn((diagnosticsInfo) => {
+    // Create a simple mock HTML report
+    let html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <title>Image Resizer Debug Report</title>
+    </head>
+    <body>
+      <h1>Image Resizer Debug Report</h1>`;
+
+    // Basic Information
+    html += `
+      <section>
+        <h2>Basic Information</h2>
+        <table>
+          <tr><th>Original URL</th><td>${diagnosticsInfo.originalUrl || 'Unknown'}</td></tr>
+          <tr><th>Path Match</th><td>${diagnosticsInfo.pathMatch || 'None'}</td></tr>
+          <tr><th>Processing Time</th><td>${diagnosticsInfo.processingTimeMs || 0}ms</td></tr>
+          <tr><th>Transform Source</th><td>${diagnosticsInfo.transformSource || 'Unknown'}</td></tr>
+        </table>
+      </section>`;
+
+    // Transformation parameters
+    if (diagnosticsInfo.transformParams) {
+      html += `
+        <section>
+          <h2>Transformation Parameters</h2>
+          <pre>${JSON.stringify(diagnosticsInfo.transformParams, null, 2)}</pre>
+        </section>`;
+    }
+
+    // Client information
+    if (
+      diagnosticsInfo.deviceType ||
+      diagnosticsInfo.clientHints !== undefined ||
+      diagnosticsInfo.browserCapabilities ||
+      diagnosticsInfo.networkQuality
+    ) {
+      html += `
+        <section>
+          <h2>Client Information</h2>
+          <table>`;
+
+      if (diagnosticsInfo.deviceType) {
+        html += `<tr><th>Device Type</th><td>${diagnosticsInfo.deviceType}</td></tr>`;
+      }
+
+      if (diagnosticsInfo.clientHints !== undefined) {
+        html += `<tr><th>Client Hints</th><td>${diagnosticsInfo.clientHints}</td></tr>`;
+      }
+
+      if (diagnosticsInfo.browserCapabilities) {
+        html += `<tr><th>Browser Capabilities</th><td><pre>${JSON.stringify(diagnosticsInfo.browserCapabilities, null, 2)}</pre></td></tr>`;
+      }
+
+      if (diagnosticsInfo.networkQuality) {
+        html += `<tr><th>Network Quality</th><td>${diagnosticsInfo.networkQuality}</td></tr>`;
+      }
+
+      html += `
+          </table>
+        </section>`;
+    }
+
+    // Cache information
+    if (
+      diagnosticsInfo.cacheability !== undefined ||
+      diagnosticsInfo.cacheTtl !== undefined ||
+      diagnosticsInfo.cachingMethod
+    ) {
+      html += `
+        <section>
+          <h2>Cache Information</h2>
+          <table>`;
+
+      if (diagnosticsInfo.cacheability !== undefined) {
+        html += `<tr><th>Cacheable</th><td>${diagnosticsInfo.cacheability}</td></tr>`;
+      }
+
+      if (diagnosticsInfo.cacheTtl !== undefined) {
+        html += `<tr><th>Cache TTL</th><td>${diagnosticsInfo.cacheTtl}s</td></tr>`;
+      }
+
+      if (diagnosticsInfo.cachingMethod) {
+        html += `<tr><th>Caching Method</th><td>${diagnosticsInfo.cachingMethod}</td></tr>`;
+      }
+
+      html += `
+          </table>
+        </section>`;
+    }
+
+    // Issues (errors and warnings)
+    if (
+      (diagnosticsInfo.errors && diagnosticsInfo.errors.length > 0) ||
+      (diagnosticsInfo.warnings && diagnosticsInfo.warnings.length > 0)
+    ) {
+      html += `
+        <section>
+          <h2>Issues</h2>`;
+
+      if (diagnosticsInfo.errors && diagnosticsInfo.errors.length > 0) {
+        html += `
+          <div class="issues-group">
+            <h3>Errors</h3>
+            <ul>`;
+
+        diagnosticsInfo.errors.forEach((error) => {
+          html += `<li class="error">${error}</li>`;
+        });
+
+        html += `
+            </ul>
+          </div>`;
+      }
+
+      if (diagnosticsInfo.warnings && diagnosticsInfo.warnings.length > 0) {
+        html += `
+          <div class="issues-group">
+            <h3>Warnings</h3>
+            <ul>`;
+
+        diagnosticsInfo.warnings.forEach((warning) => {
+          html += `<li class="warning">${warning}</li>`;
+        });
+
+        html += `
+            </ul>
+          </div>`;
+      }
+
+      html += `
+        </section>`;
+    }
+
+    html += `
+    </body>
+    </html>`;
+
+    return html;
+  }),
 }));
 
 describe('DebugService', () => {

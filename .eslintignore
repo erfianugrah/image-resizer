@@ -1,6 +1,2 @@
-node_modules/
-dist/
-coverage/
-.wrangler/
-.github/
+src/tools/config-cli.ts
 Misc/

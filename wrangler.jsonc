@@ -43,6 +43,9 @@
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
+        // Cache method configuration
+        "CACHE_METHOD": "cache-api",
+        "CACHE_DEBUG": "false",
         // Debug headers configuration
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true,
@@ -192,6 +195,9 @@
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
+        // Cache method configuration
+        "CACHE_METHOD": "cache-api",
+        "CACHE_DEBUG": "false",
         // Debug headers configuration - limited for staging
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true,
@@ -342,6 +348,9 @@
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
+        // Cache method configuration
+        "CACHE_METHOD": "cf",
+        "CACHE_DEBUG": "true",
         // Debug headers disabled for production
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true

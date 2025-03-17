@@ -2,7 +2,7 @@
  * Factory for creating image transformation options
  * Improves control flow by using strategy pattern instead of if/else chains
  */
-import { ImageTransformOptions } from '../domain/commands/TransformImageCommand';
+import { ImageTransformOptions } from '../types/services/image';
 import { hasClientHints } from './clientHints';
 import { hasCfDeviceType } from './deviceUtils';
 import { getDeviceTypeFromUserAgent } from './userAgentUtils';
@@ -212,6 +212,15 @@ class ResponsiveStrategy implements OptionsStrategy {
 
     return options;
   }
+}
+
+/**
+ * Factory function to create an ImageOptionsFactory
+ * @param config Configuration for the options factory
+ * @returns An ImageOptionsFactory instance
+ */
+export function createImageOptionsFactory(config: OptionsFactoryConfig): ImageOptionsFactory {
+  return new ImageOptionsFactory(config);
 }
 
 /**

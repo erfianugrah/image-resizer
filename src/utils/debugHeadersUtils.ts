@@ -1,23 +1,20 @@
 /**
  * Debug headers utilities
+ *
+ * This file is deprecated. Use loggerUtils instead.
+ * This file is maintained for backward compatibility only.
  */
-import { debug } from './loggerUtils';
+import {
+  DebugInfo as LoggerDebugInfo,
+  DiagnosticsInfo,
+  addDebugHeaders as loggerAddDebugHeaders,
+} from './loggerUtils';
 
-// Debug info type
-export interface DebugInfo {
-  isEnabled: boolean;
-  isVerbose?: boolean;
-  includeHeaders?: string[];
-  includePerformance?: boolean;
-}
+// Re-export DebugInfo for backward compatibility
+export type DebugInfo = LoggerDebugInfo;
 
 /**
- * Add debug headers to a response
- *
- * @param response - Original response
- * @param debugInfo - Debug information
- * @param options - Image options
- * @returns Response with debug headers
+ * @deprecated Use DiagnosticsInfo from loggerUtils instead
  */
 export interface DebugOptions {
   irOptions?: Record<string, unknown>;
@@ -34,77 +31,30 @@ export interface DebugOptions {
   [key: string]: unknown;
 }
 
+/**
+ * @deprecated Use addDebugHeaders from loggerUtils instead
+ */
 export function addDebugHeaders(
   response: Response,
   debugInfo: DebugInfo,
   options: DebugOptions
 ): Response {
-  if (!debugInfo.isEnabled) {
-    return response;
-  }
+  // Convert DebugOptions to DiagnosticsInfo
+  const diagnosticsInfo: DiagnosticsInfo = {
+    ...options,
+    transformParams: options.irOptions as Record<
+      string,
+      string | number | boolean | null | undefined
+    >,
+    // Convert specific fields to the correct types
+    clientHints:
+      typeof options.clientHints === 'boolean'
+        ? options.clientHints
+        : options.clientHints
+          ? true
+          : undefined,
+  };
 
-  // Clone response to modify headers
-  const enhancedResponse = new Response(response.body, response);
-  const headers = enhancedResponse.headers;
-
-  // Add image resizing parameters
-  if (options.irOptions) {
-    headers.set('debug-ir', JSON.stringify(options.irOptions));
-  }
-
-  // Add cache configuration
-  if (options.cacheConfig) {
-    headers.set('debug-cache', JSON.stringify(options.cacheConfig));
-  }
-
-  // Add deployment mode
-  if (options.mode) {
-    headers.set(
-      'debug-mode',
-      JSON.stringify({
-        mode: options.mode,
-        ...(options.requestTransform || {}),
-      })
-    );
-  }
-
-  // Add client hints
-  if (options.clientHints) {
-    headers.set('debug-client-hints', JSON.stringify(options.clientHints));
-  }
-
-  // Add user agent
-  if (options.userAgent) {
-    headers.set('debug-ua', options.userAgent);
-  }
-
-  // Add device info
-  if (options.device) {
-    headers.set('debug-device', JSON.stringify(options.device));
-  }
-
-  // Add specific processing headers
-  if (options.sizeSource) {
-    headers.set('x-size-source', options.sizeSource);
-  }
-
-  if (options.actualWidth) {
-    headers.set('x-actual-width', options.actualWidth.toString());
-  }
-
-  if (options.processingMode) {
-    headers.set('x-processing-mode', options.processingMode);
-  }
-
-  if (options.responsiveSizing !== undefined) {
-    headers.set('x-responsive-sizing', options.responsiveSizing.toString());
-  }
-
-  debug('DebugHeaders', 'Added debug headers', {
-    headers: [...headers.entries()].filter(
-      ([key]) => key.startsWith('debug-') || key.startsWith('x-')
-    ),
-  });
-
-  return enhancedResponse;
+  // Use the consolidated implementation from loggerUtils
+  return loggerAddDebugHeaders(response, debugInfo, diagnosticsInfo);
 }

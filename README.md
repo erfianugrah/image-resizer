@@ -676,7 +676,7 @@ The project uses a service-oriented architecture with domain-driven design princ
 │       └── userAgentUtils.ts     # User-Agent parsing
 ```
 
-For more details on the architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For more details on the architecture, see [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md).
 
 ## License
 

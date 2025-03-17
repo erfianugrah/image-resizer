@@ -1,30 +1,104 @@
 /**
  * Main image handling entry point
- * Using service-oriented architecture for better separation of concerns
+ * Using service-oriented architecture with dependency injection
  */
-import { determineImageOptions } from './imageOptionsService';
-import { transformImage } from '../services/imageTransformationService';
+import { createImageOptionsService } from './imageOptionsService';
+import { createImageTransformationService } from '../services/imageTransformationService';
+import { createCacheManagementService } from '../services/cacheManagementService';
+import { createDebugService } from '../services/debugService';
 import { debug, error, info } from '../utils/loggerUtils';
 import { getDerivativeFromPath } from '../utils/pathUtils';
 import { AppConfig } from '../config/configManager';
 import { transformRequestUrl } from '../utils/urlTransformUtils';
+import { buildCacheKey, determineCacheControl, generateCacheTags } from '../utils/cacheUtils';
+import {
+  createErrorFactory,
+  createErrorResponseFactory,
+  createErrorFromUnknown,
+  createErrorResponse,
+} from '../types/utils/errors';
+import { hasClientHints, getViewportWidth, getDevicePixelRatio } from '../utils/clientHints';
+import { hasCfDeviceType, getDeviceInfo } from '../utils/deviceUtils';
+import { getDeviceTypeFromUserAgent } from '../utils/userAgentUtils';
+import { extractImageParams } from '../utils/urlParamUtils';
+import { snapToBreakpoint } from '../utils/responsiveWidthUtils';
+import { createImageOptionsFactory } from '../utils/optionsFactory';
 
 /**
- * Main handler for image requests
+ * Main handler for image requests using dependency injection
  * @param request The incoming request
  * @param config Application configuration
  * @returns A response with the processed image
  */
+// Define these at module scope to avoid TypeScript errors
+let globalErrorFactory: ReturnType<typeof createErrorFactory> | undefined;
+let globalErrorResponseFactory: ReturnType<typeof createErrorResponseFactory> | undefined;
+
 export async function handleImageRequest(request: Request, config: AppConfig): Promise<Response> {
   try {
     const url = new URL(request.url);
     const urlParams = url.searchParams;
 
-    // Import the cache management service
-    const { getCachedResponse, cacheResponse } = await import('../services/cacheManagementService');
+    // Create error handling factories with logger dependency
+    // and store references at module level for error handling
+    globalErrorFactory = createErrorFactory({
+      logger: {
+        error: (module: string, message: string, data?: Record<string, unknown>) =>
+          error(module, message, data as any),
+      },
+    });
+
+    globalErrorResponseFactory = createErrorResponseFactory({
+      errorFactory: globalErrorFactory,
+      logger: {
+        error: (module: string, message: string, data?: Record<string, unknown>) =>
+          error(module, message, data as any),
+      },
+    });
+
+    // Create services with dependencies injected
+    const cacheService = createCacheManagementService({
+      logger: {
+        debug: (module: string, message: string, data?: Record<string, unknown>) =>
+          debug(module, message, data as any),
+        error: (module: string, message: string, data?: Record<string, unknown>) =>
+          error(module, message, data as any),
+      },
+      config: {
+        getConfig: () => ({ caching: config.cache }),
+      },
+      utils: {
+        buildCacheKey,
+        determineCacheControl,
+        generateCacheTags,
+      },
+    });
+
+    // Create debug service for potential future use
+    createDebugService({
+      logger: {
+        debug: (module: string, message: string, data?: Record<string, unknown>) =>
+          debug(module, message, data as any),
+      },
+    });
+
+    const imageService = createImageTransformationService({
+      logger: {
+        debug: (module: string, message: string, data?: Record<string, unknown>) =>
+          debug(module, message, data as any),
+        error: (module: string, message: string, data?: Record<string, unknown>) =>
+          error(module, message, data as any),
+        logResponse: () => {},
+      },
+      cache: {
+        getCachedResponse: cacheService.getCachedResponse,
+        cacheResponse: cacheService.cacheResponse,
+        applyCacheHeaders: cacheService.applyCacheHeaders,
+      },
+    });
 
     // Try to get the response from cache first
-    const cachedResponse = await getCachedResponse(request);
+    const cachedResponse = await cacheService.getCachedResponse(request);
     if (cachedResponse) {
       info('ImageHandler', 'Serving from cache', {
         url: url.toString(),
@@ -66,8 +140,78 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
       });
     }
 
-    // Determine image options using the options service
-    const imageOptions = await determineImageOptions(request, urlParams, url.pathname);
+    // Create the image options service with DI
+    const imageOptionsService = createImageOptionsService({
+      logger: {
+        debug: (module: string, message: string, data?: Record<string, unknown>) =>
+          debug(module, message, data as any),
+        error: (module: string, message: string, data?: Record<string, unknown>) =>
+          error(module, message, data as any),
+      },
+      config: {
+        getConfig: () => ({
+          derivatives: config.derivatives || {},
+          responsive: {
+            breakpoints: config.responsive?.breakpoints || [],
+            deviceWidths: config.responsive?.deviceWidths || {},
+          },
+          defaults: config.defaults
+            ? { ...config.defaults }
+            : {
+                quality: 80,
+                fit: 'cover',
+                format: 'auto',
+                metadata: 'none',
+              },
+        }),
+      },
+      clientDetection: {
+        hasClientHints,
+        getViewportWidth,
+        getDevicePixelRatio,
+        hasCfDeviceType,
+        getDeviceInfo,
+        getDeviceTypeFromUserAgent,
+      },
+      urlUtils: {
+        extractImageParams,
+        snapToBreakpoint,
+      },
+      optionsFactory: {
+        create: (factoryConfig) => {
+          // Type cast to convert factoryConfig to the format expected by createImageOptionsFactory
+          const typedConfig = {
+            derivatives: factoryConfig.derivatives,
+            responsive: {
+              quality: 80,
+              fit: 'cover',
+              metadata: 'none',
+              format: 'auto',
+              availableWidths: [320, 480, 640, 768, 1024, 1366, 1600, 1920],
+              breakpoints: [320, 768, 960, 1440, 1920, 2048],
+              deviceWidths: { mobile: 480, tablet: 768, desktop: 1440 },
+              deviceMinWidthMap: { mobile: 0, tablet: 640, desktop: 1024 },
+              ...(factoryConfig.responsive as any),
+            },
+            defaults: {
+              quality: 80,
+              fit: 'cover',
+              format: 'auto',
+              metadata: 'none',
+              ...(factoryConfig.defaults as any),
+            },
+          };
+          return createImageOptionsFactory(typedConfig);
+        },
+      },
+    });
+
+    // Determine image options using the service
+    const imageOptions = await imageOptionsService.determineImageOptions(
+      request,
+      urlParams,
+      url.pathname
+    );
 
     debug('ImageHandler', 'Processing image request', {
       url: url.toString(),
@@ -101,7 +245,7 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
     const processingRequest = isRemoteFetch ? originRequest : request;
 
     // Use the image transformation service
-    const response = await transformImage(
+    const response = await imageService.transformImage(
       processingRequest,
       imageOptions,
       pathPatterns,
@@ -112,7 +256,7 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
     // Store the response in cache if it's cacheable
     if (response.headers.get('Cache-Control')?.includes('max-age=')) {
       // Use a non-blocking cache write to avoid delaying the response
-      cacheResponse(request, response.clone()).catch((err) => {
+      cacheService.cacheResponse(request, response.clone()).catch((err) => {
         error('ImageHandler', 'Error caching response', {
           error: err instanceof Error ? err.message : 'Unknown error',
         });
@@ -129,12 +273,15 @@ export async function handleImageRequest(request: Request, config: AppConfig): P
       stack: errorStack,
     });
 
-    return new Response(`Error processing image: ${errorMessage}`, {
-      status: 500,
-      headers: {
-        'Content-Type': 'text/plain',
-        'Cache-Control': 'no-store',
-      },
-    });
+    // Use the error factory for consistent error handling
+    // Check if we created the factories at the beginning of the function
+    if (globalErrorResponseFactory) {
+      // Use the factory we created
+      return globalErrorResponseFactory.createErrorResponse(err);
+    } else {
+      // Fallback to the backward compatibility functions for safety
+      const appError = createErrorFromUnknown(err, 'Error processing image');
+      return createErrorResponse(appError);
+    }
   }
 }
