@@ -417,7 +417,6 @@
         // Origin priorities and configuration
         "ORIGIN_CONFIG": {
           "default_priority": [
-            "r2",
             "remote",
             "fallback"
           ], // Look in R2 first, then remote, then fallback
@@ -435,7 +434,7 @@
         },
         // Remote bucket configuration (still kept for backward compatibility)
         "REMOTE_BUCKETS": {
-          "default": "https://ptag.ops.ikeadt.com"
+          "default": "https://cdn.erfianugrah.com"
         },
         // Image transformation templates
         "DERIVATIVE_TEMPLATES": {

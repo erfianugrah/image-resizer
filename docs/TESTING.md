@@ -1,6 +1,6 @@
 # Image-Resizer Testing Plan
 
-This document outlines the testing strategy for the image-resizer application, with a focus on ensuring the reliability of the R2 integration with Cloudflare Image Resizing. Current test coverage includes 269 tests across 24 test files, providing comprehensive testing of the ServiceRegistry, CDN-CGI pattern, direct R2 access, and multi-layered fallback approach.
+This document outlines the testing strategy for the image-resizer application, with a focus on ensuring the reliability of the R2 integration with Cloudflare Image Resizing. Current test coverage includes 284 tests across 26 test files, providing comprehensive testing of the ServiceRegistry, CDN-CGI pattern, direct R2 access, multi-layered fallback approach, deployment modes, and R2 binding configurations.
 
 ## Testing Categories
 
@@ -147,7 +147,9 @@ We've successfully implemented seven critical test files:
 1. ~~**ServiceRegistry Tests**~~ - ✅ COMPLETED (12 test cases for DI with R2 services)
 2. ~~**Multi-layered Fallback Tests**~~ - ✅ COMPLETED (8 test cases for fallback approach with R2)
 3. ~~**End-to-end R2 Object Tests**~~ - ✅ COMPLETED (22 test cases in 3 files for R2 interaction)
-4. **Environmental Tests** - For testing different deployment modes and R2 bindings
+4. ~~**Environmental Tests**~~ - ✅ COMPLETED (15 test cases for deployment modes and R2 bindings)
+
+All planned test categories have been completed. The R2 integration is now thoroughly tested with 284 tests across 26 test files.
 
 ## Test Implementation Plan
 
@@ -318,6 +320,43 @@ Challenges addressed:
 - Testing content-type and content-length changes to verify transformations
 - Preserving and propagating custom metadata from R2 objects
 - Combining multiple transformation parameters
+
+### 10. Deployment Mode Tests (test/environment/deploymentModes.test.ts) ✅ COMPLETED
+
+Implemented tests:
+- Tests for r2-only deployment mode configuration
+- Tests for remote-only deployment mode configuration
+- Tests for hybrid deployment mode configuration
+- Tests for handling missing R2 bindings in r2-only mode
+- Tests for custom R2 binding name configurations
+- Tests for different cache configurations across deployment modes
+- Tests for missing mandatory configuration
+
+Challenges addressed:
+- Creating isolated environment configurations for each deployment mode
+- Testing multiple configuration combinations with different bucket bindings
+- Creating a mockWorker function that simulates the main worker module
+- Testing R2 bindings in different deployment contexts
+- Verifying correct configuration propagation to handler functions
+
+### 11. R2 Bindings Tests (test/environment/r2Bindings.test.ts) ✅ COMPLETED
+
+Implemented tests:
+- Tests for retrieving objects from the default R2 bucket
+- Tests for retrieving objects from custom R2 bindings
+- Tests for gracefully handling missing R2 bindings
+- Tests for handling R2 bucket errors
+- Tests for working with multiple R2 bindings simultaneously
+- Tests for handling empty R2 buckets
+- Tests for handling completely broken R2 buckets
+- Tests for propagating R2 object metadata to response headers
+
+Challenges addressed:
+- Creating multiple types of mock R2 buckets with different behaviors
+- Simulating R2 errors at different levels (object level, bucket level)
+- Managing key normalization across the R2 integration
+- Testing with multiple R2 buckets simultaneously
+- Appropriately handling and propagating metadata from R2 objects
 
 ## Mocking Strategy for R2
 
