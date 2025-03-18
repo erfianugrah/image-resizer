@@ -12,6 +12,9 @@ export interface DebugInfo {
   includePerformance?: boolean;
   deploymentMode?: string;
   isRemoteFetch?: boolean;
+  isR2Fetch?: boolean;
+  r2Key?: string;
+  r2Bucket?: unknown;
 }
 
 /**

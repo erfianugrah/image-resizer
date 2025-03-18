@@ -13,6 +13,8 @@ export interface RemoteTransformResult {
   originUrl: string;
   derivative: string | null;
   isRemoteFetch: boolean;
+  isR2Fetch?: boolean;
+  r2Key?: string;
 }
 
 /**
@@ -24,6 +26,22 @@ export interface PathTransform {
 }
 
 /**
+ * R2 Origin configuration
+ */
+export interface R2OriginConfig {
+  enabled: boolean;
+  binding_name: string;
+}
+
+/**
+ * Origin priority configuration
+ */
+export interface OriginPriorityConfig {
+  default_priority: Array<'r2' | 'remote' | 'direct' | 'fallback'>;
+  r2?: R2OriginConfig;
+}
+
+/**
  * Configuration for URL transformation
  */
 export interface UrlTransformConfig {
@@ -32,6 +50,7 @@ export interface UrlTransformConfig {
   derivativeTemplates?: Record<string, string>;
   pathTransforms?: Record<string, PathTransform>;
   pathPatterns?: PathPattern[];
+  originConfig?: OriginPriorityConfig;
   [key: string]: unknown;
 }
 
@@ -40,6 +59,7 @@ export interface UrlTransformConfig {
  */
 export interface EnvironmentVariables {
   FALLBACK_BUCKET?: string;
+  IMAGES_BUCKET?: R2Bucket; // R2 bucket binding
   [key: string]: unknown;
 }
 

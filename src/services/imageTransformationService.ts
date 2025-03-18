@@ -159,7 +159,7 @@ export function createImageTransformationService(
               debug,
               error,
             },
-            // Only provide the required dependencies, let the command load the rest dynamically
+            // Provide cacheUtils to fix missing dependency
             cacheUtils: {
               determineCacheConfig: async (_url: string) => ({
                 cacheability: true,

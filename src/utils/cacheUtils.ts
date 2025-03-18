@@ -6,6 +6,7 @@
 import { debug } from './loggerUtils';
 
 import { CacheConfig, CacheConfigRecord, UrlCacheConfig } from '../types/utils/cache';
+import { IConfigManager } from '../types/core/config';
 
 // Re-export types for backward compatibility
 export type { CacheConfig, CacheConfigRecord, UrlCacheConfig };
@@ -30,12 +31,33 @@ const defaultCacheConfig: CacheConfig = {
  */
 export async function determineCacheConfig(url: string): Promise<CacheConfig> {
   try {
-    // Import configuration from the environment via ConfigManager
-    const { createConfigManager } = await import('../config/configManager');
+    // Import configuration from the environment via ServiceRegistry or ConfigManager
     const { createLogger } = await import('../core/logger');
+    const { ServiceRegistry } = await import('../core/serviceRegistry');
     const logger = createLogger('CacheUtils');
-    const configManager = createConfigManager({ logger });
-    const appConfig = configManager.getConfig();
+
+    // Use the global ServiceRegistry to get the ConfigManager singleton instance
+    let configManager;
+    let appConfig;
+
+    try {
+      const registry = ServiceRegistry.getInstance();
+      configManager = registry.resolve<IConfigManager>('IConfigManager');
+      appConfig = configManager.getConfig();
+    } catch (error) {
+      // Fallback to creating a new instance if service registry fails
+      logger.debug(
+        'CacheUtils',
+        'Failed to get IConfigManager from ServiceRegistry, falling back',
+        {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }
+      );
+
+      const { createConfigManager } = await import('../config/configManager');
+      configManager = createConfigManager({ logger });
+      appConfig = configManager.getConfig();
+    }
 
     // Get current environment for comparison
     const currentEnv = (globalThis as any).process?.env || {};
@@ -45,10 +67,27 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
       environment: appConfig.environment,
       cacheMethod: appConfig.cache?.method || 'not-set',
       envVarCacheMethod: currentEnv.CACHE_METHOD || 'env-not-available',
-      configSource: 'configManager.getConfig()',
+      configSource: 'ServiceRegistry -> IConfigManager -> getConfig()',
       url,
       config_cache_json: JSON.stringify(appConfig.cache),
     });
+
+    // Check for missing critical configuration and log warnings
+    const missingConfig = [];
+    if (!appConfig.cache?.method) missingConfig.push('CACHE_METHOD');
+    if (!appConfig.derivatives || Object.keys(appConfig.derivatives).length === 0)
+      missingConfig.push('DERIVATIVE_TEMPLATES');
+    if (!appConfig.responsive?.availableWidths?.length) missingConfig.push('RESPONSIVE_CONFIG');
+    if (!appConfig.defaults?.quality) missingConfig.push('defaults (quality, fit, etc.)');
+
+    if (missingConfig.length > 0) {
+      logger.debug('CacheUtils', '⚠️ Missing environment configuration detected', {
+        missingValues: missingConfig,
+        environment: appConfig.environment,
+        source: 'wrangler.jsonc environment variables',
+        url,
+      });
+    }
 
     // Import image config (for structure only)
     const { imageConfig } = await import('../config/imageConfig');
@@ -57,6 +96,9 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
 
     // Start with default configuration
     const config = { ...defaultCacheConfig };
+
+    // Always prioritize environment config (from wrangler.jsonc) as the source of truth
+    // Only use imageConfig as a fallback for default values
 
     // Apply global cache settings from the ConfigManager
     if (appConfig.cache) {
@@ -80,20 +122,39 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
 
       // Apply caching method from environment
       if (appConfig.cache.method) {
-        // Force the method to "cf" in production environment - this is a temporary fix
-        if (appConfig.environment === 'production') {
-          config.method = 'cf';
-        } else {
-          config.method = appConfig.cache.method;
-        }
+        // Always respect the configured cache method, don't force override
+        config.method = appConfig.cache.method;
 
-        logger.debug('CacheUtils', '🔧 OVERRIDE - Applied cache method from environment', {
+        logger.debug('CacheUtils', '🔧 Applied cache method from environment', {
           method: config.method,
-          originalMethod: appConfig.cache.method,
-          envOverride: appConfig.environment === 'production' ? 'forced-cf' : 'from-config',
+          environment: appConfig.environment,
+          configSource: appConfig.configSource || 'unknown',
           url,
+          cache_method_source: 'appConfig.cache.method',
+        });
+      } else if ((appConfig as any).caching?.method) {
+        // Fallback to legacy property path
+        config.method = (appConfig as any).caching.method;
+
+        logger.debug('CacheUtils', '🔧 Applied cache method from legacy property path', {
+          method: config.method,
+          environment: appConfig.environment,
+          configSource: appConfig.configSource || 'unknown',
+          url,
+          cache_method_source: 'appConfig.caching.method',
         });
       }
+    }
+
+    // Log a warning if imageConfig.caching.method is being used instead of environment config
+    // This helps identify configuration inconsistencies without forcing any values
+    if (imageConfig.caching?.method && !config.method) {
+      logger.debug('CacheUtils', '⚠️ Environment config missing for cache method', {
+        imageConfigMethod: imageConfig.caching?.method || 'not-set',
+        envConfigMethod: config.method || 'not-set',
+        url,
+        configSource: 'Should come from CACHE_METHOD in wrangler.jsonc',
+      });
     }
 
     // Apply URL-specific cache configuration if available
@@ -201,8 +262,11 @@ export async function determineCacheConfig(url: string): Promise<CacheConfig> {
       }
     }
 
-    debug('CacheUtils', 'Final cache config determined', {
+    logger.debug('CacheUtils', 'Final cache config determined', {
       url,
+      final_method: config.method,
+      original_method: appConfig.cache?.method || (appConfig as any).caching?.method || 'unknown',
+      environment: appConfig.environment,
       config: JSON.stringify(config),
     });
 

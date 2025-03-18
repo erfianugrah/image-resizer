@@ -100,7 +100,8 @@ export interface CacheConfigEntry {
   imageCompression?: string;
 }
 
-// Image configuration object
+// Image default configuration - ALL values should be overridden by environment config in wrangler.jsonc
+// This config file should only contain schema definitions and fallback values
 export const imageConfig: {
   derivatives: Record<string, DerivativeTemplate>;
   responsive: ResponsiveConfig;
@@ -110,75 +111,51 @@ export const imageConfig: {
   paramMapping: ParamMappingConfig;
   cacheConfig?: Record<string, CacheConfigEntry>;
 } = {
-  // Derivative templates
+  // IMPORTANT: ALL of these values should be provided in DERIVATIVE_TEMPLATES in wrangler.jsonc
+  // These are just fallbacks for schema definition
   derivatives: {
-    header: {
-      width: 1600,
-      height: 73,
-      quality: 80,
-      fit: 'scale-down',
-      metadata: 'copyright',
-    },
-    thumbnail: {
-      width: 320,
-      height: 150,
-      quality: 85,
-      fit: 'scale-down',
-      metadata: 'copyright',
-      sharpen: 1,
-    },
-    avatar: {
-      width: 180,
-      height: 180,
-      quality: 90,
-      fit: 'cover',
-      metadata: 'none',
-      gravity: 'face',
-    },
-    product: {
-      width: 800,
-      height: 800,
-      quality: 85,
-      fit: 'contain',
-      metadata: 'none',
-      background: 'white',
-    },
+    // Empty by default - should be populated from DERIVATIVE_TEMPLATES in wrangler.jsonc
   },
 
-  // Responsive configuration
+  // IMPORTANT: ALL of these values should be provided in RESPONSIVE_CONFIG in wrangler.jsonc
+  // These are just fallbacks for schema definition
   responsive: {
-    availableWidths: [320, 640, 768, 960, 1024, 1440, 1920, 2048, 3840],
-    breakpoints: [320, 768, 960, 1440, 1920, 2048],
+    // Defaults - should be overridden by RESPONSIVE_CONFIG in wrangler.jsonc
+    availableWidths: [],
+    breakpoints: [],
     deviceWidths: {
-      mobile: 480,
-      tablet: 768,
-      desktop: 1440,
+      mobile: 0,
+      tablet: 0,
+      desktop: 0,
     },
     deviceMinWidthMap: {
-      mobile: 320,
-      tablet: 768,
-      'large-desktop': 1920,
-      desktop: 960,
+      mobile: 0,
+      tablet: 0,
+      'large-desktop': 0,
+      desktop: 0,
     },
-    quality: 85,
-    fit: 'contain',
-    metadata: 'copyright',
-    format: 'auto',
+    quality: 0,
+    fit: '',
+    metadata: '',
+    format: '',
   },
 
-  // Cache configuration
+  // IMPORTANT: ALL of these values should be provided by environment config from wrangler.jsonc
+  // These are just fallbacks for schema definition
   caching: {
-    method: 'cache-api', // Will be overridden by environment config
-    debug: false,
+    method: 'default', // Should be populated from CACHE_METHOD in wrangler.jsonc
+    debug: false, // Should be populated from CACHE_DEBUG in wrangler.jsonc
     ttl: {
-      ok: 86400, // 1 day for successful responses
-      redirects: 86400, // 1 day for redirects
-      clientError: 60, // 1 minute for client errors
-      serverError: 0, // No caching for server errors
+      ok: 0, // Should be populated from CACHE_CONFIG in wrangler.jsonc
+      redirects: 0,
+      clientError: 0,
+      serverError: 0,
     },
   },
 
-  // Valid parameter values with bounds
+  // Valid parameter values and bounds
+  // These values could be overridden by environment config, but for validation rules
+  // it's generally safe to keep them in code since they're related to system constraints
   validation: {
     fit: ['scale-down', 'contain', 'cover', 'crop', 'pad'],
     format: ['auto', 'webp', 'avif', 'json', 'jpeg', 'png', 'gif'],
@@ -192,8 +169,9 @@ export const imageConfig: {
     maxQuality: 100,
   },
 
-  // Default parameter values
+  // Default parameter values - SHOULD be overridden by wrangler.jsonc
   defaults: {
+    // These should come from the environment config but are provided as fallbacks
     quality: 85,
     fit: 'scale-down',
     format: 'auto',
@@ -201,6 +179,7 @@ export const imageConfig: {
   },
 
   // Parameter mapping (internal to Cloudflare)
+  // These parameters correspond to Cloudflare's API and should be stable
   paramMapping: {
     width: 'width',
     height: 'height',
@@ -215,32 +194,9 @@ export const imageConfig: {
     contrast: 'contrast',
   },
 
-  // Cache configuration for different file types
+  // Cache configuration - SHOULD be overridden by CACHE_CONFIG in wrangler.jsonc
   cacheConfig: {
-    image: {
-      regex: '^.*\\.(jpe?g|JPG|png|gif|webp|svg)$',
-      ttl: {
-        ok: 31536000,
-        redirects: 31536000,
-        clientError: 10,
-        serverError: 1,
-      },
-      cacheability: true,
-      mirage: false,
-      imageCompression: 'off',
-    },
-    staticAssets: {
-      regex: '^.*\\.(css|js)$',
-      ttl: {
-        ok: 86400,
-        redirects: 86400,
-        clientError: 10,
-        serverError: 1,
-      },
-      cacheability: true,
-      mirage: false,
-      imageCompression: 'off',
-    },
+    // These are fallbacks only - should be populated from CACHE_CONFIG in wrangler.jsonc
   },
 };
 

@@ -7,7 +7,7 @@ import {
   IImageProcessingService,
 } from '../types/services/imageProcessing';
 import { CacheConfig, CacheConfigRecord } from '../types/utils/cache';
-import { DiagnosticsInfo, _DebugInfo as DebugInfo } from '../types/utils/debug';
+import { DiagnosticsInfo, DebugInfo } from '../types/utils/debug';
 import { ImageTransformOptions } from '../types/services/image';
 
 /**

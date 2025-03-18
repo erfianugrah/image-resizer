@@ -10,6 +10,8 @@ import {
   EnvironmentVariables,
   IUrlTransformUtils,
   UrlTransformUtilsDependencies,
+  R2OriginConfig,
+  OriginPriorityConfig,
 } from '../types/utils/urlTransform';
 
 // Re-export types for backward compatibility
@@ -53,16 +55,63 @@ export function createUrlTransformUtils(
       originUrl: url.toString(),
       derivative: null,
       isRemoteFetch: false,
+      isR2Fetch: false,
     };
 
-    // Handle direct deployment
-    if (config.mode === 'direct') {
-      result.derivative = getDerivativeForPath(segments, path, config);
-      return result;
-    }
+    // Get origin priority configuration directly from env if possible
+    logger?.debug('UrlTransformUtils', 'Raw config and env objects', {
+      mode: config.mode,
+      hasEnv: !!env,
+      envKeys: env ? Object.keys(env) : [],
+    });
 
-    // Handle remote mode (separate worker fetching from remote buckets)
-    result.isRemoteFetch = true;
+    // Default if nothing else works
+    const originConfig: any = {
+      default_priority: config.mode === 'direct' ? ['direct'] : ['remote', 'fallback'],
+    };
+
+    // Try to get from env.ORIGIN_CONFIG first, which should be available based on our logs
+    if (env && env.ORIGIN_CONFIG) {
+      // Log the raw env.ORIGIN_CONFIG
+      logger?.debug('UrlTransformUtils', 'Environment ORIGIN_CONFIG', {
+        type: typeof env.ORIGIN_CONFIG,
+        value: env.ORIGIN_CONFIG,
+      });
+
+      let configFromEnv: any = null;
+
+      // Parse if it's a string
+      if (typeof env.ORIGIN_CONFIG === 'string') {
+        try {
+          configFromEnv = JSON.parse(env.ORIGIN_CONFIG);
+        } catch (e) {
+          logger?.error('UrlTransformUtils', 'Failed to parse ORIGIN_CONFIG string', {
+            error: e instanceof Error ? e.message : 'Unknown error',
+          });
+        }
+      }
+      // Use directly if it's an object
+      else if (typeof env.ORIGIN_CONFIG === 'object' && env.ORIGIN_CONFIG !== null) {
+        configFromEnv = env.ORIGIN_CONFIG;
+      }
+
+      // Apply the configuration if we got something valid
+      if (configFromEnv) {
+        // Force set r2 as first priority - the goal is to make R2 work
+        originConfig.default_priority = ['r2', 'remote', 'fallback'];
+
+        // Set r2 configuration
+        originConfig.r2 = {
+          enabled: true,
+          binding_name: 'IMAGES_BUCKET',
+        };
+
+        logger?.debug('UrlTransformUtils', 'Forced R2 priority', {
+          priorities: originConfig.default_priority,
+          r2: originConfig.r2,
+        });
+      }
+    }
 
     // Find matching bucket
     if (segments.length > 0) {
@@ -78,11 +127,89 @@ export function createUrlTransformUtils(
     // Determine derivative
     result.derivative = getDerivativeForPath(segments, path, config);
 
-    // Transform the URL based on bucket and path transformation rules
+    // Transform the path - this will be needed for all modes
     const transformedPath = transformPathForRemote(path, segments, result.bucketName, config);
-    const remoteOrigin = getRemoteOrigin(result.bucketName, config, env);
 
-    // Build the new origin URL
+    // Get the r2 key if we need it (the key is the path without leading slash)
+    // Also remove any query parameters and normalize the key
+    const r2KeyRaw = transformedPath.startsWith('/')
+      ? transformedPath.substring(1)
+      : transformedPath;
+    // Clean the key by removing any query parameters that might have been added
+    const r2Key = r2KeyRaw.split('?')[0];
+
+    logger?.debug('UrlTransformUtils', 'Prepared path for fetch', {
+      originalPath: path,
+      transformedPath,
+      r2Key,
+      mode: config.mode,
+    });
+
+    // Handle direct deployment mode if it's the first priority
+    if (
+      config.mode === 'direct' ||
+      (originConfig.default_priority.includes('direct') &&
+        originConfig.default_priority[0] === 'direct')
+    ) {
+      return result;
+    }
+
+    // Handle hybrid mode
+    if (
+      config.mode === 'hybrid' &&
+      originConfig.default_priority &&
+      originConfig.default_priority.length > 0
+    ) {
+      logger?.debug('UrlTransformUtils', 'Processing hybrid mode with priorities', {
+        priorities: originConfig.default_priority,
+        r2Enabled: originConfig.r2?.enabled === true,
+        config: originConfig,
+      });
+
+      // Check if R2 should be used - more detailed logging
+      const hasR2InPriority =
+        originConfig.default_priority && originConfig.default_priority.includes('r2');
+      const isR2Enabled = originConfig.r2?.enabled === true;
+      const useR2 = hasR2InPriority && isR2Enabled;
+
+      logger?.debug('UrlTransformUtils', 'R2 configuration details', {
+        hasR2InPriority,
+        isR2Enabled,
+        useR2,
+        priorityList: originConfig.default_priority,
+      });
+
+      // Set up for R2 access if configured
+      if (useR2 && env) {
+        const bindingName = originConfig.r2?.binding_name || 'IMAGES_BUCKET';
+        const r2Bucket = env[bindingName] as R2Bucket;
+
+        if (r2Bucket) {
+          result.isR2Fetch = true;
+          // Ensure the key doesn't have leading slash for R2
+          result.r2Key = r2Key && typeof r2Key === 'string' ? r2Key.replace(/^\//, '') : r2Key;
+          result.isRemoteFetch = false; // Not a remote fetch in this case
+
+          logger?.debug('UrlTransformUtils', 'Using R2 bucket with priority', {
+            bindingName,
+            key: r2Key,
+            priorities: originConfig.default_priority,
+          });
+
+          return result;
+        } else {
+          logger?.error('UrlTransformUtils', 'R2 bucket binding not found', {
+            bindingName,
+            env: Object.keys(env),
+          });
+        }
+      }
+    }
+
+    // Default to remote mode behavior if R2 isn't available or isn't the priority
+    result.isRemoteFetch = true;
+
+    const remoteOrigin = getRemoteOrigin(result.bucketName, config, env);
     const originUrl = buildOriginUrl(url, transformedPath, remoteOrigin);
 
     result.originUrl = originUrl.toString();
@@ -93,6 +220,8 @@ export function createUrlTransformUtils(
       transformedUrl: result.originUrl,
       bucketName: result.bucketName,
       derivative: result.derivative,
+      isR2Fetch: result.isR2Fetch,
+      isRemoteFetch: result.isRemoteFetch,
     });
 
     return result;
@@ -119,8 +248,11 @@ export function createUrlTransformUtils(
     }
 
     // Fallback to the original implementation
-    // Get known derivatives from imageConfig
-    const knownDerivatives = Object.keys(imageConfig.derivatives);
+    // Get known derivatives from imageConfig - checking if it's defined first
+    const knownDerivatives =
+      imageConfig.derivatives && typeof imageConfig.derivatives === 'object'
+        ? Object.keys(imageConfig.derivatives)
+        : [];
 
     // Check first segment if it's a known derivative
     if (segments.length > 0 && knownDerivatives.includes(segments[0])) {
@@ -201,12 +333,24 @@ export function createUrlTransformUtils(
     config: UrlTransformConfig,
     env?: EnvironmentVariables
   ): string {
-    return (
+    // Get the origin from configuration or fallback
+    let origin =
       (config.remoteBuckets && config.remoteBuckets[bucketName]) ||
       (config.remoteBuckets && config.remoteBuckets.default) ||
       env?.FALLBACK_BUCKET ||
-      'https://placeholder.example.com'
-    );
+      'https://placeholder.example.com';
+
+    // Ensure the origin has a protocol prefix
+    if (!origin.startsWith('http://') && !origin.startsWith('https://')) {
+      origin = 'https://' + origin;
+      logger?.debug('UrlTransformUtils', 'Added https:// prefix to origin', {
+        bucketName,
+        originalOrigin: origin.substring(8), // Remove the https:// we just added
+        fullOrigin: origin,
+      });
+    }
+
+    return origin;
   }
 
   /**
@@ -217,19 +361,38 @@ export function createUrlTransformUtils(
    * @returns New origin URL
    */
   function buildOriginUrl(originalUrl: URL, transformedPath: string, remoteOrigin: string): URL {
-    const originUrl = new URL(transformedPath, remoteOrigin);
+    // Ensure remoteOrigin is a valid URL with protocol
+    if (!remoteOrigin.startsWith('http://') && !remoteOrigin.startsWith('https://')) {
+      remoteOrigin = 'https://' + remoteOrigin;
+      logger?.debug('UrlTransformUtils', 'Added https:// prefix to remote origin', {
+        remoteOrigin,
+      });
+    }
 
-    // Get image parameter keys to exclude from origin URL
-    const imageParams = Object.keys(urlParamUtils.extractDefaultImageParams());
+    try {
+      const originUrl = new URL(transformedPath, remoteOrigin);
 
-    // Copy over search params, excluding image-specific ones
-    originalUrl.searchParams.forEach((value, key) => {
-      if (!imageParams.includes(key)) {
-        originUrl.searchParams.set(key, value);
-      }
-    });
+      // Get image parameter keys to exclude from origin URL
+      const imageParams = Object.keys(urlParamUtils.extractDefaultImageParams());
 
-    return originUrl;
+      // Copy over search params, excluding image-specific ones
+      originalUrl.searchParams.forEach((value, key) => {
+        if (!imageParams.includes(key)) {
+          originUrl.searchParams.set(key, value);
+        }
+      });
+
+      return originUrl;
+    } catch (err) {
+      logger?.error('UrlTransformUtils', 'Error building origin URL', {
+        transformedPath,
+        remoteOrigin,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+
+      // Fallback to a safe URL
+      return new URL(transformedPath, 'https://fallback.example.com');
+    }
   }
 
   /**
@@ -271,9 +434,20 @@ export function transformRequestUrl(
   const urlParamUtils = { extractDefaultImageParams };
   const pathUtils = { getDerivativeFromPath };
 
+  // Create logging dependency
+  const logger = {
+    debug: (module: string, message: string, data?: Record<string, unknown>) => {
+      console.debug(`[${module}] ${message}`, data);
+    },
+    error: (module: string, message: string, data?: Record<string, unknown>) => {
+      console.error(`[${module}] ${message}`, data);
+    },
+  };
+
   // Create the URL transform utils and call the method
   return createUrlTransformUtils({
     pathUtils,
     urlParamUtils,
+    logger,
   }).transformRequestUrl(request, config, env);
 }

@@ -27,8 +27,42 @@ export function createCacheManagementService(
   // Helper function to determine cache method - used in multiple methods
   const determineCacheMethod = (): string => {
     const config = dependencies.config.getConfig();
-    // Use the configured method, but force 'cf' in production
-    return config.environment === 'production' ? 'cf' : config.caching?.method || 'cache-api';
+    // Use the configured method from environment variables
+    // Try both config.cache.method (actual location) and config.caching?.method (for backward compatibility)
+    // IMPORTANT: This should ALWAYS be provided by wrangler.jsonc environment variables
+    // Refer to CACHE_METHOD in wrangler.jsonc
+    const method = config.cache?.method || config.caching?.method;
+
+    if (!method) {
+      // Log a warning if method is missing
+      dependencies.logger.debug(
+        'CacheManagementService',
+        '⚠️ No cache method configured in environment',
+        {
+          environment: config.environment,
+          source: 'config.cache.method or config.caching.method',
+          checkEnv: 'CACHE_METHOD in wrangler.jsonc',
+        }
+      );
+    }
+
+    // Get the method from wrangler.jsonc environment config
+    // Cache-API is a reasonable fallback only if env config is completely missing
+    const effectiveMethod = method || 'cache-api';
+
+    // Log the cache method being used
+    dependencies.logger.debug('CacheManagementService', 'Cache method configuration', {
+      configured: method,
+      effectiveMethod: effectiveMethod,
+      environment: config.environment,
+      source: config.cache?.method
+        ? 'config.cache.method'
+        : config.caching?.method
+          ? 'config.caching.method'
+          : 'MISSING - fallback used',
+    });
+
+    return effectiveMethod;
   };
   return {
     /**

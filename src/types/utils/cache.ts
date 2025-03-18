@@ -93,6 +93,9 @@ export interface CacheManagementDependencies {
   };
   config: {
     getConfig: () => {
+      cache?: {
+        method?: string;
+      };
       caching?: {
         method?: string;
       };

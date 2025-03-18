@@ -223,7 +223,9 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
           getConfig: () => {
             const appConfig = configManagerService.getConfig();
             return {
-              caching: appConfig.cache,
+              // Pass both properties for compatibility
+              cache: appConfig.cache,
+              caching: appConfig.cache, // Keep this for backward compatibility
               environment: appConfig.environment,
             };
           },
@@ -475,9 +477,22 @@ export default {
           const configManager = registry.resolve<IConfigManager>('IConfigManager');
           const config = configManager.getConfig();
 
+          const missingConfig = [];
+          if (!config.cache?.method) missingConfig.push('CACHE_METHOD');
+          if (!config.derivatives || Object.keys(config.derivatives).length === 0)
+            missingConfig.push('DERIVATIVE_TEMPLATES');
+          if (!config.responsive?.availableWidths?.length) missingConfig.push('RESPONSIVE_CONFIG');
+
+          if (missingConfig.length > 0) {
+            error(
+              'Worker',
+              `⚠️ WARNING: Missing critical environment configuration: ${missingConfig.join(', ')}. Check wrangler.jsonc`
+            );
+          }
+
           info(
             'Worker',
-            `Initialized image-resizer v${config.version} in ${config.mode} mode with ${config.cache.method} caching`
+            `Initialized image-resizer v${config.version} in ${config.mode} mode with ${config.cache?.method || 'UNDEFINED'} caching`
           );
 
           // Only set initialized to true if all the steps completed without error
@@ -549,8 +564,8 @@ export default {
         // Process the request if it shouldn't be skipped
         if (!shouldSkip) {
           try {
-            // Pass full config to the handler - it will extract what it needs
-            return await handleImageRequest(request, config);
+            // Pass full config and environment to the handler
+            return await handleImageRequest(request, config, env);
           } catch (handlerError) {
             logger.error('Worker', 'Error in image handler', {
               error: handlerError instanceof Error ? handlerError.message : 'Unknown error',

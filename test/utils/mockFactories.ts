@@ -222,7 +222,7 @@ export function createMockConfigManager(): IConfigManager {
         level: 'debug',
       },
       cache: {
-        method: 'cf-cache-api',
+        method: 'cf', // This is a mock, so it's OK to have a hardcoded value for tests
         ttl: 86400,
         browser: {
           ttl: 3600,

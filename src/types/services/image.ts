@@ -34,6 +34,9 @@ export interface ImageTransformContext {
   pathPatterns?: { name: string; matcher: string; [key: string]: unknown }[];
   debugInfo?: DebugInfo;
   config: unknown; // Environment configuration
+  isR2Fetch?: boolean;
+  r2Key?: string;
+  r2Bucket?: R2Bucket;
 }
 
 /**

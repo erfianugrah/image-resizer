@@ -23,6 +23,7 @@
     "local_protocol": "http",
     "upstream_protocol": "https"
   },
+  // No global R2 bucket binding - defined per environment instead
   // No shared templates - each environment has its own complete configuration
   //
   // Environment Configurations
@@ -31,10 +32,17 @@
     // Development environment - using workers dev mode
     "dev": {
       "name": "dev-resizer",
+      "r2_buckets": [
+        {
+          "binding": "IMAGES_BUCKET",
+          "bucket_name": "images",
+          "preview_bucket_name": "images-dev"
+        }
+      ],
       "vars": {
         // Core configuration
         "ENVIRONMENT": "development",
-        "DEPLOYMENT_MODE": "remote",
+        "DEPLOYMENT_MODE": "hybrid", // Changed from "remote" to "hybrid" for R2 support
         "VERSION": "1.1.0",
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
         // Logging configuration
@@ -44,8 +52,8 @@
           "enableStructuredLogs": true
         },
         // Cache method configuration
-        "CACHE_METHOD": "cache-api",
-        "CACHE_DEBUG": "false",
+        "CACHE_METHOD": "cf",
+        "CACHE_DEBUG": "true",
         // Debug headers configuration
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true,
@@ -65,7 +73,26 @@
             "x-responsive-sizing": true
           }
         },
-        // Remote bucket configuration
+        // Origin priorities and configuration
+        "ORIGIN_CONFIG": {
+          "default_priority": [
+            "r2",
+            "remote",
+            "fallback"
+          ], // Look in R2 first, then remote, then fallback
+          "r2": {
+            "enabled": true,
+            "binding_name": "IMAGES_BUCKET" // References the binding defined above
+          },
+          "remote": {
+            "enabled": true
+          },
+          "fallback": {
+            "enabled": true,
+            "url": "https://cdn.erfianugrah.com"
+          }
+        },
+        // Remote bucket configuration (still kept for backward compatibility)
         "REMOTE_BUCKETS": {
           "default": "https://cdn.erfianugrah.com"
         },
@@ -183,10 +210,17 @@
     // Staging environment
     "staging": {
       "name": "staging-resizer",
+      "r2_buckets": [
+        {
+          "binding": "IMAGES_BUCKET",
+          "bucket_name": "images",
+          "preview_bucket_name": "images-dev"
+        }
+      ],
       "vars": {
         // Core configuration
         "ENVIRONMENT": "staging",
-        "DEPLOYMENT_MODE": "remote",
+        "DEPLOYMENT_MODE": "hybrid", // Changed from "remote" to "hybrid" for R2 support
         "VERSION": "1.1.0",
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
         // Logging configuration - less verbose for staging
@@ -212,7 +246,26 @@
             "development"
           ]
         },
-        // Remote bucket configuration
+        // Origin priorities and configuration
+        "ORIGIN_CONFIG": {
+          "default_priority": [
+            "r2",
+            "remote",
+            "fallback"
+          ], // Look in R2 first, then remote, then fallback
+          "r2": {
+            "enabled": true,
+            "binding_name": "IMAGES_BUCKET" // References the binding defined above
+          },
+          "remote": {
+            "enabled": true
+          },
+          "fallback": {
+            "enabled": true,
+            "url": "https://cdn.erfianugrah.com"
+          }
+        },
+        // Remote bucket configuration (still kept for backward compatibility)
         "REMOTE_BUCKETS": {
           "default": "https://cdn.erfianugrah.com"
         },
@@ -336,10 +389,16 @@
     // Production environment
     "prod": {
       "name": "prod-resizer",
+      "r2_buckets": [
+        {
+          "binding": "IMAGES_BUCKET",
+          "bucket_name": "images"
+        }
+      ],
       "vars": {
         // Core configuration
         "ENVIRONMENT": "production",
-        "DEPLOYMENT_MODE": "remote",
+        "DEPLOYMENT_MODE": "hybrid", // Changed from "remote" to "hybrid" for R2 support
         "VERSION": "1.1.0",
         "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
         // Logging configuration - minimal for production
@@ -355,9 +414,28 @@
         "DEBUG_HEADERS_CONFIG": {
           "enabled": true
         },
-        // Remote bucket configuration
+        // Origin priorities and configuration
+        "ORIGIN_CONFIG": {
+          "default_priority": [
+            "r2",
+            "remote",
+            "fallback"
+          ], // Look in R2 first, then remote, then fallback
+          "r2": {
+            "enabled": true,
+            "binding_name": "IMAGES_BUCKET" // References the binding defined above
+          },
+          "remote": {
+            "enabled": true
+          },
+          "fallback": {
+            "enabled": true,
+            "url": "https://cdn.erfianugrah.com"
+          }
+        },
+        // Remote bucket configuration (still kept for backward compatibility)
         "REMOTE_BUCKETS": {
-          "default": "https://cdn.erfianugrah.com"
+          "default": "https://ptag.ops.ikeadt.com"
         },
         // Image transformation templates
         "DERIVATIVE_TEMPLATES": {

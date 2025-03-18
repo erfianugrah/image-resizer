@@ -6,12 +6,9 @@ import {
   DerivativeTemplate,
   ResponsiveConfig,
   CacheConfigEntry,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _CachingConfig,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _ValidationConfig,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _DefaultsConfig,
+  CachingConfig,
+  ValidationConfig,
+  DefaultsConfig,
 } from './imageConfig';
 import { PathPattern } from '../utils/pathUtils';
 import {
@@ -309,9 +306,9 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           // Parse cache config first so we can extract TTL settings
           cacheConfig: parseCacheConfig(env.CACHE_CONFIG),
 
-          // Cache configuration
+          // Cache configuration - Values come directly from environment variables
           cache: {
-            method: parseEnvVar(env.CACHE_METHOD) || 'cache-api',
+            method: parseEnvVar(env.CACHE_METHOD) || 'cache-api', // Default to cache-api
             debug: parseEnvVar(env.CACHE_DEBUG) === 'true',
             ttl: extractGlobalTtlSettings(parseCacheConfig(env.CACHE_CONFIG)),
           },
@@ -357,11 +354,32 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           },
         };
 
-        logger.debug('ConfigurationManager', 'Configuration initialized', {
-          environment: config.environment,
-          mode: config.mode,
-          version: config.version,
-        });
+        // Check for missing critical configuration and log warnings
+        const missingConfig = [];
+        if (config && !config.cache?.method) missingConfig.push('CACHE_METHOD');
+        if (config && (!config.derivatives || Object.keys(config.derivatives).length === 0))
+          missingConfig.push('DERIVATIVE_TEMPLATES');
+        if (config && !config.responsive?.availableWidths?.length)
+          missingConfig.push('RESPONSIVE_CONFIG.availableWidths');
+        if (config && !config.defaults?.quality)
+          missingConfig.push('defaults (quality, fit, etc.)');
+
+        if (config && missingConfig.length > 0) {
+          logger.warn('ConfigurationManager', '⚠️ Missing critical environment configuration', {
+            missingValues: missingConfig,
+            environment: config.environment,
+            source: 'wrangler.jsonc',
+          });
+        }
+
+        if (config) {
+          logger.debug('ConfigurationManager', 'Configuration initialized', {
+            environment: config.environment,
+            mode: config.mode,
+            version: config.version,
+            missingConfig: missingConfig.length > 0 ? missingConfig : undefined,
+          });
+        }
       } catch (err) {
         logger.error('ConfigurationManager', 'Error initializing configuration', {
           error: err instanceof Error ? err.message : 'Unknown error',
@@ -381,10 +399,10 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           },
           cacheConfig: {},
           cache: {
-            method: 'cache-api',
-            debug: false,
+            method: parseEnvVar(env.CACHE_METHOD) || 'cache-api', // Use env config or default
+            debug: parseEnvVar(env.CACHE_DEBUG) === 'true',
             ttl: {
-              ok: 86400,
+              ok: 86400, // Default TTL values as fallback
               redirects: 86400,
               clientError: 60,
               serverError: 0,

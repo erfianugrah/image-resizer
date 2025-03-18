@@ -23,8 +23,39 @@ vi.mock('../../../src/utils/cacheUtils', async () => ({
       clientError: 60,
       serverError: 0,
     },
+    method: 'cache-api',
   })),
 }));
+
+// Mock the ServiceRegistry to avoid any service resolution issues
+vi.mock('../../../src/core/serviceRegistry', () => {
+  return {
+    ServiceRegistry: {
+      getInstance: vi.fn(() => ({
+        resolve: vi.fn((serviceId) => {
+          if (serviceId === 'IConfigManager') {
+            return {
+              getConfig: vi.fn(() => ({
+                environment: 'test',
+                cache: {
+                  method: 'cache-api',
+                  debug: false,
+                  ttl: {
+                    ok: 86400,
+                    redirects: 86400,
+                    clientError: 60,
+                    serverError: 0,
+                  },
+                },
+              })),
+            };
+          }
+          return {};
+        }),
+      })),
+    },
+  };
+});
 
 describe('TransformImageCommand', () => {
   let mockRequest: Request;
