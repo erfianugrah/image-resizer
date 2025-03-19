@@ -18,6 +18,14 @@ import { IServiceRegistry } from './types/core/serviceRegistry';
 import { LoggerFactory, createLogger, createLoggerFactory } from './core/logger';
 import { ILogger } from './types/core/logger';
 import { IConfigManager } from './types/core/config';
+
+// Import new service interfaces - use dynamic imports to avoid build errors if files don't exist yet
+// These will be properly imported when the services are registered
+import { createConfigurationService } from './services/configurationService';
+import { createEnvironmentService } from './services/environmentService';
+let IContentTypeUtils: any;
+let IStrategyRegistry: any;
+let IErrorFactory: any;
 import { createCacheManagementService } from './services/cacheManagementService';
 import { createDebugService } from './services/debugService';
 import { createImageOptionsService } from './handlers/imageOptionsService';
@@ -38,6 +46,11 @@ import { createUrlTransformUtils } from './utils/urlTransformUtils';
 import { createClientDetectionUtils } from './utils/clientDetectionUtils';
 import { createFormatUtils } from './utils/formatUtils';
 import { createValidationUtils } from './utils/validationUtils';
+import { createR2ImageProcessorService } from './services/r2ImageProcessorService';
+import { createImageValidationService } from './services/imageValidationService';
+import { createTransformationCacheService } from './services/transformationCacheService';
+import { createResponseHeadersBuilder } from './utils/headersBuilder';
+import { createStreamingTransformationService } from './services/streamingTransformationService';
 
 // Flag to track if initialization is complete
 let isInitialized = false;
@@ -83,8 +96,22 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
     dependencies: ['ILoggerFactory'],
   });
 
+  // Register the minimal logger service
+  registry.register('IMinimalLogger', {
+    factory: (deps, params) => {
+      const factory = deps.ILoggerFactory;
+      // Use the module name provided as a parameter, or default to 'Service'
+      const moduleName = params?.moduleName || 'Service';
+      return factory.createMinimalLogger(moduleName);
+    },
+    lifecycle: 'transient', // Create a new instance each time with different module name
+    dependencies: ['ILoggerFactory'],
+  });
+
   // Create a main logger instance directly (needed for bootstrapping)
   const mainLogger = createLogger('ImageResizer');
+
+  // -------------------- Begin Configuration Services --------------------
 
   // Register the old configuration manager for backward compatibility first
   // because other services might depend on it
@@ -114,6 +141,135 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
     factory: () => createConfigValidator({ logger: mainLogger }),
     lifecycle: 'singleton',
   });
+
+  // Register the new ConfigurationService
+  try {
+    // Import the new configuration service
+    const { createConfigurationService } = require('./services/configurationService');
+    
+    registry.register('IConfigurationService', {
+      factory: (deps) => {
+        const logger = deps.ILogger;
+        const configService = createConfigurationService({ logger });
+        configService.initialize(env);
+        return configService;
+      },
+      lifecycle: 'singleton',
+      dependencies: ['ILogger'],
+    });
+  } catch (error) {
+    mainLogger.warn('ServiceRegistry', 'Could not register ConfigurationService', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+
+  // -------------------- Begin Error Handling Services --------------------
+
+  // Register the ErrorFactory service
+  try {
+    // Import the error factory
+    const { createErrorFactory } = require('./errors/appErrors');
+    
+    registry.register('IErrorFactory', {
+      factory: (deps) => {
+        const logger = deps.ILogger;
+        return createErrorFactory({ logger });
+      },
+      lifecycle: 'singleton',
+      dependencies: ['ILogger'],
+    });
+  } catch (error) {
+    mainLogger.warn('ServiceRegistry', 'Could not register ErrorFactory', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+
+  // -------------------- Begin Environment Services --------------------
+
+  // Register the EnvironmentService
+  try {
+    // Import the environment service
+    const { createEnvironmentService } = require('./services/environmentService');
+    
+    registry.register('IEnvironmentService', {
+      factory: (deps) => {
+        const logger = deps.ILogger;
+        // Use the new configuration service if available, fallback to legacy config
+        const configService = deps.IConfigurationService || {
+          getEnvironment: () => deps.IConfigManager.getConfig().environment,
+          getStrategyConfig: () => ({ priorityOrder: ['interceptor', 'cdn-cgi', 'direct-url', 'remote-fallback'] }),
+          isStrategyEnabled: () => true,
+          getDomainConfig: () => undefined,
+        };
+        
+        return createEnvironmentService({ 
+          logger,
+          configService,
+        });
+      },
+      lifecycle: 'singleton',
+      dependencies: ['ILogger', 'IConfigManager', 'IConfigurationService'],
+      // IConfigurationService is required but will gracefully fallback if not available
+    });
+  } catch (error) {
+    mainLogger.warn('ServiceRegistry', 'Could not register EnvironmentService', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+
+  // -------------------- Begin Utility Services --------------------
+
+  // Register the ContentTypeUtils service
+  try {
+    // Import the content type utilities
+    const { createContentTypeUtils } = require('./utils/contentTypeUtils');
+    
+    registry.register('IContentTypeUtils', {
+      factory: (deps) => {
+        const logger = deps.ILogger;
+        return createContentTypeUtils({ logger });
+      },
+      lifecycle: 'singleton',
+      dependencies: ['ILogger'],
+    });
+  } catch (error) {
+    mainLogger.warn('ServiceRegistry', 'Could not register ContentTypeUtils', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+
+  // -------------------- Begin Strategy Services --------------------
+
+  // Register the StrategyRegistry
+  try {
+    // Import the strategy registry
+    const { createStrategyRegistry } = require('./services/strategyRegistry');
+    
+    registry.register('IStrategyRegistry', {
+      factory: (deps) => {
+        const logger = deps.ILogger;
+        
+        // Use the environment service if available
+        const configService = deps.IConfigurationService || deps.IEnvironmentService || {
+          getEnvironment: () => deps.IConfigManager.getConfig().environment,
+          getStrategyConfig: () => ({ priorityOrder: ['interceptor', 'cdn-cgi', 'direct-url', 'remote-fallback'] }),
+          isStrategyEnabled: () => true,
+        };
+        
+        return createStrategyRegistry({ 
+          logger,
+          configService,
+        });
+      },
+      lifecycle: 'singleton',
+      dependencies: ['ILogger', 'IConfigManager', 'IConfigurationService', 'IEnvironmentService'],
+      // These dependencies are marked as required but will gracefully fallback if not available
+    });
+  } catch (error) {
+    mainLogger.warn('ServiceRegistry', 'Could not register StrategyRegistry', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 
   // -------------------- Begin Path and URL Utils Registration --------------------
 
@@ -375,11 +531,231 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
     dependencies: ['ILogger'],
   });
 
+  // Register ImageValidationService
+  registry.register('IImageValidationService', {
+    factory: (deps) => {
+      const logger = deps.ILogger as ILogger;
+      const errorFactory = deps.IErrorFactory;
+
+      return createImageValidationService({
+        logger: {
+          debug: (module, message, data) => logger.debug(module, message, data),
+          error: (module, message, data) => logger.error(module, message, data),
+        },
+        errorFactory: errorFactory
+          ? {
+              createValidationError: errorFactory.createValidationError,
+            }
+          : undefined,
+      });
+    },
+    lifecycle: 'singleton',
+    // Make IErrorFactory optional
+    dependencies: ['ILogger'],
+  });
+
+  // Register TransformationCacheService
+  registry.register('ITransformationCacheService', {
+    factory: (deps) => {
+      const logger = deps.ILogger as ILogger;
+      const cacheService = deps.ICacheManagementService;
+
+      // Get config for cache settings
+      const configManager = deps.IConfigManager;
+      const config = configManager.getConfig();
+
+      // Extract cache configuration from config if available
+      const cacheConfig = {
+        maxSize: config.caching?.transformationCache?.maxSize || 200,
+        ttl: config.caching?.transformationCache?.ttl || 60000, // 1 minute
+        enabled: config.caching?.transformationCache?.enabled !== false, // Default to true
+        maxHeadersCacheSize: config.caching?.transformationCache?.maxHeadersCacheSize || 100,
+      };
+
+      return createTransformationCacheService(
+        {
+          logger: {
+            debug: (module, message, data) => logger.debug(module, message, data),
+            error: (module, message, data) => logger.error(module, message, data),
+          },
+          cache: cacheService
+            ? {
+                determineCacheControl: (status, cacheConfig, source, derivative) => {
+                  // Use the cache service to determine cache control
+                  const response = new Response('');
+                  const headeredResponse = cacheService.applyCacheHeaders(
+                    response,
+                    status,
+                    cacheConfig as any,
+                    source,
+                    derivative || undefined
+                  );
+                  return headeredResponse.headers.get('Cache-Control') || '';
+                },
+                generateCacheTags: (source, derivative) => {
+                  return cacheService.generateCacheTags(
+                    source || undefined,
+                    derivative || undefined
+                  );
+                },
+              }
+            : undefined,
+        },
+        cacheConfig
+      );
+    },
+    lifecycle: 'singleton',
+    dependencies: ['ILogger', 'ICacheManagementService', 'IConfigManager'],
+  });
+
+  // Register ResponseHeadersBuilder factory
+  registry.register('IResponseHeadersBuilder', {
+    factory: (deps) => {
+      const logger = deps.ILogger as ILogger;
+
+      // Create a function that returns a new builder instance
+      return {
+        create: () => {
+          return createResponseHeadersBuilder({
+            logger: {
+              debug: (module, message, data) => logger.debug(module, message, data),
+            },
+          });
+        },
+      };
+    },
+    lifecycle: 'singleton',
+    dependencies: ['ILogger'],
+  });
+
+  // Register R2 Image Processor Service
+  registry.register('IR2ImageProcessorService', {
+    factory: (deps) => {
+      const logger = deps.ILogger as ILogger;
+      const cacheService = deps.ICacheManagementService;
+      const formatUtils = deps.IFormatUtils;
+      const errorFactory = deps.IErrorFactory;
+      const transformationCache = deps.ITransformationCacheService;
+
+      // Use minimal logger for simpler dependency
+      const minimalLogger = deps.IMinimalLogger;
+
+      return createR2ImageProcessorService({
+        // Use the minimal logger if available, otherwise use the legacy logger pattern
+        logger: minimalLogger || {
+          debug: (module, message, data) => logger.debug(module, message, data),
+          error: (module, message, data) => logger.error(module, message, data),
+          info: (module, message, data) => logger.info(module, message, data),
+        },
+        cache: {
+          determineCacheControl: (status, cacheConfig) => {
+            if (cacheService && cacheService.applyCacheHeaders) {
+              // Use the cache service to determine cache control
+              const response = new Response('');
+              const headeredResponse = cacheService.applyCacheHeaders(
+                response,
+                status,
+                cacheConfig
+              );
+              return headeredResponse.headers.get('Cache-Control') || '';
+            }
+
+            // Fallback cache control determination
+            if (status >= 200 && status < 300 && cacheConfig?.cacheability) {
+              return `public, max-age=${cacheConfig.ttl?.ok || 86400}`;
+            }
+            return 'no-store';
+          },
+        },
+        formatUtils: formatUtils
+          ? {
+              getBestSupportedFormat: formatUtils.getBestSupportedFormat,
+            }
+          : undefined,
+        errorFactory: errorFactory
+          ? {
+              createError: errorFactory.createError,
+              createNotFoundError: errorFactory.createNotFoundError,
+              createErrorResponse: errorFactory.createErrorResponse,
+            }
+          : undefined,
+        // Add the transformation cache service if available
+        transformationCache: transformationCache
+          ? {
+              getPreparedTransformation: transformationCache.getPreparedTransformation,
+              getTransformationOptions: transformationCache.getTransformationOptions,
+              createCacheHeaders: transformationCache.createCacheHeaders,
+            }
+          : undefined,
+      });
+    },
+    lifecycle: 'singleton',
+    // Make ITransformationCacheService optional by not including it in required dependencies
+    dependencies: ['ILogger', 'ICacheManagementService', 'IFormatUtils'],
+    // Resolve the minimal logger with the right module name
+    parameters: { moduleName: 'R2ImageProcessor' },
+  });
+
+  // Register StreamingTransformationService
+  registry.register('IStreamingTransformationService', {
+    factory: (deps) => {
+      const logger = deps.ILogger as ILogger;
+      const transformationCache = deps.ITransformationCacheService;
+      const environmentService = deps.IEnvironmentService;
+
+      // Use minimal logger for simpler dependency
+      const minimalLogger = deps.IMinimalLogger;
+
+      // Try to get the cache service
+      const cache = deps.ICacheManagementService || {
+        determineCacheControl: (status: number) => {
+          return status === 200 ? 'public, max-age=86400' : 'no-store';
+        },
+      };
+
+      return createStreamingTransformationService({
+        // Use the minimal logger if available, otherwise use the legacy logger pattern
+        logger: minimalLogger || {
+          debug: (module, message, data) => logger.debug(module, message, data),
+          error: (module, message, data) => logger.error(module, message, data),
+        },
+        // Add cache dependency
+        cache,
+        // Add the transformation cache service if available
+        transformationCache: transformationCache
+          ? {
+              getTransformationOptions: transformationCache.getTransformationOptions,
+              createCacheHeaders: transformationCache.createCacheHeaders,
+            }
+          : undefined,
+        // Add the environment service if available
+        environmentService: environmentService
+          ? {
+              isWorkersDevDomain: environmentService.isWorkersDevDomain,
+              isCustomDomain: environmentService.isCustomDomain,
+              getDomain: environmentService.getDomain,
+              getEnvironmentForDomain: environmentService.getEnvironmentForDomain,
+              getRouteConfigForUrl: environmentService.getRouteConfigForUrl,
+              getStrategyPriorityOrderForUrl: environmentService.getStrategyPriorityOrderForUrl,
+              isStrategyEnabledForUrl: environmentService.isStrategyEnabledForUrl,
+            }
+          : undefined,
+      });
+    },
+    lifecycle: 'singleton',
+    // Make optional dependencies not required in the dependencies array
+    dependencies: ['ILogger', 'IEnvironmentService'],
+    // Resolve the minimal logger with the right module name
+    parameters: { moduleName: 'StreamingTransformation' },
+  });
+
   // Register the image processing service
   registry.register('IImageProcessingService', {
     factory: (deps) => {
       const logger = deps.ILogger as ILogger;
       const clientDetectionUtils = deps.IClientDetectionUtils;
+      const r2Processor = deps.IR2ImageProcessorService;
+      const validationService = deps.IImageValidationService;
       // These dependencies may be used in the future
       const _validationUtils = deps.IValidationUtils;
       const _pathUtils = deps.IPathUtils;
@@ -445,11 +821,18 @@ function initializeServiceRegistry(env: Record<string, unknown>): IServiceRegist
         config: {
           getImageConfig: () => imageConfig,
         },
+        // Pass the R2 processor service if available
+        r2Processor,
       });
     },
     lifecycle: 'scoped',
-    // Only depend on logger to avoid circular dependencies
-    dependencies: ['ILogger'],
+    // Add dependency on R2 processor and validation service
+    dependencies: [
+      'ILogger',
+      'IClientDetectionUtils',
+      'IR2ImageProcessorService',
+      'IImageValidationService',
+    ],
   });
 
   // Return the initialized registry
@@ -521,29 +904,117 @@ export default {
         logger.logRequest('Request', request);
 
         // Define patterns to skip resizing
-        // We skip only if this is a request from another image-resizing worker (prevent infinite loops)
-        const skipPatterns = [
-          (headers: Headers) => /image-resizing/.test(headers.get('via') || ''),
-        ];
-
+        // We need to handle Cloudflare's image-resizing subrequests differently
+        const isViaImageResizing = (headers: Headers) => /image-resizing/.test(headers.get('via') || '');
+        
         // Check if request has width=auto parameter - main branch forces these to be processed
         const url = new URL(request.url);
         const hasWidthAuto =
           url.searchParams.has('width') && url.searchParams.get('width') === 'auto';
 
         // Check if request has a known image extension
-        const hasImageExtension = /\.(jpe?g|png|gif|webp|avif|svg|bmp)$/i.test(url.pathname);
+        let hasImageExtension = false;
+        
+        // Try to use ContentTypeUtils if available
+        try {
+          const contentTypeUtils = registry.resolve<any>('IContentTypeUtils');
+          if (contentTypeUtils && typeof contentTypeUtils.isImageFile === 'function') {
+            hasImageExtension = contentTypeUtils.isImageFile(url.pathname);
+          } else {
+            // Fallback to regex approach
+            hasImageExtension = /\.(jpe?g|png|gif|webp|avif|svg|bmp)$/i.test(url.pathname);
+          }
+        } catch (error) {
+          // Fallback to regex approach
+          hasImageExtension = /\.(jpe?g|png|gif|webp|avif|svg|bmp)$/i.test(url.pathname);
+        }
 
         // Check if request Accept header indicates it's an image request
         const acceptHeader = request.headers.get('Accept') || '';
         const isImageRequest = acceptHeader.includes('image/');
 
+        // Special handling for image-resizing subrequests
+        // We DO NOT skip these because our interceptor strategy needs to handle them
+        // But we'll use the via header to detect and handle them appropriately
+        const isImageResizingSubrequest = isViaImageResizing(request.headers);
+        
+        // Use the EnvironmentService to determine domain-specific behavior if available
+        let isEnvironmentSpecificSkip = false;
+        try {
+          const environmentService = registry.resolve<any>('IEnvironmentService');
+          if (environmentService) {
+            // For workers.dev domains in development, we might need special handling
+            const isDevelopmentWorkersDomain = 
+              environmentService.isDevelopment() && 
+              url.hostname.includes('workers.dev');
+            
+            // For now, we don't need to skip anything
+            isEnvironmentSpecificSkip = false;
+            
+            // Log domain-specific information
+            logger.debug('Worker', 'Environment-specific request processing', {
+              domain: url.hostname,
+              isDevelopmentWorkersDomain,
+              isImageResizingSubrequest,
+            });
+          }
+        } catch (error) {
+          // Unable to use environment service, fall back to basic logic
+          logger.debug('Worker', 'Could not use EnvironmentService', {
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+        
         // We skip processing only if:
-        // 1. This is a loop-prevention case (image-resizing in via header), AND
-        // 2. It's not a width=auto request (which should always be processed)
-        const isLoopRequest = skipPatterns.some((pattern) => pattern(request.headers));
-        const shouldSkip = isLoopRequest && !hasWidthAuto;
+        // 1. This is a loop-prevention case but NOT a Cloudflare image-resizing subrequest, OR
+        // 2. We have specific environment rules that require skipping
+        const isOtherLoopRequest = false; // Disable other loop detection for now to let interceptor work
+        const shouldSkip = (isOtherLoopRequest && !hasWidthAuto) || isEnvironmentSpecificSkip;
 
+        // Get domain-specific environment information
+        let environmentInfo: Record<string, unknown> = {
+          configured: config.environment || 'unknown',
+        };
+        
+        try {
+          const environmentService = registry.resolve<any>('IEnvironmentService');
+          const strategyRegistry = registry.resolve<any>('IStrategyRegistry');
+          
+          if (environmentService) {
+            // Get domain-specific environment
+            const domainEnvironment = environmentService.getEnvironmentName();
+            
+            // Get strategy information
+            const priorityOrder = environmentService.getStrategyPriorityOrderForUrl(url.toString());
+            
+            // Get enabled strategies if available
+            const availableStrategies = strategyRegistry ? 
+              strategyRegistry.getStrategies().map((s: { name: string }) => s.name) : [];
+              
+            const isInterceptorEnabled = environmentService.isStrategyEnabledForUrl('interceptor', url.toString());
+            const isCdnCgiEnabled = environmentService.isStrategyEnabledForUrl('cdn-cgi', url.toString());
+            
+            // Add to environment info
+            environmentInfo = {
+              ...environmentInfo,
+              detected: domainEnvironment,
+              domain: url.hostname,
+              isDevelopment: environmentService.isDevelopment(),
+              isProduction: environmentService.isProduction(),
+              strategyPriority: priorityOrder,
+              availableStrategies,
+              isInterceptorEnabled,
+              isCdnCgiEnabled,
+              isWorkersDev: url.hostname.includes('workers.dev'),
+            };
+          }
+        } catch (error) {
+          // Log if environment service isn't available
+          logger.warn('Worker', 'Error getting environment details', {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+        
         // Log more details about request and config for debugging
         logger.info('Worker', 'Processing request', {
           url: request.url,
@@ -552,7 +1023,8 @@ export default {
           hasWidthAuto,
           hasImageExtension,
           isImageRequest,
-          isLoopRequest,
+          isImageResizingSubrequest,
+          environment: environmentInfo,
           headers: {
             accept: request.headers.get('Accept'),
             referer: request.headers.get('Referer'),

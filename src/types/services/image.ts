@@ -168,6 +168,91 @@ export interface ImageOptionsServiceDependencies {
 }
 
 /**
+ * Interface for the R2 image processor service
+ */
+export interface IR2ImageProcessorService {
+  /**
+   * Process an image from R2 storage with transformations
+   * @param r2Key - The key of the image in R2 storage
+   * @param r2Bucket - The R2 bucket containing the image
+   * @param imageOptions - Image transformation options
+   * @param request - Original request for context
+   * @param cacheConfig - Cache configuration
+   * @param fallbackUrl - Optional fallback URL if R2 processing fails
+   * @returns Response with the processed image
+   */
+  processR2Image(
+    r2Key: string,
+    r2Bucket: R2Bucket,
+    imageOptions: ImageTransformOptions,
+    request: Request,
+    cacheConfig: CacheConfig,
+    fallbackUrl?: string
+  ): Promise<Response>;
+}
+
+/**
+ * Dependencies for the R2 image processor service
+ */
+export interface R2ImageProcessorDependencies {
+  /**
+   * Logger dependency - can be either a standard logger with module name
+   * or a minimal logger with fixed module name
+   */
+  logger: {
+    // Standard logger format with module name parameter
+    debug:
+      | ((module: string, message: string, data?: Record<string, unknown>) => void)
+      // Minimal logger format without module name parameter (fixed module)
+      | ((message: string, data?: Record<string, unknown>) => void);
+
+    error:
+      | ((module: string, message: string, data?: Record<string, unknown>) => void)
+      | ((message: string, data?: Record<string, unknown>) => void);
+
+    info?:
+      | ((module: string, message: string, data?: Record<string, unknown>) => void)
+      | ((message: string, data?: Record<string, unknown>) => void);
+  };
+  cache: {
+    determineCacheControl: (status: number, cache?: CacheConfig) => string;
+  };
+  formatUtils?: {
+    getBestSupportedFormat: (request: Request, format?: string) => string;
+  };
+  /**
+   * Optional error factory for standardized error handling
+   */
+  errorFactory?: {
+    createError: (code: string, message: string) => { code: string; message: string; type: string };
+    createNotFoundError: (message: string) => { code: string; message: string; type: string };
+    createErrorResponse: (error: { code: string; message: string }) => Response;
+  };
+  /**
+   * Optional transformation cache service for minimizing redundant calculations
+   */
+  transformationCache?: {
+    getPreparedTransformation: (options: ImageTransformOptions) => {
+      normalizedOptions: ImageTransformOptions;
+      cfObjectOptions: Record<string, string | number | boolean>;
+      cdnCgiParams: string[];
+      queryUrl: URL;
+      cacheKey: string;
+    };
+    getTransformationOptions: (
+      options: ImageTransformOptions,
+      format: string
+    ) => string[] | Record<string, string | number | boolean> | URL;
+    createCacheHeaders: (
+      status: number,
+      cacheConfig: CacheConfig,
+      source?: string,
+      derivative?: string | null
+    ) => Headers;
+  };
+}
+
+/**
  * Interface for image processing service
  */
 export interface IImageProcessingService {
@@ -220,4 +305,8 @@ export interface ImageProcessingDependencies {
   config: {
     getImageConfig: () => Record<string, unknown>;
   };
+  /**
+   * Optional R2 processor service
+   */
+  r2Processor?: IR2ImageProcessorService;
 }

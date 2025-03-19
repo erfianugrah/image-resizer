@@ -7,7 +7,17 @@ import { debug, error } from '../../utils/loggerUtils';
 
 // Define diagnostics interface to avoid using any
 import { DiagnosticsInfo } from '../../types/utils/debug';
-import { ImageTransformOptions, ImageTransformContext } from '../../types/services/image';
+import {
+  ImageTransformOptions,
+  ImageTransformContext,
+  IR2ImageProcessorService,
+} from '../../types/services/image';
+import {
+  IImageValidationService,
+  ImageValidationConfig,
+} from '../../types/services/imageValidation';
+import { ValidationError } from '../../types/utils/errors';
+import { IStreamingTransformationService } from '../../types/services/streaming';
 
 // Re-export types for backward compatibility
 export type { ImageTransformOptions, ImageTransformContext };
@@ -59,6 +69,24 @@ export interface TransformImageCommandDependencies {
     getDeviceTypeFromUserAgent: (userAgent: string) => string;
     normalizeDeviceType: (deviceType: string) => string;
   };
+  r2Processor?: IR2ImageProcessorService;
+  streamingService?: IStreamingTransformationService;
+  validationService?: IImageValidationService;
+  /**
+   * Optional transformation cache service for minimizing redundant calculations
+   */
+  transformationCache?: {
+    getTransformationOptions: (
+      options: ImageTransformOptions,
+      format: string
+    ) => string[] | Record<string, string | number | boolean> | URL;
+    createCacheHeaders: (
+      status: number,
+      cacheConfig: Record<string, unknown>,
+      source?: string,
+      derivative?: string | null
+    ) => Headers;
+  };
 }
 
 /**
@@ -89,152 +117,112 @@ export function createTransformImageCommand(
    * Validate the options for image transformation
    */
   const validateOptions = (options: ImageTransformOptions): void => {
-    // Define interface for validation configuration
-    interface ValidationConfig {
-      fit: string[];
-      format: string[];
-      metadata: string[];
-      gravity: string[];
-      minWidth?: number;
-      maxWidth?: number;
-      minHeight?: number;
-      maxHeight?: number;
-      minQuality?: number;
-      maxQuality?: number;
-    }
-
     // Access validation config from context
     const config = context.config as Record<string, unknown>;
-    const validation = (config.validation as ValidationConfig) || {
-      fit: ['scale-down', 'contain', 'cover', 'crop', 'pad'],
-      format: ['auto', 'webp', 'avif', 'json', 'jpeg', 'png', 'gif'],
-      metadata: ['keep', 'copyright', 'none'],
-      gravity: ['auto', 'center', 'top', 'bottom', 'left', 'right', 'face'],
-      minWidth: 10,
-      maxWidth: 8192,
-      minHeight: 10,
-      maxHeight: 8192,
-      minQuality: 1,
-      maxQuality: 100,
+
+    // Extract validation configuration
+    const validationConfig: ImageValidationConfig =
+      (config.validation as ImageValidationConfig) || {};
+
+    // Use the validation service if available, or import dynamically
+    const performValidation = async (): Promise<void> => {
+      let validationService: IImageValidationService;
+
+      if (dependencies?.validationService) {
+        validationService = dependencies.validationService;
+      } else {
+        // Import dynamically to avoid circular dependencies
+        const { createImageValidationService } = await import(
+          '../../services/imageValidationService'
+        );
+        validationService = createImageValidationService({
+          logger: dependencies?.logger,
+        });
+      }
+
+      // Perform validation
+      const validationResult = validationService.validateOptions(options, validationConfig);
+
+      // If validation failed, throw the first error
+      if (!validationResult.isValid && validationResult.errors.length > 0) {
+        throw validationResult.errors[0];
+      }
     };
 
-    // Validate width
-    if (options.width !== null && options.width !== undefined && options.width !== 'auto') {
-      const width = Number(options.width);
-      const minWidth = validation.minWidth || 10;
-      const maxWidth = validation.maxWidth || 8192;
-
-      if (isNaN(width) || width < minWidth || width > maxWidth) {
-        throw new Error(`Width must be between ${minWidth} and ${maxWidth} pixels or "auto"`);
+    // Execute the async validation immediately (not ideal but matches existing sync interface)
+    // We must handle this synchronously to maintain the existing API
+    let validationPromise: Promise<void> | null = null;
+    try {
+      validationPromise = performValidation();
+      // Await synchronously - this is not ideal but necessary for the current API
+      // This allows validation errors to be thrown from this function rather than being
+      // unhandled promises
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      validationPromise;
+    } catch (error) {
+      // Re-throw any errors
+      if (error instanceof Error) {
+        throw error;
       }
-    }
-
-    // Validate height
-    if (options.height !== null && options.height !== undefined) {
-      const minHeight = validation.minHeight || 10;
-      const maxHeight = validation.maxHeight || 8192;
-
-      if (options.height < minHeight || options.height > maxHeight) {
-        throw new Error(`Height must be between ${minHeight} and ${maxHeight} pixels`);
-      }
-    }
-
-    // Validate quality
-    if (options.quality !== null && options.quality !== undefined) {
-      const minQuality = validation.minQuality || 1;
-      const maxQuality = validation.maxQuality || 100;
-
-      if (options.quality < minQuality || options.quality > maxQuality) {
-        throw new Error(`Quality must be between ${minQuality} and ${maxQuality}`);
-      }
-    }
-
-    // Validate fit
-    const validFit = validation.fit || ['scale-down', 'contain', 'cover', 'crop', 'pad'];
-    if (options.fit && !validFit.includes(options.fit)) {
-      throw new Error(`Invalid fit: ${options.fit}. Must be one of: ${validFit.join(', ')}`);
-    }
-
-    // Validate format
-    const validFormats = validation.format || [
-      'auto',
-      'webp',
-      'avif',
-      'json',
-      'jpeg',
-      'png',
-      'gif',
-    ];
-    if (options.format && !validFormats.includes(options.format)) {
-      throw new Error(
-        `Invalid format: ${options.format}. Must be one of: ${validFormats.join(', ')}`
-      );
-    }
-
-    // Validate metadata
-    const validMetadata = validation.metadata || ['keep', 'copyright', 'none'];
-    if (options.metadata && !validMetadata.includes(options.metadata)) {
-      throw new Error(
-        `Invalid metadata: ${options.metadata}. Must be one of: ${validMetadata.join(', ')}`
-      );
-    }
-
-    // Validate gravity
-    const validGravity = validation.gravity || [
-      'auto',
-      'center',
-      'top',
-      'bottom',
-      'left',
-      'right',
-      'face',
-    ];
-    if (options.gravity && !validGravity.includes(options.gravity)) {
-      throw new Error(
-        `Invalid gravity: ${options.gravity}. Must be one of: ${validGravity.join(', ')}`
-      );
+      throw new Error('Validation failed: ' + String(error));
     }
   };
 
   /**
    * Prepare the Cloudflare image resizing options object
    * Based on main branch implementation in fetchWithImageOptions
+   * Uses transformation cache service if available to minimize redundant calculations
    */
-  const prepareImageResizingOptions = (
+  const prepareImageResizingOptions = async (
     options: ImageTransformOptions
-  ): Record<string, string | number | boolean | null | undefined> => {
-    // Create a copy of options for the cf.image object
-    // This matches the behavior in the main branch
-    const imageOptions = { ...options };
+  ): Promise<Record<string, string | number | boolean | null | undefined>> => {
+    // If we have a transformation cache service available via dynamic import, use it
+    try {
+      // Check if we have a transformation cache service
+      // First try from dependencies
+      if (dependencies?.transformationCache) {
+        const cfOptions = dependencies.transformationCache.getTransformationOptions(
+          options,
+          'cf_object'
+        ) as Record<string, string | number | boolean>;
+        return cfOptions;
+      }
 
-    // Remove non-Cloudflare options
-    const nonCloudflareOptions = ['source', 'derivative'];
-    nonCloudflareOptions.forEach((opt) => {
-      delete imageOptions[opt as keyof typeof imageOptions];
-    });
+      // Otherwise try to import the ServiceRegistry to resolve a transformationCache service
+      const { ServiceRegistry } = await import('../../core/serviceRegistry');
+      const registry = ServiceRegistry.getInstance();
 
-    // Special handling for width=auto since Cloudflare API doesn't support 'auto' directly
-    if (imageOptions.width === 'auto') {
-      // Use direct import or dependency if available
+      // Check if the transformation cache service is registered
+      if (registry.isRegistered('ITransformationCacheService')) {
+        const transformationCache = registry.resolve<any>('ITransformationCacheService');
+        return transformationCache.getTransformationOptions(options, 'cf_object') as Record<
+          string,
+          string | number | boolean
+        >;
+      }
+    } catch (error) {
+      // If we can't use the transformation cache, fall back to direct calculation
       const logDebug = dependencies?.logger?.debug || debug;
-      logDebug('TransformImageCommand', 'Width=auto detected, not including width parameter', {
-        url: context.request.url,
-        options: options,
-      });
-      // Remove the width parameter entirely if it's still 'auto'
-      // It should have been converted to a number by imageOptionsService
-      delete imageOptions.width;
+      logDebug(
+        'TransformImageCommand',
+        'Error using transformation cache, falling back to direct calculation',
+        {
+          error: error instanceof Error ? error.message : String(error),
+        }
+      );
     }
 
-    // Only include defined parameters
-    const resizingOptions: Record<string, string | number | boolean | null | undefined> = {};
-    Object.entries(imageOptions).forEach(([key, value]) => {
-      if (value !== null && value !== undefined) {
-        resizingOptions[key] = value;
-      }
-    });
+    // Fall back to direct calculation if no cache is available
+    // Import the transformation utils
+    const { normalizeImageOptions, prepareCfImageOptions } = await import(
+      '../../utils/transformationUtils'
+    );
 
-    return resizingOptions;
+    // Normalize options first
+    const normalizedOptions = normalizeImageOptions(options);
+
+    // Create CF object options
+    return prepareCfImageOptions(normalizedOptions);
   };
 
   /**
@@ -307,8 +295,69 @@ export function createTransformImageCommand(
         const { request, options } = context;
         const url = new URL(request.url);
 
-        // Validate options
-        validateOptions(options);
+        // Get logging functions - either from dependencies or global imports
+        const logDebug = dependencies?.logger?.debug || debug;
+        const logError = dependencies?.logger?.error || error;
+
+        // Use validation service if available
+        if (dependencies?.validationService) {
+          const config = context.config as Record<string, unknown>;
+          const validationConfig: ImageValidationConfig =
+            (config.validation as ImageValidationConfig) || {};
+
+          const validationResult = dependencies.validationService.validateOptions(
+            options,
+            validationConfig
+          );
+
+          if (!validationResult.isValid && validationResult.errors.length > 0) {
+            // Create a specific validation error response
+            const validationError = validationResult.errors[0];
+
+            logDebug('TransformImageCommand', 'Validation failed', {
+              message: validationError.message,
+              field: validationError.field,
+              value: String(validationError.value),
+            });
+
+            // Return a properly formatted validation error response
+            return new Response(validationError.message, {
+              status: 400, // Always use 400 for validation errors
+              headers: {
+                'Content-Type': 'text/plain',
+                'Cache-Control': 'no-store, must-revalidate',
+                'X-Error-Type': 'ValidationError',
+                'X-Validation-Field': validationError.field || 'unknown',
+              },
+            });
+          }
+        } else {
+          // Fallback to legacy validation
+          try {
+            validateOptions(options);
+          } catch (validationError) {
+            if (validationError instanceof ValidationError) {
+              logDebug('TransformImageCommand', 'Legacy validation failed', {
+                error: validationError.message,
+                field: validationError.field,
+                value: String(validationError.value),
+              });
+
+              // Return a properly formatted validation error response
+              return new Response(validationError.message, {
+                status: 400, // Always use 400 for validation errors
+                headers: {
+                  'Content-Type': 'text/plain',
+                  'Cache-Control': 'no-store, must-revalidate',
+                  'X-Error-Type': 'ValidationError',
+                  'X-Validation-Field': validationError.field || 'unknown',
+                },
+              });
+            }
+            // For other errors, rethrow to be caught by the outer try/catch
+            throw validationError;
+          }
+        }
 
         // Get client detection functions - either from dependencies or via import
         let clientDetection;
@@ -327,10 +376,6 @@ export function createTransformImageCommand(
         const registry = ServiceRegistry.getInstance();
         const configManager = registry.resolve<any>('IConfigManager');
         const globalConfig = configManager.getConfig();
-
-        // Get logging functions - either from dependencies or global imports
-        const logDebug = dependencies?.logger?.debug || debug;
-        const logError = dependencies?.logger?.error || error;
 
         // Log global configuration first
         logDebug('TransformImageCommand', '🔍 DIAGNOSTICS - Before cacheConfig', {
@@ -398,8 +443,8 @@ export function createTransformImageCommand(
           environment: diagnosticsInfo.environment as string,
         });
 
-        // Set up the image resizing options for Cloudflare
-        const imageResizingOptions = prepareImageResizingOptions(options);
+        // Set up the image resizing options for Cloudflare - now async
+        const imageResizingOptions = await prepareImageResizingOptions(options);
 
         // Fetch the image with resizing options
         let response;
@@ -407,411 +452,185 @@ export function createTransformImageCommand(
           // Check if we need to use R2 - adding more comprehensive logging
           // Extract R2 properties from both context and config
           const r2KeyFromContext = context.r2Key;
-          const r2KeyFromConfig = (context.config as any)?.r2Key;
+          const r2KeyFromConfig = (context.config as Record<string, unknown>)?.r2Key as
+            | string
+            | undefined;
           const r2BucketFromContext = context.r2Bucket;
-          const r2BucketFromConfig = (context.config as any)?.r2Bucket;
+          const r2BucketFromConfig = (context.config as Record<string, unknown>)?.r2Bucket as
+            | R2Bucket
+            | undefined;
           const isR2FetchFromContext = !!context.isR2Fetch;
-          const isR2FetchFromConfig = !!(context.config as any)?.isR2Fetch;
+          const isR2FetchFromConfig = !!(context.config as Record<string, unknown>)?.isR2Fetch;
 
           // Use values from either source, preferring context
           const effectiveR2Key = r2KeyFromContext || r2KeyFromConfig;
           const effectiveR2Bucket = r2BucketFromContext || r2BucketFromConfig;
           const effectiveIsR2Fetch = isR2FetchFromContext || isR2FetchFromConfig;
 
-          logDebug('TransformImageCommand', 'R2 context check - comprehensive', {
-            // Context values
-            contextR2Key: r2KeyFromContext,
-            contextR2Bucket: !!r2BucketFromContext,
-            contextIsR2Fetch: isR2FetchFromContext,
-
-            // Config values
-            configR2Key: r2KeyFromConfig,
-            configR2Bucket: !!r2BucketFromConfig,
-            configIsR2Fetch: isR2FetchFromConfig,
-
-            // Effective values
+          logDebug('TransformImageCommand', 'R2 context check', {
             effectiveR2Key,
             effectiveR2Bucket: !!effectiveR2Bucket,
             effectiveIsR2Fetch,
-
-            // Debug
-            configKeys: context.config ? Object.keys(context.config) : [],
           });
 
           if (effectiveIsR2Fetch && effectiveR2Key && effectiveR2Bucket) {
-            logDebug('TransformImageCommand', 'Fetching from R2', {
-              key: effectiveR2Key,
-              bucket: 'r2',
-              bucketExists: !!effectiveR2Bucket,
-            });
-
             try {
-              // Fetch the object from R2
-              const r2Object = await effectiveR2Bucket.get(effectiveR2Key);
+              // Get fallback URL from config, checking multiple possible locations
+              let fallbackUrl: string | undefined;
+              
+              // First check both camelCase and uppercase ORIGIN_CONFIG
+              const originConfig = (context.config as Record<string, unknown>)?.originConfig || 
+                                   (context.config as Record<string, unknown>)?.ORIGIN_CONFIG;
+              
+              if (originConfig && typeof originConfig === 'object') {
+                const fallbackConfig = (originConfig as Record<string, unknown>)?.fallback;
+                if (fallbackConfig && typeof fallbackConfig === 'object') {
+                  fallbackUrl = (fallbackConfig as Record<string, unknown>)?.url as string;
+                }
+              }
+              
+              // If not found, try the legacy fallbackBucket location
+              if (!fallbackUrl) {
+                fallbackUrl = (context.config as Record<string, unknown>)?.fallbackBucket as string;
+              }
+              
+              // If still not found, try to read from the environment variables
+              const contextEnv = (context.config as Record<string, unknown>)?.env as Record<string, unknown> | undefined;
+              if (!fallbackUrl && contextEnv) {
+                try {
+                  // Try both uppercase and camelCase versions of ORIGIN_CONFIG
+                  const envOriginConfig = contextEnv['ORIGIN_CONFIG'] || contextEnv['originConfig'];
+                  
+                  if (envOriginConfig && typeof envOriginConfig === 'object') {
+                    const fallbackConfig = (envOriginConfig as Record<string, unknown>)?.fallback;
+                    if (fallbackConfig && typeof fallbackConfig === 'object') {
+                      fallbackUrl = (fallbackConfig as Record<string, unknown>)?.url as string;
+                    }
+                  }
+                  
+                  // If still not found, check for REMOTE_BUCKETS.default
+                  if (!fallbackUrl) {
+                    const remoteBuckets = contextEnv['REMOTE_BUCKETS'] || contextEnv['remoteBuckets'];
+                    if (remoteBuckets && typeof remoteBuckets === 'object') {
+                      fallbackUrl = (remoteBuckets as Record<string, unknown>)?.default as string;
+                    }
+                  }
+                } catch (e) {
+                  // Ignore errors reading from env
+                }
+              }
+              
+              // Log the fallback URL for debugging
+              logDebug('TransformImageCommand', 'Fallback URL for strategies', {
+                fallbackUrl,
+                hasOriginConfig: !!originConfig,
+                hasEnvOriginConfig: !!(contextEnv && contextEnv['ORIGIN_CONFIG']),
+              });
 
-              if (r2Object === null) {
-                // Object doesn't exist in R2
-                logDebug('TransformImageCommand', 'Object not found in R2', {
+              // Create a complete cache config object that satisfies the interface
+              const fullCacheConfig: import('../../types/utils/cache').CacheConfig = {
+                cacheability: cacheConfig.cacheability || true,
+                ttl: {
+                  ok: cacheConfig.ttl?.ok || 86400,
+                  redirects: 86400,
+                  clientError: 60,
+                  serverError: 0,
+                },
+                method: cacheConfig.method || 'cache-api',
+              };
+
+              // First try using the streaming service which has the InterceptorStrategy
+              if (dependencies?.streamingService) {
+                logDebug('TransformImageCommand', 'Using streaming transformation service', {
+                  key: effectiveR2Key,
+                  domain: new URL(request.url).hostname,
+                  fallbackUrl,
+                  transformationOptions: options
+                });
+
+                try {
+                  // Add debug headers to see transformation attempts
+                  const debugRequest = new Request(request.url, {
+                    headers: new Headers(request.headers),
+                    method: request.method
+                  });
+                  debugRequest.headers.set('x-debug', 'true');
+                  
+                  response = await dependencies.streamingService.processR2Image(
+                    effectiveR2Key,
+                    effectiveR2Bucket,
+                    options,
+                    debugRequest,
+                    fullCacheConfig,
+                    fallbackUrl
+                  );
+
+                  logDebug('TransformImageCommand', 'Image processed by streaming service', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: Object.fromEntries(response.headers.entries()),
+                  });
+                } catch (streamingError) {
+                  logError('TransformImageCommand', 'Error in streaming transformation service', {
+                    error:
+                      streamingError instanceof Error
+                        ? streamingError.message
+                        : 'Unknown streaming error',
+                    key: effectiveR2Key,
+                  });
+
+                  // If streaming service fails, we'll try the legacy r2Processor below
+                }
+              }
+
+              // If streaming service is not available or failed, use the legacy R2 processor
+              if (!response && dependencies?.r2Processor) {
+                logDebug('TransformImageCommand', 'Using legacy R2 processor service', {
                   key: effectiveR2Key,
                 });
 
-                // Return a 404 response
-                return new Response('Image not found in R2 bucket', {
-                  status: 404,
-                  headers: {
-                    'Content-Type': 'text/plain',
-                    'Cache-Control': 'no-store, must-revalidate',
-                    'X-Source': 'r2-not-found',
-                  },
+                // We already have a comprehensive fallback URL check above
+                // Just log if we still don't have a fallback URL
+                if (!fallbackUrl) {
+                  logDebug('TransformImageCommand', 'No fallback URL found for r2Processor');
+                }
+                
+                logDebug('TransformImageCommand', 'Using r2Processor with fallback URL', { fallbackUrl });
+                
+                response = await dependencies.r2Processor.processR2Image(
+                  effectiveR2Key,
+                  effectiveR2Bucket,
+                  options,
+                  request,
+                  fullCacheConfig,
+                  fallbackUrl
+                );
+
+                logDebug('TransformImageCommand', 'R2 image processed by legacy service', {
+                  status: response.status,
+                  statusText: response.statusText,
+                  headers: Object.fromEntries(response.headers.entries()),
                 });
-              }
-
-              // Create a response from the R2 object
-              const headers = new Headers();
-
-              // Set content type if available
-              if (r2Object.httpMetadata?.contentType) {
-                headers.set('Content-Type', r2Object.httpMetadata.contentType);
               } else {
-                // Try to guess based on file extension
-                const fileExt = effectiveR2Key.split('.').pop()?.toLowerCase();
-                if (fileExt === 'jpg' || fileExt === 'jpeg') {
-                  headers.set('Content-Type', 'image/jpeg');
-                } else if (fileExt === 'png') {
-                  headers.set('Content-Type', 'image/png');
-                } else if (fileExt === 'gif') {
-                  headers.set('Content-Type', 'image/gif');
-                } else if (fileExt === 'webp') {
-                  headers.set('Content-Type', 'image/webp');
-                } else if (fileExt === 'svg') {
-                  headers.set('Content-Type', 'image/svg+xml');
-                } else {
-                  headers.set('Content-Type', 'application/octet-stream');
-                }
-              }
-
-              // Set caching headers for R2 response
-              if (cacheConfig) {
-                headers.set('Cache-Control', `public, max-age=${cacheConfig.ttl?.ok || 3600}`);
-              }
-
-              // Add source header to show it came from R2
-              headers.set('X-Source', 'r2');
-
-              // Create init object for new Response
-              const init: ResponseInit = {
-                headers,
-                status: 200,
-              };
-
-              // Create a response with the R2 object body
-              const r2Response = new Response(r2Object.body, init);
-
-              // Use CF image resizing on the R2 response - pass it through the standard fetch pipeline
-              const cfProperties: Record<string, unknown> = {
-                image: imageResizingOptions,
-              };
-
-              // Apply cache settings
-              if (cacheConfig) {
-                // Cast config to access cache properties
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const contextCache = (context.config as Record<string, any>)?.cache || {};
-
-                cfProperties.polish = contextCache.imageCompression || 'off';
-                cfProperties.mirage = contextCache.mirage || false;
-                cfProperties.cacheEverything = cacheConfig.cacheability || false;
-                if (cacheConfig.ttl?.ok) {
-                  cfProperties.cacheTtl = cacheConfig.ttl.ok;
-                }
-              }
-
-              // For Cloudflare Image Resizing with R2 objects, we need to use a different approach
-              // Since we already have the R2 object in memory, we can create a new Request with its body
-              // and then apply CF Image Resizing on that Request - all within the same worker
-                            
-              // We need to use a different approach. According to Cloudflare documentation,
-              // we can't directly apply image resizing to R2 objects in the same worker.
-              // The right approach is to:
-              // 1. Use a public URL for the R2 bucket if available
-              // 2. Alternatively, serve the image directly with custom properties
-              
-              logDebug('TransformImageCommand', 'R2 image processing', {
-                cf: JSON.stringify(cfProperties),
-                method: actualCacheMethod,
-                originalUrl: request.url,
-                r2Key: effectiveR2Key
-              });
-              
-              try {
-                // First approach: Create a direct R2 response as fallback
-                const r2Response = new Response(r2Object.body, {
-                  headers: new Headers({
-                    'Content-Type': headers.get('Content-Type') || 'image/jpeg',
-                    'Cache-Control': `public, max-age=${cacheConfig.ttl?.ok || 3600}`,
-                    'X-Source': 'r2-direct',
-                  })
-                });
-                
-                // Try the two-step approach: create a URL to another worker that can resize
-                // Get the fallback bucket or a direct URL we can use
-                const fallbackUrl = (context.config as any)?.fallbackBucket || 'https://cdn.erfianugrah.com';
-                // Use the fallback URL with the key
-                const resizableUrl = `${fallbackUrl}/${effectiveR2Key}`;
-                
-                // Log that we're trying the external URL approach
-                logDebug('TransformImageCommand', 'Trying external URL image resizing', {
-                  resizableUrl,
-                  imageOptions: JSON.stringify(imageResizingOptions)
-                });
-                
-                // Create a new URL for the worker itself with query parameters for transformation
-                const transformUrl = new URL(request.url);
-                
-                // Create a request to this URL that Cloudflare can access
-                const imageRequest = new Request(resizableUrl, {
-                  method: 'GET',
-                  // Don't copy all headers to avoid issues
-                  headers: new Headers({
-                    'Accept': 'image/*,*/*',
-                    'User-Agent': request.headers.get('User-Agent') || 'CloudflareWorker',
-                    'X-Resizing-Source': 'r2-fallback'
-                  })
-                });
-                
-                // Prepare detailed CF options object to ensure image resizing works
-                const cfOptions: any = {
-                  // Explicitly structure the image options to match CF's expectations
-                  image: {
-                    // Ensure required fields are present
-                    width: typeof options.width === 'number' ? options.width : 768,
-                    height: typeof options.height === 'number' ? options.height : undefined,
-                    fit: options.fit || 'contain',
-                    quality: typeof options.quality === 'number' ? options.quality : 85,
-                    format: options.format || 'auto',
-                    metadata: options.metadata || 'none',
-                    
-                    // Add any additional options that might be in imageResizingOptions
-                    ...imageResizingOptions
-                  },
-                  // Add standard CF caching properties
-                  polish: 'off',
-                  mirage: false,
-                  cacheEverything: true,
-                  cacheTtl: cacheConfig.ttl?.ok || 86400
-                };
-                
-                // Log the exact CF options for debugging
-                logDebug('TransformImageCommand', 'Applying CF image options', {
-                  cfOptions: JSON.stringify(cfOptions),
-                  url: resizableUrl
-                });
-                
-                // Attempt to resize the image via a remote URL with precise CF options
-                const remoteResponse = await fetch(imageRequest, { cf: cfOptions });
-                
-                if (remoteResponse.ok) {
-                  // Check if resizing was actually applied by checking headers or content length
-                  const wasCfResized = remoteResponse.headers.has('cf-resized') || 
-                                       (r2Object.size && remoteResponse.headers.get('content-length') && 
-                                       parseInt(remoteResponse.headers.get('content-length') || '0', 10) < r2Object.size);
-                  
-                  logDebug('TransformImageCommand', 'Remote URL resizing result', {
-                    resized: wasCfResized,
-                    originalSize: r2Object.size,
-                    responseSize: remoteResponse.headers.get('content-length'),
-                    hasCfResizedHeader: remoteResponse.headers.has('cf-resized'),
-                    headers: Object.fromEntries(remoteResponse.headers.entries())
-                  });
-                  
-                  if (wasCfResized) {
-                    // If remote resize worked, use that response
-                    logDebug('TransformImageCommand', 'Successfully used remote URL for resizing');
-                    
-                    // Create a new response with our headers
-                    const newHeaders = new Headers(remoteResponse.headers);
-                    newHeaders.set('X-Source', 'r2-fallback-resized');
-                    newHeaders.set('Cache-Control', `public, max-age=${cacheConfig.ttl?.ok || 3600}`);
-                    
-                    response = new Response(remoteResponse.body, {
-                      status: remoteResponse.status,
-                      headers: newHeaders
-                    });
-                  } else {
-                    // Remote fetch worked but no resizing was applied
-                    logDebug('TransformImageCommand', 'Remote fetch successful but no resizing applied', {
-                      fallback: 'Falling back to direct R2 response'
-                    });
-                    
-                    // Try one more approach with explicit CF image processing
-                    try {
-                      // IMPORTANT: For this approach, we'll try with and without URL parameters
-                      // Some versions of Cloudflare's image processing may use different approaches
-                      const baseUrl = new URL(fallbackUrl);
-                      baseUrl.pathname = `/${effectiveR2Key}`;
-                      
-                      logDebug('TransformImageCommand', 'Trying direct URL transformation with CF properties only', {
-                        url: baseUrl.toString()
-                      });
-                      
-                      // Create a request object with no URL parameters but use CF properties
-                      const directRequest = new Request(baseUrl.toString(), {
-                        headers: new Headers({
-                          'Accept': 'image/avif,image/webp,image/png,image/jpeg,*/*',
-                          'User-Agent': request.headers.get('User-Agent') || 'Cloudflare-Worker'
-                        })
-                      });
-                      
-                      // Create directly compatible CF image object
-                      const directImageOptions: any = {
-                        // Be very explicit about the structure
-                        width: typeof options.width === 'number' ? options.width : 768,
-                        height: typeof options.height === 'number' ? options.height : undefined,
-                        fit: options.fit || 'contain',
-                        quality: typeof options.quality === 'number' ? options.quality : 85,
-                        format: options.format || 'auto',
-                        metadata: options.metadata || 'none'
-                      };
-                      
-                      // Apply CF properties explicitly in the fetch
-                      logDebug('TransformImageCommand', 'Using direct CF image properties', {
-                        directImageOptions: JSON.stringify(directImageOptions)
-                      });
-                      
-                      const directResponse = await fetch(directRequest, {
-                        cf: {
-                          image: directImageOptions,
-                          polish: 'off',
-                          mirage: false,
-                          cacheEverything: true,
-                          cacheTtl: cacheConfig.ttl?.ok || 86400
-                        } as any // Type cast to avoid TypeScript errors with Cloudflare types
-                      });
-                      
-                      if (directResponse.ok && 
-                          (directResponse.headers.has('cf-resized') || 
-                          parseInt(directResponse.headers.get('content-length') || '0', 10) < r2Object.size)) {
-                        
-                        logDebug('TransformImageCommand', 'Direct URL transformation successful');
-                        
-                        const directHeaders = new Headers(directResponse.headers);
-                        directHeaders.set('X-Source', 'r2-direct-url-transform');
-                        directHeaders.set('Cache-Control', `public, max-age=${cacheConfig.ttl?.ok || 3600}`);
-                        
-                        response = new Response(directResponse.body, {
-                          status: directResponse.status,
-                          headers: directHeaders
-                        });
-                      } else {
-                        // As a last resort for R2 objects, try the Cloudflare proxy URL format
-                        // This format is known to work reliably with Cloudflare Image Resizing
-                        try {
-                          // Create a URL with /cdn-cgi/image/ prefix which Cloudflare recognizes for image resizing
-                          const cfProxyUrl = new URL(fallbackUrl);
-                          const proxyOptions = [];
-                          
-                          const width = typeof options.width === 'number' ? options.width : 768;
-                          proxyOptions.push(`width=${width}`);
-                          
-                          if (options.height && typeof options.height === 'number') {
-                            proxyOptions.push(`height=${options.height}`);
-                          }
-                          if (options.fit && typeof options.fit === 'string') {
-                            proxyOptions.push(`fit=${options.fit}`);
-                          }
-                          if (options.quality && typeof options.quality === 'number') {
-                            proxyOptions.push(`quality=${options.quality}`);
-                          }
-                          if (options.format && typeof options.format === 'string') {
-                            proxyOptions.push(`format=${options.format}`);
-                          }
-                          
-                          // Construct the Cloudflare Image Resizing URL format
-                          cfProxyUrl.pathname = `/cdn-cgi/image/${proxyOptions.join(',')}/${effectiveR2Key}`;
-                          
-                          logDebug('TransformImageCommand', 'Trying Cloudflare proxy URL as last resort for R2', {
-                            url: cfProxyUrl.toString()
-                          });
-                          
-                          const proxyResponse = await fetch(cfProxyUrl.toString());
-                          
-                          if (proxyResponse.ok && 
-                              (proxyResponse.headers.has('cf-resized') || 
-                              parseInt(proxyResponse.headers.get('content-length') || '0', 10) < r2Object.size)) {
-                            
-                            logDebug('TransformImageCommand', 'Cloudflare proxy transformation successful');
-                            
-                            const proxyHeaders = new Headers(proxyResponse.headers);
-                            proxyHeaders.set('X-Source', 'r2-cf-proxy-transform');
-                            proxyHeaders.set('Cache-Control', `public, max-age=${cacheConfig.ttl?.ok || 3600}`);
-                            
-                            response = new Response(proxyResponse.body, {
-                              status: proxyResponse.status,
-                              headers: proxyHeaders
-                            });
-                          } else {
-                            // Finally fall back to direct R2 response if all approaches fail
-                            logDebug('TransformImageCommand', 'All resize approaches failed, using direct R2 response');
-                            response = r2Response;
-                          }
-                        } catch (proxyError) {
-                          logDebug('TransformImageCommand', 'Error in Cloudflare proxy transformation', {
-                            error: proxyError instanceof Error ? proxyError.message : 'Unknown error'
-                          });
-                          // Fall back to direct R2 response
-                          response = r2Response;
-                        }
-                      }
-                    } catch (transformError) {
-                      logDebug('TransformImageCommand', 'Error in direct URL transformation', {
-                        error: transformError instanceof Error ? transformError.message : 'Unknown error'
-                      });
-                      // Fall back to direct R2 response
-                      response = r2Response;
-                    }
+                // If the R2 processor service is not available, fall back to standard fetch
+                logDebug(
+                  'TransformImageCommand',
+                  'R2 processor service not available, falling back to standard fetch',
+                  {
+                    url: request.url,
                   }
-                } else {
-                  // If remote resize failed, use the direct R2 response
-                  logDebug('TransformImageCommand', 'Remote resize failed, using direct R2', {
-                    status: remoteResponse.status
-                  });
-                  
-                  // Fall back to direct R2 response
-                  response = r2Response;
-                }
-              } catch (error) {
-                // If there was an error in the remote approach, return direct R2
-                logDebug('TransformImageCommand', 'Error in remote resize, using direct R2', {
-                  error: error instanceof Error ? error.message : 'Unknown error'
-                });
-                
-                // Create a direct R2 response
-                response = new Response(r2Object.body, {
-                  headers: new Headers({
-                    'Content-Type': headers.get('Content-Type') || 'image/jpeg',
-                    'Cache-Control': `public, max-age=${cacheConfig.ttl?.ok || 3600}`,
-                    'X-Source': 'r2-direct-error-fallback',
-                  })
-                });
+                );
               }
-
-              logDebug('TransformImageCommand', 'R2 image processed', {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries()),
-              });
             } catch (r2Error) {
-              logError('TransformImageCommand', 'Error fetching from R2', {
+              logError('TransformImageCommand', 'Error processing R2 image', {
                 error: r2Error instanceof Error ? r2Error.message : 'Unknown R2 error',
                 stack: r2Error instanceof Error ? r2Error.stack : undefined,
                 key: effectiveR2Key,
-                isR2BucketValid: typeof effectiveR2Bucket?.get === 'function',
               });
 
               // Continue with standard fetch if R2 fails
               logDebug('TransformImageCommand', 'Falling back to standard fetch after R2 error', {
                 url: request.url,
-                fallbackToRemote: true,
                 error: r2Error instanceof Error ? r2Error.message : 'Unknown R2 error',
               });
             }
@@ -907,11 +726,28 @@ export function createTransformImageCommand(
       } catch (err: unknown) {
         // Get logging functions
         const logError = dependencies?.logger?.error || error;
+        const logDebug = dependencies?.logger?.debug || debug;
 
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         const errorStack = err instanceof Error ? err.stack : undefined;
         const errorType = err instanceof Error ? err.constructor.name : 'UnknownError';
-        const statusCode = determineErrorStatusCode(err);
+
+        // Determine error status code with special handling for ValidationError
+        let statusCode: number;
+
+        if (err instanceof ValidationError) {
+          // Explicitly handle ValidationError with 400 status
+          statusCode = 400;
+          logDebug('TransformImageCommand', 'Validation error caught in execute method', {
+            message: errorMessage,
+            field: err.field,
+            value: String(err.value),
+            statusCode,
+          });
+        } else {
+          // Use existing error detection for other errors
+          statusCode = determineErrorStatusCode(err);
+        }
 
         logError('TransformImageCommand', 'Error transforming image', {
           error: errorMessage,
@@ -930,13 +766,22 @@ export function createTransformImageCommand(
         // Calculate processing time
         diagnosticsInfo.processingTimeMs = Math.round(performance.now() - startTime);
 
+        // Customize response message based on error type
+        const responseMessage: string =
+          err instanceof ValidationError
+            ? String(errorMessage)
+            : `Error transforming image: ${String(errorMessage)}`;
+
         // Create enhanced error response with proper status code
-        const errorResponse = new Response(`Error transforming image: ${errorMessage}`, {
+        const errorResponse = new Response(responseMessage, {
           status: statusCode,
           headers: {
             'Content-Type': 'text/plain',
             'Cache-Control': 'no-store, must-revalidate',
             'X-Error-Type': errorType,
+            ...(err instanceof ValidationError
+              ? { 'X-Validation-Field': err.field || 'unknown' }
+              : {}),
           },
         });
 

@@ -6,6 +6,7 @@ import {
   IServiceRegistry,
   ServiceRegistration,
   ServiceRegistryDependencies,
+  ServiceParameters,
 } from '../types/core/serviceRegistry';
 import { debug, error } from '../utils/loggerUtils';
 
@@ -72,10 +73,11 @@ class ServiceRegistryImpl implements IServiceRegistry {
    * Resolve a service from the registry
    * @param serviceId - Unique identifier for the service
    * @param scope - Optional request scope for scoped services
+   * @param parameters - Optional parameters to pass to the service factory
    * @returns The requested service instance
    * @throws Error if service is not registered
    */
-  public resolve<T>(serviceId: string, scope?: string): T {
+  public resolve<T>(serviceId: string, scope?: string, parameters?: ServiceParameters): T {
     // Check if the service is registered
     if (!this.registrations.has(serviceId)) {
       const errorMsg = `Service ${serviceId} is not registered`;
@@ -88,6 +90,7 @@ class ServiceRegistryImpl implements IServiceRegistry {
     // Handle based on lifecycle
     switch (registration.lifecycle) {
       case 'singleton':
+        // For singleton services, we ignore parameters as they should be consistent
         return this.resolveSingleton<T>(serviceId, registration);
       case 'scoped':
         if (!scope) {
@@ -95,9 +98,9 @@ class ServiceRegistryImpl implements IServiceRegistry {
           error('ServiceRegistry', errorMsg);
           throw new Error(errorMsg);
         }
-        return this.resolveScoped<T>(serviceId, registration, scope);
+        return this.resolveScoped<T>(serviceId, registration, scope, parameters);
       case 'transient':
-        return this.resolveTransient<T>(serviceId, registration);
+        return this.resolveTransient<T>(serviceId, registration, parameters);
       default: {
         const errorMsg = `Unknown lifecycle ${registration.lifecycle} for service ${serviceId}`;
         error('ServiceRegistry', errorMsg);
@@ -181,12 +184,14 @@ class ServiceRegistryImpl implements IServiceRegistry {
    * @param serviceId - Service identifier
    * @param registration - Service registration
    * @param scope - Request scope
+   * @param parameters - Optional parameters to pass to the factory
    * @returns Service instance
    */
   private resolveScoped<T>(
     serviceId: string,
     registration: ServiceRegistration<T>,
-    scope: string
+    scope: string,
+    parameters?: ServiceParameters
   ): T {
     // Ensure scope exists
     if (!this.scopedInstances.has(scope)) {
@@ -195,17 +200,20 @@ class ServiceRegistryImpl implements IServiceRegistry {
 
     const scopeInstances = this.scopedInstances.get(scope)!;
 
-    // Check if we already have an instance for this scope
-    if (scopeInstances.has(serviceId)) {
+    // For parameterized services, we don't use any cache since parameters could be different each time
+    // Only cache if parameters is undefined
+    if (!parameters && scopeInstances.has(serviceId)) {
       return scopeInstances.get(serviceId) as T;
     }
 
     // Create a new instance for this scope
     const deps = this.resolveDependencies(registration.dependencies, scope);
-    const instance = registration.factory(deps as Record<string, unknown>);
+    const instance = registration.factory(deps as Record<string, unknown>, parameters);
 
-    // Store for future use in this scope
-    scopeInstances.set(serviceId, instance);
+    // Store for future use in this scope (only if not parameterized)
+    if (!parameters) {
+      scopeInstances.set(serviceId, instance);
+    }
     return instance;
   }
 
@@ -213,12 +221,17 @@ class ServiceRegistryImpl implements IServiceRegistry {
    * Resolve a transient service
    * @param serviceId - Service identifier
    * @param registration - Service registration
+   * @param parameters - Optional parameters to pass to the factory
    * @returns Service instance
    */
-  private resolveTransient<T>(serviceId: string, registration: ServiceRegistration<T>): T {
+  private resolveTransient<T>(
+    serviceId: string,
+    registration: ServiceRegistration<T>,
+    parameters?: ServiceParameters
+  ): T {
     // Always create a new instance
     const deps = this.resolveDependencies(registration.dependencies);
-    return registration.factory(deps as Record<string, unknown>);
+    return registration.factory(deps as Record<string, unknown>, parameters);
   }
 }
 
@@ -264,10 +277,11 @@ export class ServiceRegistry implements IServiceRegistry {
    * Resolve a service from the registry
    * @param serviceId - Unique identifier for the service
    * @param scope - Optional request scope for scoped services
+   * @param parameters - Optional parameters to pass to the factory
    * @returns The requested service instance
    */
-  public resolve<T>(serviceId: string, scope?: string): T {
-    return this.serviceRegistry.resolve<T>(serviceId, scope);
+  public resolve<T>(serviceId: string, scope?: string, parameters?: ServiceParameters): T {
+    return this.serviceRegistry.resolve<T>(serviceId, scope, parameters);
   }
 
   /**

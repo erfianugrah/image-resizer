@@ -103,6 +103,63 @@ export class ServiceError extends AppError {
 }
 
 /**
+ * R2Error for errors related to R2 storage
+ */
+export class R2Error extends AppError {
+  readonly name: string = 'R2Error';
+  readonly r2Key?: string;
+  readonly service: string = 'R2';
+
+  constructor(message: string, errorCode: string, statusCode = 500, r2Key?: string) {
+    super(message, errorCode, statusCode, true);
+    this.r2Key = r2Key;
+
+    Object.setPrototypeOf(this, R2Error.prototype);
+  }
+}
+
+/**
+ * R2NotFoundError for R2 objects that cannot be found
+ */
+export class R2NotFoundError extends R2Error {
+  readonly name: string = 'R2NotFoundError';
+
+  constructor(message: string, r2Key: string) {
+    super(message, 'R2_NOT_FOUND', 404, r2Key);
+
+    Object.setPrototypeOf(this, R2NotFoundError.prototype);
+  }
+}
+
+/**
+ * R2TransformationError for errors during R2 image transformations
+ */
+export class R2TransformationError extends R2Error {
+  readonly name: string = 'R2TransformationError';
+  readonly method: string;
+
+  constructor(message: string, method: string, r2Key?: string) {
+    super(message, `R2_TRANSFORM_FAILED_${method.toUpperCase()}`, 500, r2Key);
+    this.method = method;
+
+    Object.setPrototypeOf(this, R2TransformationError.prototype);
+  }
+}
+
+/**
+ * R2NetworkError for network-related errors during R2 operations
+ */
+export class R2NetworkError extends R2Error {
+  readonly name: string = 'R2NetworkError';
+
+  constructor(message: string, r2Key?: string) {
+    super(message, 'R2_NETWORK_ERROR', 502, r2Key);
+
+    Object.setPrototypeOf(this, R2NetworkError.prototype);
+  }
+}
+
+/**
  * TimeoutError for operations that exceed time limits
  */
 export class TimeoutError extends AppError {
@@ -181,6 +238,30 @@ export interface IErrorFactory {
    * Creates an AuthorizationError instance
    */
   createAuthorizationError(message: string, permission?: string): AuthorizationError;
+
+  /**
+   * Creates an R2Error instance
+   */
+  createR2Error(message: string, errorCode: string, statusCode?: number, r2Key?: string): R2Error;
+
+  /**
+   * Creates an R2NotFoundError instance
+   */
+  createR2NotFoundError(message: string, r2Key: string): R2NotFoundError;
+
+  /**
+   * Creates an R2TransformationError instance
+   */
+  createR2TransformationError(
+    message: string,
+    method: string,
+    r2Key?: string
+  ): R2TransformationError;
+
+  /**
+   * Creates an R2NetworkError instance
+   */
+  createR2NetworkError(message: string, r2Key?: string): R2NetworkError;
 
   /**
    * Normalizes an unknown error into an AppError instance
@@ -279,6 +360,26 @@ export function createErrorFactory(dependencies: ErrorFactoryDependencies = {}):
       return new AuthorizationError(message, permission);
     },
 
+    createR2Error(message: string, errorCode: string, statusCode = 500, r2Key?: string): R2Error {
+      return new R2Error(message, errorCode, statusCode, r2Key);
+    },
+
+    createR2NotFoundError(message: string, r2Key: string): R2NotFoundError {
+      return new R2NotFoundError(message, r2Key);
+    },
+
+    createR2TransformationError(
+      message: string,
+      method: string,
+      r2Key?: string
+    ): R2TransformationError {
+      return new R2TransformationError(message, method, r2Key);
+    },
+
+    createR2NetworkError(message: string, r2Key?: string): R2NetworkError {
+      return new R2NetworkError(message, r2Key);
+    },
+
     createFromUnknown(err: unknown, defaultMessage = 'An error occurred'): AppError {
       // Log the raw error if logger is available
       if (logger?.error) {
@@ -294,7 +395,18 @@ export function createErrorFactory(dependencies: ErrorFactoryDependencies = {}):
 
       if (err instanceof Error) {
         // Check for common error patterns
-        if (err.message.includes('not found') || err.message.includes('404')) {
+        // R2-specific not found errors
+        if (
+          err.message.includes('R2') &&
+          (err.message.includes('not found') || err.message.includes('404'))
+        ) {
+          // Extract the key if possible using regex
+          const keyMatch = err.message.match(/(?:key|object|file|image)[:\s]+([^\s,.]+)/i);
+          const r2Key = keyMatch ? keyMatch[1] : 'unknown';
+          return new R2NotFoundError(err.message, r2Key);
+        }
+        // General not found errors
+        else if (err.message.includes('not found') || err.message.includes('404')) {
           return new NotFoundError('Resource', err.message);
         }
 
@@ -308,6 +420,17 @@ export function createErrorFactory(dependencies: ErrorFactoryDependencies = {}):
 
         if (err.message.includes('configuration') || err.message.includes('config')) {
           return new ConfigurationError(err.message);
+        }
+
+        // R2 transformation errors
+        if (err.message.includes('transform') && err.message.includes('R2')) {
+          // Try to determine the transformation method
+          let method = 'unknown';
+          if (err.message.includes('cdn-cgi')) method = 'cdn-cgi';
+          else if (err.message.includes('direct')) method = 'direct-url';
+          else if (err.message.includes('remote')) method = 'remote';
+
+          return new R2TransformationError(err.message, method);
         }
 
         if (
@@ -382,6 +505,16 @@ export function createErrorResponseFactory(
 
         if (appError instanceof ServiceError) {
           (errorPayload.error as Record<string, unknown>).service = appError.service;
+        }
+
+        // Add R2-specific fields
+        if (appError instanceof R2Error) {
+          (errorPayload.error as Record<string, unknown>).r2Key = appError.r2Key;
+
+          // Add transformation method for R2TransformationError
+          if (appError instanceof R2TransformationError) {
+            (errorPayload.error as Record<string, unknown>).method = appError.method;
+          }
         }
 
         return new Response(JSON.stringify(errorPayload), {

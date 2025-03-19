@@ -246,7 +246,11 @@ describe('UrlTransformUtils', () => {
 
       // Assert
       expect(result.isR2Fetch).toBe(true);
-      expect(mockLogger.debug).toHaveBeenCalledWith('UrlTransformUtils', 'Using R2 bucket with priority', expect.anything());
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'UrlTransformUtils',
+        'Using R2 bucket with priority',
+        expect.anything()
+      );
     });
 
     it('should handle missing R2 bucket binding gracefully', () => {
@@ -268,7 +272,11 @@ describe('UrlTransformUtils', () => {
       // Assert
       expect(result.isR2Fetch).toBe(false);
       expect(result.isRemoteFetch).toBe(true);
-      expect(mockLogger.error).toHaveBeenCalledWith('UrlTransformUtils', 'R2 bucket binding not found', expect.anything());
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'UrlTransformUtils',
+        'R2 bucket binding not found',
+        expect.anything()
+      );
     });
 
     it('should properly normalize R2 keys by removing leading slashes', () => {

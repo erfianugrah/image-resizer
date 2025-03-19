@@ -628,3 +628,104 @@ The final phase of the dependency injection migration has been completed, focusi
    - Dependency management best practices
 
 The system now has a fully functional dependency injection architecture with centralized service management, proper dependency resolution, and complete type safety.
+
+## Standardized Minimal Dependencies
+
+To further reduce the verbosity of service dependencies, we've implemented standardized minimal interfaces for common dependencies:
+
+### Minimal Logger Interface
+
+The `IMinimalLogger` interface provides a simplified logging API with fixed module name:
+
+```typescript
+/**
+ * Minimal logger interface for service dependencies
+ * Provides core logging functionality in a simpler format
+ * with fixed module name for easy integration
+ */
+export interface IMinimalLogger {
+  /**
+   * Log debug information
+   * @param message - Log message
+   * @param data - Optional data object
+   */
+  debug(message: string, data?: Record<string, unknown>): void;
+
+  /**
+   * Log information (if available, falls back to debug if not)
+   * @param message - Log message
+   * @param data - Optional data object
+   */
+  info?(message: string, data?: Record<string, unknown>): void;
+
+  /**
+   * Log warning
+   * @param message - Log message
+   * @param data - Optional data object
+   */
+  warn?(message: string, data?: Record<string, unknown>): void;
+
+  /**
+   * Log error
+   * @param message - Log message
+   * @param data - Optional data object
+   */
+  error(message: string, data?: Record<string, unknown>): void;
+
+  /**
+   * Log response (optional)
+   * @param response - Response object
+   */
+  logResponse?(response: Response): void;
+}
+```
+
+#### Creating and Using Minimal Loggers
+
+Services can request a minimal logger through the ServiceRegistry:
+
+```typescript
+// Register the minimal logger service
+registry.register('IMinimalLogger', {
+  factory: (deps, params) => {
+    const factory = deps.ILoggerFactory;
+    // Use the module name provided as a parameter, or default to 'Service'
+    const moduleName = params?.moduleName || 'Service';
+    return factory.createMinimalLogger(moduleName);
+  },
+  lifecycle: 'transient', // Create a new instance each time with different module name
+  dependencies: ['ILoggerFactory'],
+});
+
+// Register a service that uses the minimal logger
+registry.register('IMyService', {
+  factory: (deps) => {
+    // Get a minimal logger with specific module name
+    const logger = deps.IMinimalLogger;
+    
+    return createMyService({ logger });
+  },
+  lifecycle: 'singleton',
+  dependencies: ['IMinimalLogger'],
+  parameters: { moduleName: 'MyService' } // Pass the module name as a parameter
+});
+```
+
+#### Benefits of Minimal Logger
+
+1. **Simplified Service Dependencies**:
+   - Services no longer need to repeat the module name for every log
+   - Reduced boilerplate in service implementation
+   - Cleaner service dependency signatures
+
+2. **Runtime Adaptability**:
+   - Supports both standard and minimal logger interfaces
+   - Automatically detects logger type and adapts at runtime
+   - Backward compatible with existing services
+
+3. **Improved Code Readability**:
+   - More concise logging calls without repeated module references
+   - Cleaner service implementations
+   - Reduced verbosity while maintaining context
+
+This pattern can be extended to other common dependencies like configuration, error handling, and caching services to further streamline service dependencies.

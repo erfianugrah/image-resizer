@@ -2,7 +2,7 @@
  * Logger implementation to support dependency injection
  * Adapts existing logging utilities to the ILogger interface
  */
-import { ILogger, ILoggerFactory } from '../types/core/logger';
+import { ILogger, ILoggerFactory, IMinimalLogger } from '../types/core/logger';
 import {
   debug as logDebug,
   info as logInfo,
@@ -22,6 +22,36 @@ export interface LoggerFactoryDependencies {
 }
 
 /**
+ * Create a new minimal logger for a service with a fixed module name
+ * @param logger - The parent logger to use
+ * @param moduleName - The module name to log under
+ * @returns A minimal logger instance with fixed module name
+ */
+export function createMinimalLoggerAdapter(logger: ILogger, moduleName: string): IMinimalLogger {
+  return {
+    debug: (message: string, data?: Record<string, unknown>): void => {
+      logger.debug(moduleName, message, data);
+    },
+
+    info: (message: string, data?: Record<string, unknown>): void => {
+      logger.info(moduleName, message, data);
+    },
+
+    warn: (message: string, data?: Record<string, unknown>): void => {
+      logger.warn(moduleName, message, data);
+    },
+
+    error: (message: string, data?: Record<string, unknown>): void => {
+      logger.error(moduleName, message, data);
+    },
+
+    logResponse: (response: Response): void => {
+      logger.logResponse(moduleName, response);
+    },
+  };
+}
+
+/**
  * Create a new logger factory
  * @param dependencies - Optional dependencies for the logger factory
  * @returns A logger factory instance
@@ -30,6 +60,12 @@ export function createLoggerFactory(_dependencies?: LoggerFactoryDependencies): 
   return {
     createLogger: (name: string): ILogger => {
       return createLogger(name);
+    },
+
+    createMinimalLogger: (moduleName: string): IMinimalLogger => {
+      // Create a standard logger first and then adapt it to minimal interface
+      const logger = createLogger('Service');
+      return createMinimalLoggerAdapter(logger, moduleName);
     },
   };
 }
@@ -150,5 +186,14 @@ export class LoggerFactory implements ILoggerFactory {
    */
   public createLogger(name: string): ILogger {
     return this.loggerFactory.createLogger(name);
+  }
+
+  /**
+   * Create a minimal logger for a service
+   * @param module - Module name to be used for all logs
+   * @returns Minimal logger instance
+   */
+  public createMinimalLogger(module: string): IMinimalLogger {
+    return this.loggerFactory.createMinimalLogger(module);
   }
 }

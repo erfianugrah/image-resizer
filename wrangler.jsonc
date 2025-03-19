@@ -44,7 +44,49 @@
         "ENVIRONMENT": "development",
         "DEPLOYMENT_MODE": "hybrid", // Changed from "remote" to "hybrid" for R2 support
         "VERSION": "1.1.0",
-        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        // FALLBACK_BUCKET is deprecated - use ORIGIN_CONFIG.fallback.url instead
+        // Strategy configuration for workers.dev domains - Use direct-url instead of interceptor
+        "STRATEGIES_CONFIG": {
+          "priorityOrder": [
+            "direct-url",
+            "cdn-cgi",
+            "direct-serving",
+            "remote-fallback"
+          ],
+          "disabled": [],
+          "enabled": []
+        },
+        // Image resizer configuration with domain-specific settings
+        "IMAGE_RESIZER_CONFIG": {
+          "routes": [
+            {
+              "pattern": "*.workers.dev/*",
+              "environment": "development",
+              "strategies": {
+                "priorityOrder": [
+                  "direct-url",
+                  "cdn-cgi",
+                  "remote-fallback",
+                  "direct-serving"
+                ],
+                "disabled": [
+                  "interceptor"
+                ]
+              }
+            }
+          ],
+          "defaults": {
+            "strategies": {
+              "priorityOrder": [
+                "direct-url",
+                "cdn-cgi",
+                "direct-serving",
+                "remote-fallback"
+              ],
+              "disabled": []
+            }
+          }
+        },
         // Logging configuration
         "LOGGING_CONFIG": {
           "level": "DEBUG",
@@ -76,12 +118,12 @@
         // Origin priorities and configuration
         "ORIGIN_CONFIG": {
           "default_priority": [
-            "r2",
             "remote",
-            "fallback"
-          ], // Look in R2 first, then remote, then fallback
+            "fallback",
+            "r2"
+          ], // Remote first, then fallback, then R2 (if needed)
           "r2": {
-            "enabled": true,
+            "enabled": true, // Enable R2 to try transformation strategies
             "binding_name": "IMAGES_BUCKET" // References the binding defined above
           },
           "remote": {
@@ -222,7 +264,65 @@
         "ENVIRONMENT": "staging",
         "DEPLOYMENT_MODE": "hybrid", // Changed from "remote" to "hybrid" for R2 support
         "VERSION": "1.1.0",
-        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        // FALLBACK_BUCKET is deprecated - use ORIGIN_CONFIG.fallback.url instead
+        // Strategy configuration for custom domains in staging
+        "STRATEGIES_CONFIG": {
+          "priorityOrder": [
+            "interceptor",
+            "direct-url",
+            "cdn-cgi",
+            "remote-fallback",
+            "direct-serving"
+          ],
+          "disabled": [],
+          "enabled": []
+        },
+        // Image resizer configuration with domain-specific settings
+        "IMAGE_RESIZER_CONFIG": {
+          "routes": [
+            {
+              "pattern": "*.workers.dev/*",
+              "environment": "development",
+              "strategies": {
+                "priorityOrder": [
+                  "direct-url",
+                  "remote-fallback",
+                  "direct-serving"
+                ],
+                "disabled": [
+                  "interceptor",
+                  "cdn-cgi"
+                ]
+              }
+            },
+            {
+              "pattern": "staging.images.erfi.dev/*",
+              "environment": "staging",
+              "strategies": {
+                "priorityOrder": [
+                  "interceptor",
+                  "direct-url",
+                  "cdn-cgi",
+                  "remote-fallback",
+                  "direct-serving"
+                ],
+                "disabled": []
+              }
+            }
+          ],
+          "defaults": {
+            "strategies": {
+              "priorityOrder": [
+                "interceptor",
+                "direct-url",
+                "cdn-cgi",
+                "remote-fallback",
+                "direct-serving"
+              ],
+              "disabled": []
+            }
+          }
+        },
         // Logging configuration - less verbose for staging
         "LOGGING_CONFIG": {
           "level": "INFO",
@@ -252,7 +352,7 @@
             "r2",
             "remote",
             "fallback"
-          ], // Look in R2 first, then remote, then fallback
+          ], // Look in R2 first, then remote, then fallback (proper ordering for staging)
           "r2": {
             "enabled": true,
             "binding_name": "IMAGES_BUCKET" // References the binding defined above
@@ -400,7 +500,65 @@
         "ENVIRONMENT": "production",
         "DEPLOYMENT_MODE": "hybrid", // Changed from "remote" to "hybrid" for R2 support
         "VERSION": "1.1.0",
-        "FALLBACK_BUCKET": "https://cdn.erfianugrah.com",
+        // FALLBACK_BUCKET is deprecated - use ORIGIN_CONFIG.fallback.url instead
+        // Strategy configuration for production - enable all strategies for custom domains
+        "STRATEGIES_CONFIG": {
+          "priorityOrder": [
+            "interceptor",
+            "direct-url",
+            "cdn-cgi",
+            "remote-fallback",
+            "direct-serving"
+          ],
+          "disabled": [],
+          "enabled": []
+        },
+        // Image resizer configuration with domain-specific settings
+        "IMAGE_RESIZER_CONFIG": {
+          "routes": [
+            {
+              "pattern": "*.workers.dev/*",
+              "environment": "development",
+              "strategies": {
+                "priorityOrder": [
+                  "direct-url",
+                  "remote-fallback",
+                  "direct-serving"
+                ],
+                "disabled": [
+                  "interceptor",
+                  "cdn-cgi"
+                ]
+              }
+            },
+            {
+              "pattern": "images.erfi.dev/*",
+              "environment": "production",
+              "strategies": {
+                "priorityOrder": [
+                  "interceptor",
+                  "direct-url",
+                  "cdn-cgi",
+                  "remote-fallback",
+                  "direct-serving"
+                ],
+                "disabled": []
+              }
+            }
+          ],
+          "defaults": {
+            "strategies": {
+              "priorityOrder": [
+                "interceptor",
+                "direct-url",
+                "cdn-cgi",
+                "remote-fallback",
+                "direct-serving"
+              ],
+              "disabled": []
+            }
+          }
+        },
         // Logging configuration - minimal for production
         "LOGGING_CONFIG": {
           "level": "DEBUG",
@@ -418,10 +576,11 @@
         "ORIGIN_CONFIG": {
           "default_priority": [
             "remote",
-            "fallback"
-          ], // Look in R2 first, then remote, then fallback
+            "fallback",
+            "r2"
+          ], // Remote first, then fallback, then R2 (same behavior as dev)
           "r2": {
-            "enabled": true,
+            "enabled": true, // Disable R2 to match dev configuration
             "binding_name": "IMAGES_BUCKET" // References the binding defined above
           },
           "remote": {

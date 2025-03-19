@@ -97,18 +97,31 @@ export function createUrlTransformUtils(
 
       // Apply the configuration if we got something valid
       if (configFromEnv) {
-        // Force set r2 as first priority - the goal is to make R2 work
-        originConfig.default_priority = ['r2', 'remote', 'fallback'];
+        // Use the provided priority from config instead of forcing R2
+        if (configFromEnv.default_priority && Array.isArray(configFromEnv.default_priority)) {
+          originConfig.default_priority = configFromEnv.default_priority;
+        }
 
-        // Set r2 configuration
-        originConfig.r2 = {
-          enabled: true,
-          binding_name: 'IMAGES_BUCKET',
-        };
+        // Use R2 configuration from environment if available
+        if (configFromEnv.r2) {
+          originConfig.r2 = {
+            enabled: configFromEnv.r2.enabled ?? true,
+            binding_name: configFromEnv.r2.binding_name || 'IMAGES_BUCKET',
+          };
+        }
 
-        logger?.debug('UrlTransformUtils', 'Forced R2 priority', {
+        // Add remote/fallback if present
+        if (configFromEnv.remote) {
+          originConfig.remote = configFromEnv.remote;
+        }
+        if (configFromEnv.fallback) {
+          originConfig.fallback = configFromEnv.fallback;
+        }
+
+        logger?.debug('UrlTransformUtils', 'Using configuration from environment', {
           priorities: originConfig.default_priority,
           r2: originConfig.r2,
+          fallback: originConfig.fallback?.url || null
         });
       }
     }

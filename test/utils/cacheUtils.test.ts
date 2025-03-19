@@ -413,7 +413,9 @@ describe('cacheUtils', () => {
     });
 
     it('should apply derivative-specific cache settings', async () => {
-      const result = await determineCacheConfig('https://example.com/image.jpg?derivative=thumbnail');
+      const result = await determineCacheConfig(
+        'https://example.com/image.jpg?derivative=thumbnail'
+      );
       expect(result.ttl.ok).toBe(2592000); // 30 days for thumbnail derivative
     });
 
@@ -448,9 +450,9 @@ describe('cacheUtils', () => {
 
       // Re-import the function
       const { determineCacheConfig } = await import('../../src/utils/cacheUtils');
-      
+
       const result = await determineCacheConfig('https://example.com/image.jpg');
-      
+
       // Should still return a valid config even after error
       expect(result).toHaveProperty('cacheability', true);
       expect(result.ttl).toHaveProperty('ok');

@@ -498,6 +498,23 @@ const imageService = serviceRegistry.resolve<IImageTransformationService>('IImag
 
 For more details on the architecture, see [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md).
 
+## Documentation
+
+We provide comprehensive documentation covering all aspects of the Image Resizer:
+
+- [Documentation Index](docs/DOCUMENTATION_INDEX.md) - Complete list of all documentation
+- [User Documentation](docs/README.md) - API, configuration, and usage guides
+- [Architecture Documentation](docs/architecture/README.md) - Architecture and design patterns
+- [Architecture Diagrams](docs/architecture/diagrams/README.md) - Visual representations of the system
+
+### Key Documentation
+
+- [Configuration System](docs/architecture/CONFIGURATION.md) - How configuration works
+- [Single Source of Truth](docs/architecture/SINGLE_SOURCE_OF_TRUTH.md) - wrangler.jsonc as a configuration source
+- [R2 Integration](docs/architecture/R2_INTEGRATION.md) - Integration with Cloudflare R2
+- [Transformation Strategies](docs/architecture/INTERCEPTOR_STRATEGY.md) - How image transformations work
+- [Enhanced Debug Headers](docs/architecture/ENHANCED_DEBUG_HEADERS.md) - Debugging tools
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createTransformImageCommand, ImageTransformContext } from '../../../src/domain/commands/TransformImageCommand';
+import {
+  createTransformImageCommand,
+  ImageTransformContext,
+} from '../../../src/domain/commands/TransformImageCommand';
 
 // Create mock R2 object and bucket
 class MockR2Object {
@@ -14,7 +17,7 @@ class MockR2Object {
         const bytes = new Uint8Array(10);
         controller.enqueue(bytes);
         controller.close();
-      }
+      },
     });
     this.httpMetadata = { contentType };
     this.size = size;
@@ -85,17 +88,17 @@ describe('TransformImageCommand with R2', () => {
   beforeEach(() => {
     // Reset fetch mock
     mockFetchResponses = new Map();
-    
+
     vi.mocked(fetch).mockClear();
     vi.mocked(fetch).mockImplementation((input) => {
       const url = typeof input === 'string' ? input : input.url;
-      
+
       // Return the correct mock response based on the URL pattern
       // This allows us to test the fallback chain
       if (mockFetchResponses.has(url)) {
         return Promise.resolve(mockFetchResponses.get(url)!.clone());
       }
-      
+
       // CDN-CGI pattern detection - the key part that makes the test work
       if (url.includes('/cdn-cgi/image/') || url.includes('cdn.example.com')) {
         // Create a response with cf-resized header to simulate successful transformation
@@ -103,11 +106,11 @@ describe('TransformImageCommand with R2', () => {
           'content-type': 'image/jpeg',
           'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
           'content-length': '50000', // Smaller than original
-          'x-source': 'r2-cf-proxy-transform'
+          'x-source': 'r2-cf-proxy-transform',
         });
         return Promise.resolve(new Response('Transformed Image Data', { status: 200, headers }));
       }
-      
+
       // Default response
       return Promise.resolve(new Response('Image data', { status: 200 }));
     });
@@ -160,22 +163,42 @@ describe('TransformImageCommand with R2', () => {
 
   it('should handle R2 response correctly', async () => {
     // Create a simpler test that doesn't rely on specific source values
-    
+
     // First, completely reset the fetch mock to control it precisely
     vi.mocked(fetch).mockReset();
-    
+
     // Direct mock implementation for this test only
     vi.mocked(fetch).mockImplementation(() => {
-      return Promise.resolve(new Response('Transformed Image Data', {
-        status: 200,
-        headers: {
-          'content-type': 'image/webp',
-          'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
-          'content-length': '50000', // Smaller than original
-        }
-      }));
+      return Promise.resolve(
+        new Response('Transformed Image Data', {
+          status: 200,
+          headers: {
+            'content-type': 'image/webp',
+            'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
+            'content-length': '50000', // Smaller than original
+          },
+        })
+      );
     });
-    
+
+    // Create a mock R2ImageProcessorService
+    const mockR2Processor = {
+      processR2Image: vi.fn(
+        async (r2Key, r2Bucket, imageOptions, request, cacheConfig, fallbackUrl) => {
+          // Simulate the processed image with appropriate headers
+          return new Response('Transformed Image Data', {
+            status: 200,
+            headers: {
+              'content-type': 'image/webp',
+              'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
+              'content-length': '50000', // Smaller than original
+              'x-source': 'r2-cf-proxy-transform',
+            },
+          });
+        }
+      ),
+    };
+
     // Create command with dependencies
     const command = createTransformImageCommand(mockContext, {
       logger: {
@@ -196,6 +219,7 @@ describe('TransformImageCommand with R2', () => {
         getDeviceTypeFromUserAgent: () => 'desktop',
         normalizeDeviceType: (type) => type,
       },
+      r2Processor: mockR2Processor,
     });
 
     // Act
@@ -203,9 +227,16 @@ describe('TransformImageCommand with R2', () => {
 
     // Assert - simpler assertions that should pass
     expect(result.status).toBe(200);
-    expect(mockR2Bucket.get).toHaveBeenCalledWith('image.jpg');
+    expect(mockR2Processor.processR2Image).toHaveBeenCalledWith(
+      'image.jpg',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
     expect(result.headers.get('cf-resized')).not.toBeNull();
-    
+
     // Don't test specific x-source value since it depends on implementation details
     // that may change, just verify there is some x-source header
     expect(result.headers.has('x-source')).toBe(true);
@@ -216,6 +247,23 @@ describe('TransformImageCommand with R2', () => {
     mockContext.config.r2Key = 'non-existent.jpg';
     mockContext.debugInfo.r2Key = 'non-existent.jpg';
 
+    // Create a mock R2ImageProcessorService for non-existent objects
+    const mockR2Processor = {
+      processR2Image: vi.fn(
+        async (r2Key, r2Bucket, imageOptions, request, cacheConfig, fallbackUrl) => {
+          // Simulate a 404 response for non-existent objects
+          return new Response('Image not found in R2 bucket', {
+            status: 404,
+            headers: {
+              'Content-Type': 'text/plain',
+              'Cache-Control': 'no-store, must-revalidate',
+              'X-Source': 'r2-not-found',
+            },
+          });
+        }
+      ),
+    };
+
     // Create command with dependencies
     const command = createTransformImageCommand(mockContext, {
       logger: {
@@ -236,6 +284,7 @@ describe('TransformImageCommand with R2', () => {
         getDeviceTypeFromUserAgent: () => 'desktop',
         normalizeDeviceType: (type) => type,
       },
+      r2Processor: mockR2Processor,
     });
 
     // Act
@@ -243,25 +292,51 @@ describe('TransformImageCommand with R2', () => {
 
     // Assert
     expect(result.status).toBe(404);
-    expect(mockR2Bucket.get).toHaveBeenCalledWith('non-existent.jpg');
+    expect(mockR2Processor.processR2Image).toHaveBeenCalledWith(
+      'non-existent.jpg',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
+    );
     expect(await result.text()).toContain('not found');
   });
 
   it('should verify content length reduction as a proxy for transformation', async () => {
     // Arrange
     vi.mocked(fetch).mockReset();
-    
+
     // We'll use a content length check approach instead of cf-resized header
     vi.mocked(fetch).mockImplementation(() => {
-      return Promise.resolve(new Response('Smaller image data', {
-        status: 200,
-        headers: {
-          'content-type': 'image/jpeg',
-          // No cf-resized header
-          'content-length': '5000', // Much smaller than original 1000000
-        }
-      }));
+      return Promise.resolve(
+        new Response('Smaller image data', {
+          status: 200,
+          headers: {
+            'content-type': 'image/jpeg',
+            // No cf-resized header
+            'content-length': '5000', // Much smaller than original 1000000
+          },
+        })
+      );
     });
+
+    // Create a mock R2ImageProcessorService that returns reduced content length
+    const mockR2Processor = {
+      processR2Image: vi.fn(
+        async (r2Key, r2Bucket, imageOptions, request, cacheConfig, fallbackUrl) => {
+          // Transformed response with reduced content length but no cf-resized header
+          return new Response('Transformed Image Data', {
+            status: 200,
+            headers: {
+              'content-type': 'image/jpeg',
+              'content-length': '5000', // Much smaller than original 1000000
+              'x-source': 'r2-transform-service',
+            },
+          });
+        }
+      ),
+    };
 
     // Create command with dependencies
     const command = createTransformImageCommand(mockContext, {
@@ -283,6 +358,7 @@ describe('TransformImageCommand with R2', () => {
         getDeviceTypeFromUserAgent: () => 'desktop',
         normalizeDeviceType: (type) => type,
       },
+      r2Processor: mockR2Processor,
     });
 
     // Act
@@ -291,7 +367,7 @@ describe('TransformImageCommand with R2', () => {
     // Assert - check content length reduction instead of cf-resized header
     expect(result.status).toBe(200);
     expect(parseInt(result.headers.get('content-length') || '0')).toBeLessThan(1000000);
-    
+
     // Verify a source header exists without testing specific value
     expect(result.headers.has('x-source')).toBe(true);
   });
@@ -393,6 +469,24 @@ describe('TransformImageCommand with R2', () => {
     // Make all fetch calls fail
     vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
 
+    // Create a mock R2ImageProcessorService that falls back to direct R2 response on errors
+    const mockR2Processor = {
+      processR2Image: vi.fn(
+        async (r2Key, r2Bucket, imageOptions, request, cacheConfig, fallbackUrl) => {
+          // Simulate falling back to direct R2 response after failed transformations
+          return new Response('Direct R2 Content', {
+            status: 200,
+            headers: {
+              'content-type': 'image/jpeg',
+              'content-length': '100000',
+              'x-source': 'r2-direct',
+              'cache-control': 'public, max-age=86400',
+            },
+          });
+        }
+      ),
+    };
+
     // Create command with dependencies
     const command = createTransformImageCommand(mockContext, {
       logger: {
@@ -413,6 +507,7 @@ describe('TransformImageCommand with R2', () => {
         getDeviceTypeFromUserAgent: () => 'desktop',
         normalizeDeviceType: (type) => type,
       },
+      r2Processor: mockR2Processor,
     });
 
     // Act

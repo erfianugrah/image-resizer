@@ -193,7 +193,7 @@ describe('UrlParamUtils', () => {
   describe('extractDefaultImageParams', () => {
     it('should return default image parameter definitions', () => {
       const defaults = extractDefaultImageParams();
-      
+
       expect(defaults).toHaveProperty('derivative', null);
       expect(defaults).toHaveProperty('width', null);
       expect(defaults).toHaveProperty('height', null);
@@ -201,12 +201,12 @@ describe('UrlParamUtils', () => {
       expect(defaults).toHaveProperty('fit', null);
       expect(defaults).toHaveProperty('format', null);
       expect(defaults).toHaveProperty('metadata', 'copyright');
-      
+
       // Cloudflare-specific parameters
       expect(defaults).toHaveProperty('dpr', null);
       expect(defaults).toHaveProperty('gravity', null);
       expect(defaults).toHaveProperty('trim', null);
-      
+
       // Visual adjustments
       expect(defaults).toHaveProperty('brightness', null);
       expect(defaults).toHaveProperty('contrast', null);
@@ -214,7 +214,7 @@ describe('UrlParamUtils', () => {
       expect(defaults).toHaveProperty('rotate', null);
       expect(defaults).toHaveProperty('sharpen', null);
       expect(defaults).toHaveProperty('saturation', null);
-      
+
       // Optional settings
       expect(defaults).toHaveProperty('background', null);
       expect(defaults).toHaveProperty('blur', null);
@@ -227,7 +227,7 @@ describe('UrlParamUtils', () => {
     it('should get defaults with factory function', () => {
       const utils = createUrlParamUtils();
       const defaults = utils.extractDefaultImageParams();
-      
+
       expect(defaults).toHaveProperty('derivative', null);
       expect(defaults).toHaveProperty('width', null);
       expect(defaults).toHaveProperty('height', null);
@@ -235,16 +235,31 @@ describe('UrlParamUtils', () => {
 
     it('should handle all Cloudflare Image Resizing parameters', () => {
       const defaults = extractDefaultImageParams();
-      
+
       // Check that all expected Cloudflare parameters are included
       const allExpectedParams = [
-        'width', 'height', 'fit', 'quality', 'format',
-        'background', 'gravity', 'trim', 'dpr', 'rotate',
-        'blur', 'sharpen', 'brightness', 'contrast', 'gamma',
-        'saturation', 'metadata', 'onerror', 'anim'
+        'width',
+        'height',
+        'fit',
+        'quality',
+        'format',
+        'background',
+        'gravity',
+        'trim',
+        'dpr',
+        'rotate',
+        'blur',
+        'sharpen',
+        'brightness',
+        'contrast',
+        'gamma',
+        'saturation',
+        'metadata',
+        'onerror',
+        'anim',
       ];
-      
-      allExpectedParams.forEach(param => {
+
+      allExpectedParams.forEach((param) => {
         expect(defaults).toHaveProperty(param);
       });
     });

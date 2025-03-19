@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   TransformImageCommand,
   ImageTransformContext,
+  TransformImageCommandDependencies,
 } from '../../../src/domain/commands/TransformImageCommand';
+import { ValidationError } from '../../../src/types/utils/errors';
 
 // Mock dependencies to avoid circular dependencies during testing
 vi.mock('../../../src/services/debugService', async () => ({
@@ -135,14 +137,68 @@ describe('TransformImageCommand', () => {
   it('should validate image options correctly', async () => {
     // Arrange
     mockContext.options.width = 9; // Below minimum width
-    const command = new TransformImageCommand(mockContext);
+
+    // Create a mock validation service that returns an invalid result
+    const mockValidationService = {
+      validateOptions: vi.fn().mockImplementation(() => {
+        console.log('Mock validation service called');
+        const validationError = new ValidationError(
+          'Width must be between 10 and 8192 pixels',
+          'width',
+          9
+        );
+        return {
+          isValid: false,
+          errors: [validationError],
+          options: mockContext.options,
+        };
+      }),
+      getDefaultValidationConfig: vi.fn(),
+      createError: vi.fn(),
+    };
+
+    // Log everything for debugging
+    console.log('Setting up test for validation');
+
+    // Create dependencies with the mock validation service
+    const mockDependencies: TransformImageCommandDependencies = {
+      logger: {
+        debug: vi.fn().mockImplementation((module, message, data) => {
+          console.log(`DEBUG: ${module} - ${message}`, data);
+        }),
+        error: vi.fn().mockImplementation((module, message, data) => {
+          console.log(`ERROR: ${module} - ${message}`, data);
+        }),
+      },
+      validationService: mockValidationService,
+      cacheUtils: {
+        determineCacheConfig: vi.fn().mockResolvedValue({
+          cacheability: true,
+          ttl: { ok: 86400 },
+        }),
+      },
+      clientDetection: {
+        hasCfDeviceType: vi.fn().mockReturnValue(false),
+        getCfDeviceType: vi.fn().mockReturnValue(''),
+        hasClientHints: vi.fn().mockReturnValue(false),
+        getDeviceTypeFromUserAgent: vi.fn().mockReturnValue('desktop'),
+        normalizeDeviceType: vi.fn().mockReturnValue('desktop'),
+      },
+    };
+
+    const command = new TransformImageCommand(mockContext, mockDependencies);
 
     // Act
+    console.log('Executing command');
     const result = await command.execute();
+    console.log('Result status:', result.status);
+    console.log('Result text:', await result.clone().text());
 
-    // Assert - validation errors now return 400 Bad Request
+    // Assert - validation errors should return 400 Bad Request
     expect(result.status).toBe(400);
     expect(await result.text()).toContain('Width must be between 10 and 8192 pixels');
+    // Verify the validation service was called
+    expect(mockValidationService.validateOptions).toHaveBeenCalled();
   });
 
   it('should handle "auto" width specially', async () => {

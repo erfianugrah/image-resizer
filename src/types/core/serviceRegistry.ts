@@ -4,9 +4,16 @@
  */
 
 /**
- * Generic service factory type
+ * Parameters for service factories
  */
-export type ServiceFactory<T> = (dependencies: any) => T;
+export interface ServiceParameters {
+  [key: string]: any;
+}
+
+/**
+ * Generic service factory type with optional parameters
+ */
+export type ServiceFactory<T> = (dependencies: any, parameters?: ServiceParameters) => T;
 
 /**
  * Service lifecycle modes
@@ -23,6 +30,7 @@ export interface ServiceRegistration<T> {
   factory: ServiceFactory<T>;
   lifecycle: ServiceLifecycle;
   dependencies?: string[];
+  parameters?: ServiceParameters;
 }
 
 /**
@@ -41,9 +49,10 @@ export interface IServiceRegistry {
    * Resolve a service from the registry
    * @param serviceId - Unique identifier for the service
    * @param scope - Optional request scope for scoped services
+   * @param parameters - Optional parameters to pass to the service factory
    * @returns The requested service instance
    */
-  resolve<T>(serviceId: string, scope?: string): T;
+  resolve<T>(serviceId: string, scope?: string, parameters?: ServiceParameters): T;
 
   /**
    * Create a scope for request-scoped services

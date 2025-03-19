@@ -7,8 +7,11 @@ import {
   ImageTransformOptions,
   ImageTransformationDependencies,
   IImageTransformationService,
+  IR2ImageProcessorService,
 } from '../types/services/image';
+import { IStreamingTransformationService } from '../types/services/streaming';
 import { PathPattern } from '../types/utils/path';
+import { createR2ImageProcessorService } from './r2ImageProcessorService';
 
 /**
  * Transform an image using Cloudflare Image Resizing
@@ -145,6 +148,51 @@ export function createImageTransformationService(
           '../domain/commands/TransformImageCommand'
         );
 
+        // Create R2 processor service if we have cache dependency
+        let r2Processor: IR2ImageProcessorService | undefined;
+        if (dependencies.cache) {
+          r2Processor = createR2ImageProcessorService({
+            logger: {
+              debug,
+              error,
+            },
+            cache: {
+              determineCacheControl: (status, cache) => {
+                // If the cache has applyCacheHeaders function, use it to get cache control
+                // Otherwise, use a default value
+                const response = new Response('');
+                const responseCacheHeaders = dependencies.cache.applyCacheHeaders(
+                  response,
+                  status,
+                  cache,
+                  'r2',
+                  options.derivative || undefined
+                );
+                return responseCacheHeaders.headers.get('Cache-Control') || 'public, max-age=86400';
+              },
+            },
+            formatUtils: dependencies.formatUtils,
+          });
+        }
+
+        // Try to get streaming service from the ServiceRegistry
+        let streamingService;
+        try {
+          const { ServiceRegistry } = await import('../core/serviceRegistry');
+          const registry = ServiceRegistry.getInstance();
+
+          if (registry.isRegistered('IStreamingTransformationService')) {
+            streamingService = registry.resolve<IStreamingTransformationService>(
+              'IStreamingTransformationService'
+            );
+            debug('ImageTransformationService', 'Found StreamingTransformationService in registry');
+          }
+        } catch (err) {
+          debug('ImageTransformationService', 'Error resolving StreamingTransformationService', {
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+
         // Create and execute the command using the factory function with DI
         const command = createTransformImageCommand(
           {
@@ -174,6 +222,10 @@ export function createImageTransformationService(
               getDeviceTypeFromUserAgent: () => 'desktop',
               normalizeDeviceType: (type) => type,
             },
+            // Add the streaming service if available
+            streamingService,
+            // Add the R2 processor if available
+            r2Processor,
           }
         );
 

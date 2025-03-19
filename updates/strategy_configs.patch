@@ -1,0 +1,88 @@
+diff --git a/wrangler.jsonc b/wrangler.jsonc
+index 12345678..87654321 100644
+--- a/wrangler.jsonc
++++ b/wrangler.jsonc
+@@ -49,6 +49,27 @@
+         "includeTimestamp": true,
+         "enableStructuredLogs": true
+       },
++      // Strategy configuration
++      "STRATEGIES_CONFIG": {
++        "priorityOrder": [
++          "cdn-cgi",
++          "interceptor", 
++          "direct-url", 
++          "remote-fallback", 
++          "direct-serving"
++        ],
++        "environmentConfig": {
++          "development": {
++            "interceptor": true,
++            "cdn-cgi": true,
++            "direct-url": true,
++            "remote-fallback": true,
++            "direct-serving": true
++          }
++        },
++        "domainConfig": {
++        }
++      },
+       // Cache method configuration
+       "CACHE_METHOD": "cf",
+       "CACHE_DEBUG": "true",
+@@ -226,6 +247,27 @@
+         "includeTimestamp": true,
+         "enableStructuredLogs": true
+       },
++      // Strategy configuration
++      "STRATEGIES_CONFIG": {
++        "priorityOrder": [
++          "interceptor", 
++          "cdn-cgi", 
++          "direct-url", 
++          "remote-fallback", 
++          "direct-serving"
++        ],
++        "environmentConfig": {
++          "staging": {
++            "interceptor": true,
++            "cdn-cgi": true,
++            "direct-url": true,
++            "remote-fallback": true,
++            "direct-serving": true
++          }
++        },
++        "domainConfig": {
++        }
++      },
+       // Cache method configuration
+       "CACHE_METHOD": "cache-api",
+       "CACHE_DEBUG": "false",
+@@ -404,6 +446,27 @@
+         "includeTimestamp": true,
+         "enableStructuredLogs": true
+       },
++      // Strategy configuration
++      "STRATEGIES_CONFIG": {
++        "priorityOrder": [
++          "interceptor", 
++          "cdn-cgi", 
++          "direct-url", 
++          "remote-fallback", 
++          "direct-serving"
++        ],
++        "environmentConfig": {
++          "production": {
++            "interceptor": true,
++            "cdn-cgi": true,
++            "direct-url": true,
++            "remote-fallback": true,
++            "direct-serving": true
++          }
++        },
++        "domainConfig": {
++        }
++      },
+       // Cache method configuration
+       "CACHE_METHOD": "cf",
+       "CACHE_DEBUG": "true",

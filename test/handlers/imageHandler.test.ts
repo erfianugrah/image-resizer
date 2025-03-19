@@ -31,11 +31,11 @@ vi.mock('../../src/utils/urlTransformUtils', () => {
       const url = new URL(request.url);
       const path = url.pathname;
       const filename = path.split('/').pop() || '';
-      
+
       // Simple method to determine if we're using R2
       const isR2 = config.mode === 'hybrid' || config.mode === 'r2-only';
       const hasR2 = env && (env.IMAGES_BUCKET || env.TEST_BUCKET);
-      
+
       return {
         originRequest: request,
         bucketName: isR2 && hasR2 ? 'test-bucket' : undefined,
@@ -103,34 +103,38 @@ vi.mock('../../src/services/debugService', () => ({
 
 vi.mock('../../src/services/imageTransformationService', () => ({
   createImageTransformationService: vi.fn(() => ({
-    transformImage: vi.fn().mockImplementation((request, options, pathPatterns, debugInfo, config) => {
-      // Return a different response based on whether it's an R2 request
-      if (debugInfo.isR2Fetch && config.isR2Fetch) {
-        const headers = new Headers({
-          'content-type': 'image/webp',
-          'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
-          'x-source': 'r2-cdn-cgi-transform',
-          'content-length': '5000',
-          'cache-control': 'public, max-age=86400',
-        });
-        
-        if (debugInfo.isEnabled) {
-          headers.set('debug-info', JSON.stringify({ source: 'r2', options }));
+    transformImage: vi
+      .fn()
+      .mockImplementation((request, options, pathPatterns, debugInfo, config) => {
+        // Return a different response based on whether it's an R2 request
+        if (debugInfo.isR2Fetch && config.isR2Fetch) {
+          const headers = new Headers({
+            'content-type': 'image/webp',
+            'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
+            'x-source': 'r2-cdn-cgi-transform',
+            'content-length': '5000',
+            'cache-control': 'public, max-age=86400',
+          });
+
+          if (debugInfo.isEnabled) {
+            headers.set('debug-info', JSON.stringify({ source: 'r2', options }));
+          }
+
+          return Promise.resolve(new Response('R2 Transformed image', { status: 200, headers }));
         }
-        
-        return Promise.resolve(new Response('R2 Transformed image', { status: 200, headers }));
-      }
-      
-      return Promise.resolve(new Response('Transformed image', {
-        status: 200,
-        headers: {
-          'content-type': 'image/webp',
-          'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
-          'x-source': 'direct-transform',
-          'cache-control': 'public, max-age=86400',
-        },
-      }));
-    }),
+
+        return Promise.resolve(
+          new Response('Transformed image', {
+            status: 200,
+            headers: {
+              'content-type': 'image/webp',
+              'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
+              'x-source': 'direct-transform',
+              'cache-control': 'public, max-age=86400',
+            },
+          })
+        );
+      }),
   })),
 }));
 
@@ -194,23 +198,25 @@ describe('ImageHandler', () => {
   let mockConfig: AppConfig;
   let mockR2Bucket: any;
   let mockEnv: Record<string, unknown>;
-  
+
   beforeEach(() => {
     // Reset mocks
     vi.resetAllMocks();
-    
+
     // Setup mock fetch
     vi.mocked(fetch).mockImplementation(() => {
-      return Promise.resolve(new Response('Image data', {
-        status: 200,
-        headers: {
-          'content-type': 'image/jpeg',
-          'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
-          'content-length': '5000',
-        },
-      }));
+      return Promise.resolve(
+        new Response('Image data', {
+          status: 200,
+          headers: {
+            'content-type': 'image/jpeg',
+            'cf-resized': 'internal=ok/- q=80 n=800+600 c=300+200',
+            'content-length': '5000',
+          },
+        })
+      );
     });
-    
+
     // Create mock R2 bucket with get method that returns our MockR2Object
     mockR2Bucket = {
       get: vi.fn().mockImplementation(async (key) => {
@@ -220,7 +226,7 @@ describe('ImageHandler', () => {
         return null; // Not found for other keys
       }),
     };
-    
+
     // Basic config for tests
     mockConfig = {
       mode: 'hybrid', // Default to hybrid mode which supports both R2 and remote
@@ -276,7 +282,7 @@ describe('ImageHandler', () => {
         },
       },
     };
-    
+
     // Environment with R2 bucket
     mockEnv = {
       IMAGES_BUCKET: mockR2Bucket,
@@ -284,30 +290,32 @@ describe('ImageHandler', () => {
       DEPLOYMENT_MODE: 'test',
     };
   });
-  
+
   it('should handle R2 image requests successfully', async () => {
     // Arrange
     const request = new Request('https://example.com/images/test-image.jpg');
-    
+
     // Act
     const response = await handleImageRequest(request, mockConfig, mockEnv);
-    
+
     // Debug check for errors
     if (response.status !== 200) {
       console.error('Response status:', response.status);
       console.error('Response text:', await response.clone().text());
     }
-    
+
     // Assert
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/webp');
     expect(response.headers.get('cf-resized')).toBeTruthy();
     expect(response.headers.get('x-source')).toContain('r2');
   });
-  
+
   it('should handle non-R2 image requests in hybrid mode', async () => {
     // Arrange - create a special mock for this test
-    const { createImageTransformationService } = await import('../../src/services/imageTransformationService');
+    const { createImageTransformationService } = await import(
+      '../../src/services/imageTransformationService'
+    );
     vi.mocked(createImageTransformationService).mockReturnValueOnce({
       transformImage: vi.fn().mockResolvedValue(
         new Response('Remote image', {
@@ -316,11 +324,11 @@ describe('ImageHandler', () => {
             'content-type': 'image/webp',
             'cf-resized': 'internal=ok',
             'x-source': 'direct-transform',
-          }
+          },
         })
       ),
     } as any);
-    
+
     // Override the transform request function
     const { transformRequestUrl } = await import('../../src/utils/urlTransformUtils');
     vi.mocked(transformRequestUrl).mockImplementationOnce((request) => {
@@ -334,21 +342,23 @@ describe('ImageHandler', () => {
         r2Key: undefined,
       };
     });
-    
+
     const request = new Request('https://example.com/images/test-image.jpg');
-    
+
     // Act
     const response = await handleImageRequest(request, mockConfig, mockEnv);
-    
+
     // Assert
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/webp');
     expect(response.headers.get('x-source')).toBe('direct-transform');
   });
-  
+
   it('should handle cached responses', async () => {
     // Arrange - mock cache to return a response
-    const { createCacheManagementService } = await import('../../src/services/cacheManagementService');
+    const { createCacheManagementService } = await import(
+      '../../src/services/cacheManagementService'
+    );
     vi.mocked(createCacheManagementService).mockReturnValueOnce({
       getCachedResponse: vi.fn().mockResolvedValue(
         new Response('Cached image', {
@@ -362,25 +372,27 @@ describe('ImageHandler', () => {
       cacheResponse: vi.fn().mockResolvedValue(undefined),
       applyCacheHeaders: vi.fn((response) => response),
     } as any);
-    
+
     const request = new Request('https://example.com/images/test-image.jpg');
-    
+
     // Act
     const response = await handleImageRequest(request, mockConfig, mockEnv);
-    
+
     // Assert
     expect(response.status).toBe(200);
     expect(await response.text()).toBe('Cached image');
     expect(response.headers.get('cf-cache-status')).toBe('HIT');
   });
-  
+
   it('should handle errors gracefully', async () => {
     // Arrange - make transformation service throw an error
-    const { createImageTransformationService } = await import('../../src/services/imageTransformationService');
+    const { createImageTransformationService } = await import(
+      '../../src/services/imageTransformationService'
+    );
     vi.mocked(createImageTransformationService).mockReturnValueOnce({
       transformImage: vi.fn().mockRejectedValue(new Error('Transformation failed')),
     } as any);
-    
+
     // Also fix our error mocks
     const { createErrorResponseFactory } = await import('../../src/types/utils/errors');
     vi.mocked(createErrorResponseFactory).mockReturnValueOnce({
@@ -391,22 +403,25 @@ describe('ImageHandler', () => {
         })
       ),
     } as any);
-    
+
     const request = new Request('https://example.com/images/test-image.jpg');
-    
+
     // Act
     const response = await handleImageRequest(request, mockConfig, mockEnv);
-    
+
     // Assert
     expect(response.status).toBe(500);
     const responseText = await response.text();
     expect(responseText).toContain('Transformation failed');
   });
-  
+
   it('should add debug information when debug is enabled', async () => {
     // Arrange - enable debug
-    const debugConfig = { ...mockConfig, debug: { enabled: true, verbose: true, includeHeaders: true } };
-    
+    const debugConfig = {
+      ...mockConfig,
+      debug: { enabled: true, verbose: true, includeHeaders: true },
+    };
+
     // Create debug service with specific headers
     const { createDebugService } = await import('../../src/services/debugService');
     vi.mocked(createDebugService).mockReturnValueOnce({
@@ -419,34 +434,34 @@ describe('ImageHandler', () => {
         });
       }),
     } as any);
-    
+
     const request = new Request('https://example.com/images/test-image.jpg');
-    
+
     // Act
     const response = await handleImageRequest(request, debugConfig, mockEnv);
-    
+
     // Assert
     expect(response.status).toBe(200);
     expect(response.headers.get('debug-info')).toBeTruthy();
   });
-  
+
   it('should handle custom R2 binding name from config', async () => {
     // Arrange - Config with custom R2 binding
-    const customConfig = { 
+    const customConfig = {
       ...mockConfig,
       originConfig: {
         r2: {
-          binding_name: 'TEST_BUCKET'
-        }
-      }
+          binding_name: 'TEST_BUCKET',
+        },
+      },
     };
-    
+
     // Environment with custom bucket name
     const customEnv = {
       TEST_BUCKET: mockR2Bucket,
       VERSION: '1.0.0-test',
     };
-    
+
     // Make sure the R2 key is detected correctly
     const { transformRequestUrl } = await import('../../src/utils/urlTransformUtils');
     vi.mocked(transformRequestUrl).mockImplementationOnce((request) => {
@@ -460,12 +475,12 @@ describe('ImageHandler', () => {
         r2Key: 'test-image.jpg',
       };
     });
-    
+
     const request = new Request('https://example.com/images/test-image.jpg');
-    
+
     // Act
     const response = await handleImageRequest(request, customConfig, customEnv);
-    
+
     // Assert
     expect(response.status).toBe(200);
     expect(response.headers.get('x-source')).toContain('r2');

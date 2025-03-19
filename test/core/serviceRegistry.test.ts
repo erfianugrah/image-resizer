@@ -17,10 +17,10 @@ class MockR2Object {
     // Create a simple stream with some bytes for testing
     this.body = new ReadableStream({
       start(controller) {
-        const bytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]); // Simple JPEG header
+        const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]); // Simple JPEG header
         controller.enqueue(bytes);
         controller.close();
-      }
+      },
     });
   }
 }
@@ -33,7 +33,7 @@ class MockR2Bucket {
   constructor(name: string) {
     this.name = name;
     this.objects = new Map<string, MockR2Object>();
-    
+
     // Add some default test objects
     this.addObject('test.jpg', 'image/jpeg', 100000);
     this.addObject('test.png', 'image/png', 150000);
@@ -50,7 +50,7 @@ class MockR2Bucket {
   async head(key: string): Promise<{ key: string; size: number; contentType?: string } | null> {
     const object = this.objects.get(key);
     if (!object) return null;
-    
+
     return {
       key: object.key,
       size: object.size,
@@ -76,8 +76,8 @@ interface IMockImageTransformer {
 describe('ServiceRegistry', () => {
   let registry: IServiceRegistry;
   let mockR2Bucket: MockR2Bucket;
-  const mockEnv = { 
-    IMAGES_BUCKET: {} as R2Bucket
+  const mockEnv = {
+    IMAGES_BUCKET: {} as R2Bucket,
   };
 
   beforeEach(() => {
@@ -100,11 +100,11 @@ describe('ServiceRegistry', () => {
           mode: 'hybrid',
           r2: {
             enabled: true,
-            binding_name: 'IMAGES_BUCKET'
-          }
-        })
+            binding_name: 'IMAGES_BUCKET',
+          },
+        }),
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     };
 
     // Act
@@ -124,9 +124,9 @@ describe('ServiceRegistry', () => {
     const r2ServiceRegistration: ServiceRegistration<IMockR2Service> = {
       factory: () => ({
         getObject: async (key: string) => mockR2Bucket.get(key),
-        listObjects: async () => Array.from(mockR2Bucket.objects.keys())
+        listObjects: async () => Array.from(mockR2Bucket.objects.keys()),
       }),
-      lifecycle: 'transient'
+      lifecycle: 'transient',
     };
 
     // Act
@@ -145,9 +145,9 @@ describe('ServiceRegistry', () => {
     const r2ServiceRegistration: ServiceRegistration<IMockR2Service> = {
       factory: () => ({
         getObject: async (key: string) => mockR2Bucket.get(key),
-        listObjects: async () => Array.from(mockR2Bucket.objects.keys())
+        listObjects: async () => Array.from(mockR2Bucket.objects.keys()),
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     };
 
     // Act
@@ -169,22 +169,31 @@ describe('ServiceRegistry', () => {
       factory: () => ({
         transform: async (imageData, options) => {
           // Mock transformation that just returns a new Uint8Array
-          return new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10]);
-        }
+          return new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+        },
       }),
-      lifecycle: 'scoped'
+      lifecycle: 'scoped',
     };
 
     // Act
     registry.register('IMockImageTransformer', imageTransformerRegistration);
-    
+
     // Create two different scopes
     const scope1 = registry.createScope();
     const scope2 = registry.createScope();
-    
-    const transformer1Scope1 = registry.resolve<IMockImageTransformer>('IMockImageTransformer', scope1);
-    const transformer2Scope1 = registry.resolve<IMockImageTransformer>('IMockImageTransformer', scope1);
-    const transformerScope2 = registry.resolve<IMockImageTransformer>('IMockImageTransformer', scope2);
+
+    const transformer1Scope1 = registry.resolve<IMockImageTransformer>(
+      'IMockImageTransformer',
+      scope1
+    );
+    const transformer2Scope1 = registry.resolve<IMockImageTransformer>(
+      'IMockImageTransformer',
+      scope1
+    );
+    const transformerScope2 = registry.resolve<IMockImageTransformer>(
+      'IMockImageTransformer',
+      scope2
+    );
 
     // Assert
     expect(transformer1Scope1).toBeDefined();
@@ -192,7 +201,7 @@ describe('ServiceRegistry', () => {
     expect(transformerScope2).toBeDefined();
     expect(transformer1Scope1).toBe(transformer2Scope1); // Same instance within a scope
     expect(transformer1Scope1).not.toBe(transformerScope2); // Different instance across scopes
-    
+
     // Clean up scopes
     registry.disposeScope(scope1);
     registry.disposeScope(scope2);
@@ -207,63 +216,65 @@ describe('ServiceRegistry', () => {
           mode: 'hybrid',
           r2: {
             enabled: true,
-            binding_name: 'IMAGES_BUCKET'
-          }
-        })
+            binding_name: 'IMAGES_BUCKET',
+          },
+        }),
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
-    
+
     // Register R2 service with dependency on config manager
     registry.register('IMockR2Service', {
       factory: (deps) => {
         const configManager = deps.IMockConfigManager as IMockConfigManager;
         const config = configManager.getConfig();
         const bucketName = config.r2.binding_name;
-        
+
         return {
           getObject: async (key: string) => mockR2Bucket.get(key),
           listObjects: async () => Array.from(mockR2Bucket.objects.keys()),
-          getBucketName: () => bucketName
+          getBucketName: () => bucketName,
         };
       },
       lifecycle: 'singleton',
-      dependencies: ['IMockConfigManager']
+      dependencies: ['IMockConfigManager'],
     });
-    
+
     // Register transformer with dependency on R2 service
     registry.register('IMockImageTransformer', {
       factory: (deps) => {
         const r2Service = deps.IMockR2Service as IMockR2Service & { getBucketName: () => string };
-        
+
         return {
           transform: async (imageData, options) => {
-            return new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10]);
+            return new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
           },
           getBucketInfo: async () => {
             const objectList = await r2Service.listObjects();
             return {
               bucketName: r2Service.getBucketName(),
-              objectCount: objectList.length
+              objectCount: objectList.length,
             };
-          }
+          },
         };
       },
       lifecycle: 'singleton',
-      dependencies: ['IMockR2Service']
+      dependencies: ['IMockR2Service'],
     });
 
     // Act
-    const imageTransformer = registry.resolve<IMockImageTransformer & { 
-      getBucketInfo: () => Promise<{ bucketName: string; objectCount: number }> 
-    }>('IMockImageTransformer');
-    
+    const imageTransformer = registry.resolve<
+      IMockImageTransformer & {
+        getBucketInfo: () => Promise<{ bucketName: string; objectCount: number }>;
+      }
+    >('IMockImageTransformer');
+
     // Assert
     expect(imageTransformer).toBeDefined();
     expect(typeof imageTransformer.transform).toBe('function');
-    
+
     // Test dependency chain
-    return imageTransformer.getBucketInfo().then(info => {
+    return imageTransformer.getBucketInfo().then((info) => {
       expect(info.bucketName).toBe('IMAGES_BUCKET');
       expect(info.objectCount).toBe(2); // test.jpg and test.png
     });
@@ -280,7 +291,7 @@ describe('ServiceRegistry', () => {
     // Arrange
     registry.register('RegisteredService', {
       factory: () => ({}),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
 
     // Act & Assert
@@ -292,17 +303,17 @@ describe('ServiceRegistry', () => {
     // Arrange
     registry.register('IMockConfigManager', {
       factory: () => ({
-        getConfig: () => ({ version: '1.0.0' })
+        getConfig: () => ({ version: '1.0.0' }),
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
 
     // Act - Override registration
     registry.register('IMockConfigManager', {
       factory: () => ({
-        getConfig: () => ({ version: '2.0.0' })
+        getConfig: () => ({ version: '2.0.0' }),
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
 
     const configManager = registry.resolve<IMockConfigManager>('IMockConfigManager');
@@ -315,7 +326,7 @@ describe('ServiceRegistry', () => {
     // Arrange
     registry.register('ScopedService', {
       factory: () => ({}),
-      lifecycle: 'scoped'
+      lifecycle: 'scoped',
     });
 
     // Act & Assert
@@ -327,14 +338,14 @@ describe('ServiceRegistry', () => {
   it('should return global registry instance', () => {
     // Act
     const globalRegistry = getGlobalRegistry();
-    
+
     // Assert
     expect(globalRegistry).toBe(registry);
   });
 
   it('should handle real R2 service integration pattern from the application', () => {
     // Arrange - Simulate the actual R2 service registration pattern from index.ts
-    
+
     // 1. Register logger
     registry.register('ILogger', {
       factory: () => ({
@@ -342,11 +353,11 @@ describe('ServiceRegistry', () => {
         error: vi.fn(),
         info: vi.fn(),
         logResponse: vi.fn(),
-        logRequest: vi.fn()
+        logRequest: vi.fn(),
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
-    
+
     // 2. Register config manager
     registry.register('IConfigManager', {
       factory: () => {
@@ -356,30 +367,30 @@ describe('ServiceRegistry', () => {
             mode: 'hybrid',
             r2: {
               enabled: true,
-              binding_name: 'IMAGES_BUCKET'
+              binding_name: 'IMAGES_BUCKET',
             },
             cache: {
               method: 'cache-api',
-              ttl: { ok: 86400 }
+              ttl: { ok: 86400 },
             },
             derivatives: {
               mobile: { width: 480, quality: 80 },
-              desktop: { width: 1440, quality: 85 }
+              desktop: { width: 1440, quality: 85 },
             },
-            environment: 'test'
+            environment: 'test',
           }),
-          initialize: (env: Record<string, unknown>) => {}
+          initialize: (env: Record<string, unknown>) => {},
         };
         return configManager;
       },
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
-    
+
     // 3. Register URL transform utils (which handles R2 path transformations)
     registry.register('IUrlTransformUtils', {
       factory: (deps) => {
         const logger = deps.ILogger;
-        
+
         return {
           transformUrlToImageDelivery: vi.fn((url: string) => url),
           processR2Url: vi.fn((url: string, r2Bucket: string) => {
@@ -388,24 +399,24 @@ describe('ServiceRegistry', () => {
             const path = urlObj.pathname;
             // Remove leading slash if present
             const r2Key = path.startsWith('/') ? path.substring(1) : path;
-            
+
             return {
               r2Key,
               bucketName: r2Bucket,
-              transformedUrl: `/cdn-cgi/image/width=800,quality=80/${r2Key}`
+              transformedUrl: `/cdn-cgi/image/width=800,quality=80/${r2Key}`,
             };
           }),
-          processUrl: vi.fn((url: string) => ({ 
-            sourceUrl: url, 
+          processUrl: vi.fn((url: string) => ({
+            sourceUrl: url,
             transformedUrl: url,
-            options: {} 
-          }))
+            options: {},
+          })),
         };
       },
       lifecycle: 'singleton',
-      dependencies: ['ILogger']
+      dependencies: ['ILogger'],
     });
-    
+
     // 4. Register R2 integration service
     registry.register('IR2IntegrationService', {
       factory: (deps) => {
@@ -413,9 +424,12 @@ describe('ServiceRegistry', () => {
         const configManager = deps.IConfigManager;
         const urlTransformUtils = deps.IUrlTransformUtils;
         const config = configManager.getConfig();
-        
+
         return {
-          getR2Object: async (key: string, env: Record<string, unknown>): Promise<MockR2Object | null> => {
+          getR2Object: async (
+            key: string,
+            env: Record<string, unknown>
+          ): Promise<MockR2Object | null> => {
             const bucketName = config.r2?.binding_name || 'IMAGES_BUCKET';
             const bucket = env[bucketName] as unknown as MockR2Bucket;
             if (!bucket) return null;
@@ -425,11 +439,11 @@ describe('ServiceRegistry', () => {
             const bucketName = config.r2?.binding_name || 'IMAGES_BUCKET';
             const result = urlTransformUtils.processR2Url(url, bucketName);
             return result.transformedUrl;
-          }
+          },
         };
       },
       lifecycle: 'singleton',
-      dependencies: ['ILogger', 'IConfigManager', 'IUrlTransformUtils']
+      dependencies: ['ILogger', 'IConfigManager', 'IUrlTransformUtils'],
     });
 
     // Act
@@ -437,15 +451,15 @@ describe('ServiceRegistry', () => {
       getR2Object: (key: string, env: Record<string, unknown>) => Promise<MockR2Object | null>;
       transformR2Url: (url: string) => string;
     }>('IR2IntegrationService');
-    
+
     // Assert
     expect(r2Service).toBeDefined();
-    
+
     // Test R2 object retrieval
-    return r2Service.getR2Object('test.jpg', mockEnv).then(object => {
+    return r2Service.getR2Object('test.jpg', mockEnv).then((object) => {
       expect(object).toBeDefined();
       expect(object?.httpMetadata.contentType).toBe('image/jpeg');
-      
+
       // Test URL transformation
       const transformedUrl = r2Service.transformR2Url('https://example.com/test.jpg');
       expect(transformedUrl).toBe('/cdn-cgi/image/width=800,quality=80/test.jpg');
@@ -456,24 +470,24 @@ describe('ServiceRegistry', () => {
     // Arrange
     registry.register('DynamicService', {
       factory: () => ({
-        value: 'singleton'
+        value: 'singleton',
       }),
-      lifecycle: 'singleton'
+      lifecycle: 'singleton',
     });
-    
-    const instance1 = registry.resolve<{value: string}>('DynamicService');
-    
+
+    const instance1 = registry.resolve<{ value: string }>('DynamicService');
+
     // Act - Change the registration to transient
     registry.register('DynamicService', {
       factory: () => ({
-        value: 'transient'
+        value: 'transient',
       }),
-      lifecycle: 'transient'
+      lifecycle: 'transient',
     });
-    
-    const instance2 = registry.resolve<{value: string}>('DynamicService');
-    const instance3 = registry.resolve<{value: string}>('DynamicService');
-    
+
+    const instance2 = registry.resolve<{ value: string }>('DynamicService');
+    const instance3 = registry.resolve<{ value: string }>('DynamicService');
+
     // Assert
     expect(instance1.value).toBe('singleton');
     expect(instance2.value).toBe('transient');

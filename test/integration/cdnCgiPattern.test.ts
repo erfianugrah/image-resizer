@@ -24,6 +24,34 @@ vi.mock('../../src/core/serviceRegistry', () => {
     })),
   };
 
+  // Create a mock R2ImageProcessorService that adds CF headers
+  const mockR2Processor = {
+    processR2Image: vi.fn(
+      async (r2Key, r2Bucket, imageOptions, request, cacheConfig, fallbackUrl) => {
+        // Create a mock response that has the expected Cloudflare headers
+        const headers = new Headers({
+          'Content-Type': 'image/jpeg',
+          'Content-Length': '500',
+          'cf-resized': `internal=ok/- q=${imageOptions.quality || 80}${imageOptions.width ? ` n=${imageOptions.width}` : ''}`,
+          'Cache-Control': 'public, max-age=86400',
+          'X-Source': 'r2-cf-proxy-transform',
+        });
+
+        if (imageOptions.format === 'webp') {
+          headers.set('Content-Type', 'image/webp');
+        } else if (imageOptions.format === 'avif') {
+          headers.set('Content-Type', 'image/avif');
+        }
+
+        // Return a response with the mock headers
+        return new Response('Mock Image Data', {
+          status: 200,
+          headers,
+        });
+      }
+    ),
+  };
+
   return {
     ServiceRegistry: {
       getInstance: vi.fn(() => ({
@@ -35,7 +63,7 @@ vi.mock('../../src/core/serviceRegistry', () => {
             return {
               debug: vi.fn(),
               error: vi.fn(),
-              info: vi.fn()
+              info: vi.fn(),
             };
           }
           if (serviceId === 'IDebugService') {
@@ -87,6 +115,9 @@ vi.mock('../../src/core/serviceRegistry', () => {
               }),
             };
           }
+          if (serviceId === 'IR2ImageProcessorService') {
+            return mockR2Processor;
+          }
           return {};
         }),
       })),
@@ -102,7 +133,12 @@ class MockR2Object {
   size: number;
   customMetadata?: Record<string, string>;
 
-  constructor(key: string, contentType: string, size: number, customMetadata?: Record<string, string>) {
+  constructor(
+    key: string,
+    contentType: string,
+    size: number,
+    customMetadata?: Record<string, string>
+  ) {
     this.key = key;
     this.httpMetadata = { contentType };
     this.size = size;
@@ -113,28 +149,32 @@ class MockR2Object {
       start(controller) {
         // For image types, create a minimal valid image buffer
         let bytes: Uint8Array;
-        
+
         // Create different mock content based on content type
         if (contentType === 'image/jpeg') {
           // Simple JPEG header bytes
-          bytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46]);
+          bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
         } else if (contentType === 'image/png') {
           // Simple PNG header bytes
-          bytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+          bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
         } else if (contentType === 'image/webp') {
           // Simple WebP header bytes
-          bytes = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]);
+          bytes = new Uint8Array([
+            0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+          ]);
         } else if (contentType === 'image/avif') {
           // Simple AVIF header bytes
-          bytes = new Uint8Array([0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66]);
+          bytes = new Uint8Array([
+            0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66,
+          ]);
         } else {
           // Default plain text or binary content
           bytes = new TextEncoder().encode('Mock content for ' + key);
         }
-        
+
         controller.enqueue(bytes);
         controller.close();
-      }
+      },
     });
   }
 }
@@ -147,7 +187,7 @@ class MockR2Bucket {
   constructor(name: string) {
     this.name = name;
     this.objects = new Map<string, MockR2Object>();
-    
+
     // Add test objects with different formats
     this.addObject('image.jpg', 'image/jpeg', 100000);
     this.addObject('image.png', 'image/png', 150000);
@@ -155,12 +195,17 @@ class MockR2Bucket {
     this.addObject('image.avif', 'image/avif', 60000);
     this.addObject('large-image.jpg', 'image/jpeg', 5000000);
     this.addObject('document.pdf', 'application/pdf', 2000000);
-    
+
     // Make the object available via binding
     (globalThis as any).IMAGES_BUCKET = this;
   }
 
-  addObject(key: string, contentType: string, size: number, customMetadata?: Record<string, string>) {
+  addObject(
+    key: string,
+    contentType: string,
+    size: number,
+    customMetadata?: Record<string, string>
+  ) {
     this.objects.set(key, new MockR2Object(key, contentType, size, customMetadata));
   }
 
@@ -168,10 +213,15 @@ class MockR2Bucket {
     return this.objects.get(key) || null;
   }
 
-  async head(key: string): Promise<{ key: string; size: number; contentType?: string; customMetadata?: Record<string, string> } | null> {
+  async head(key: string): Promise<{
+    key: string;
+    size: number;
+    contentType?: string;
+    customMetadata?: Record<string, string>;
+  } | null> {
     const object = this.objects.get(key);
     if (!object) return null;
-    
+
     return {
       key: object.key,
       size: object.size,
@@ -183,6 +233,34 @@ class MockR2Bucket {
 
 // Helper function to create command dependencies
 function createCommandDependencies() {
+  // Create a mock R2Processor directly instead of trying to get it from the registry
+  const mockR2Processor = {
+    processR2Image: vi.fn(
+      async (r2Key, r2Bucket, imageOptions, request, cacheConfig, fallbackUrl) => {
+        // Create a mock response that has the expected Cloudflare headers
+        const headers = new Headers({
+          'Content-Type': 'image/jpeg',
+          'Content-Length': '500',
+          'cf-resized': `internal=ok/- q=${imageOptions.quality || 80}${imageOptions.width ? ` n=${imageOptions.width}` : ''}`,
+          'Cache-Control': 'public, max-age=86400',
+          'X-Source': 'r2-cf-proxy-transform',
+        });
+
+        if (imageOptions.format === 'webp') {
+          headers.set('Content-Type', 'image/webp');
+        } else if (imageOptions.format === 'avif') {
+          headers.set('Content-Type', 'image/avif');
+        }
+
+        // Return a response with the mock headers
+        return new Response('Mock Image Data', {
+          status: 200,
+          headers,
+        });
+      }
+    ),
+  };
+
   return {
     logger: {
       debug: vi.fn(),
@@ -243,111 +321,65 @@ function createCommandDependencies() {
     },
     urlTransformUtils: {
       transformUrlToImageDelivery: vi.fn((url) => url),
-      processUrl: vi.fn((url) => ({ 
-        sourceUrl: url, 
-        transformedUrl: url, 
-        options: { width: 800 } 
+      processUrl: vi.fn((url) => ({
+        sourceUrl: url,
+        transformedUrl: url,
+        options: { width: 800 },
       })),
     },
     config: {
       getImageConfig: vi.fn(() => ({
         derivatives: {
           thumbnail: { width: 200, height: 200 },
-          large: { width: 1200 }
+          large: { width: 1200 },
         },
       })),
     },
+    // Add the R2Processor service
+    r2Processor: mockR2Processor,
   };
 }
 
 describe('CDN-CGI Pattern Tests', () => {
   let mockR2Bucket: MockR2Bucket;
-  
+
   beforeEach(() => {
     // Reset mock bucket for each test
     mockR2Bucket = new MockR2Bucket('IMAGES_BUCKET');
-    
+
     // Reset and setup fetch mock
     vi.mocked(fetch).mockReset();
+
+    // NOTE: We aren't using fetch mock anymore for the CDN-CGI transformation part
+    // since the tests now use our mock R2ImageProcessorService instead.
+    // This mock is just for the other test cases.
     vi.mocked(fetch).mockImplementation((url, options) => {
-      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
+      const urlString =
+        typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
 
       // Special handling for PDF file
       if (urlString.includes('document.pdf')) {
-        return Promise.resolve(new Response('PDF Content', { 
+        return Promise.resolve(
+          new Response('PDF Content', {
+            status: 200,
+            headers: {
+              'content-type': 'application/pdf',
+              'content-length': '2000000',
+            },
+          })
+        );
+      }
+
+      // Default response for all other URLs
+      return Promise.resolve(
+        new Response('Image Data', {
           status: 200,
           headers: {
-            'content-type': 'application/pdf',
-            'content-length': '2000000',
-          }
-        }));
-      }
-      
-      // Check if the URL contains the CDN-CGI pattern
-      if (urlString.includes('/cdn-cgi/image/')) {
-        // Extract params from the URL to simulate proper transformation
-        const paramsMatch = urlString.match(/\/cdn-cgi\/image\/([^/]+)/);
-        const params = paramsMatch ? paramsMatch[1].split(',') : [];
-        
-        // Parse parameters
-        const paramMap: Record<string, string> = {};
-        params.forEach(param => {
-          const [key, value] = param.split('=');
-          if (key && value) paramMap[key] = value;
-        });
-        
-        // Extract parameters
-        const width = paramMap.width ? parseInt(paramMap.width) : null;
-        const height = paramMap.height ? parseInt(paramMap.height) : null;
-        const quality = paramMap.quality ? parseInt(paramMap.quality) : 80;
-        const format = paramMap.format || 'auto';
-        const fit = paramMap.fit || 'cover';
-        
-        // Determine content type based on format
-        let contentType = 'image/jpeg';
-        if (format === 'webp') contentType = 'image/webp';
-        if (format === 'avif') contentType = 'image/avif';
-        if (format === 'png') contentType = 'image/png';
-        
-        // Calculate a realistic content length based on the parameters
-        let contentLength = 100000; // Base size
-        
-        // Apply various transformations to simulate realistic size changes
-        if (width) {
-          // Resize based on width
-          contentLength = Math.floor(contentLength * (width / 1000));
-        }
-        
-        // Quality adjustment
-        contentLength = Math.floor(contentLength * (quality / 100));
-        
-        // Format adjustment
-        if (format === 'webp') contentLength = Math.floor(contentLength * 0.8);
-        if (format === 'avif') contentLength = Math.floor(contentLength * 0.7);
-        
-        // Create response headers that match Cloudflare's pattern
-        const headers = new Headers({
-          'content-type': contentType,
-          'content-length': String(contentLength),
-          'cf-resized': `internal=ok/- q=${quality}${width ? ` n=${width}` : ''}${height ? `+${height}` : ''}`,
-          'x-source': 'r2-cdn-cgi-transform',
-          'cache-control': 'public, max-age=86400',
-        });
-        
-        return Promise.resolve(new Response('Transformed Image Data', { 
-          status: 200, 
-          headers 
-        }));
-      }
-      
-      // Default response for non-CDN-CGI URLs
-      return Promise.resolve(new Response('Original Image Data', { 
-        status: 200,
-        headers: {
-          'content-type': 'image/jpeg',
-          'content-length': '100000',
-        }
-      }));
+            'content-type': 'image/jpeg',
+            'content-length': '100000',
+          },
+        })
+      );
     });
   });
 
@@ -364,30 +396,33 @@ describe('CDN-CGI Pattern Tests', () => {
         isR2Fetch: true,
         r2Key: 'image.jpg',
         r2Bucket: mockR2Bucket,
+        fallbackBucket: 'https://example.com',
       },
       debugInfo: {
         isEnabled: false,
       },
     };
-    
+
+    // Get the mock dependencies
+    const deps = createCommandDependencies();
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
-    // Verify the response
+
+    // Verify the response from mock R2 processor
     expect(response.status).toBe(200);
     expect(response.headers.get('cf-resized')).toBeTruthy();
-    
-    // Check that the correct CDN-CGI URL was constructed
-    const fetchCalls = vi.mocked(fetch).mock.calls;
-    const cdnCgiCall = fetchCalls.find(call => {
-      const url = typeof call[0] === 'string' ? call[0] : call[0]?.url;
-      return typeof url === 'string' && url.includes('/cdn-cgi/image/');
-    });
-    
-    expect(cdnCgiCall).toBeTruthy();
-    const cdnCgiUrl = typeof cdnCgiCall?.[0] === 'string' ? cdnCgiCall?.[0] : cdnCgiCall?.[0]?.url;
-    expect(cdnCgiUrl).toContain('/cdn-cgi/image/width=800/');
+
+    // Verify the R2 processor was called with correct parameters
+    expect(deps.r2Processor.processR2Image).toHaveBeenCalledWith(
+      'image.jpg',
+      mockR2Bucket,
+      expect.objectContaining({ width: 800 }),
+      expect.anything(),
+      expect.anything(),
+      'https://example.com'
+    );
   });
 
   test('should properly construct CDN-CGI URL with R2 path and multiple parameters', async () => {
@@ -407,68 +442,43 @@ describe('CDN-CGI Pattern Tests', () => {
         isR2Fetch: true,
         r2Key: 'image.jpg',
         r2Bucket: mockR2Bucket,
+        fallbackBucket: 'https://example.com',
       },
       debugInfo: {
         isEnabled: false,
       },
     };
-    
+
+    // Get the mock dependencies
+    const deps = createCommandDependencies();
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
-    // Verify the response
+
+    // Verify the response from mock R2 processor
     expect(response.status).toBe(200);
     expect(response.headers.get('cf-resized')).toBeTruthy();
     expect(response.headers.get('content-type')).toBe('image/webp');
-    
-    // Check that the correct CDN-CGI URL was constructed with all parameters
-    const fetchCalls = vi.mocked(fetch).mock.calls;
-    const cdnCgiCall = fetchCalls.find(call => {
-      const url = typeof call[0] === 'string' ? call[0] : call[0]?.url;
-      return typeof url === 'string' && url.includes('/cdn-cgi/image/');
-    });
-    
-    expect(cdnCgiCall).toBeTruthy();
-    const cdnCgiUrl = typeof cdnCgiCall?.[0] === 'string' ? cdnCgiCall?.[0] : cdnCgiCall?.[0]?.url;
-    
-    // Check all parameters are included in the URL
-    expect(cdnCgiUrl).toContain('width=800');
-    expect(cdnCgiUrl).toContain('height=600');
-    expect(cdnCgiUrl).toContain('quality=85');
-    expect(cdnCgiUrl).toContain('format=webp');
-    expect(cdnCgiUrl).toContain('fit=cover');
+
+    // Verify the R2 processor was called with the correct parameters
+    expect(deps.r2Processor.processR2Image).toHaveBeenCalledWith(
+      'image.jpg',
+      mockR2Bucket,
+      expect.objectContaining({
+        width: 800,
+        height: 600,
+        quality: 85,
+        format: 'webp',
+        fit: 'cover',
+      }),
+      expect.anything(),
+      expect.anything(),
+      'https://example.com'
+    );
   });
 
   test('should properly handle format conversion with CDN-CGI pattern', async () => {
-    // We'll test a single format conversion
-    // Override the fetch implementation specific for this test
-    vi.mocked(fetch).mockImplementation((url, options) => {
-      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
-      
-      if (urlString.includes('/cdn-cgi/image/')) {
-        // For CDN-CGI URLs, return WebP format
-        return Promise.resolve(new Response('Transformed WebP Image', { 
-          status: 200,
-          headers: {
-            'content-type': 'image/webp',
-            'content-length': '50000',
-            'cf-resized': 'internal=ok/- q=80 n=800',
-            'cache-control': 'public, max-age=86400',
-          }
-        }));
-      }
-      
-      // Default response
-      return Promise.resolve(new Response('Original Image', { 
-        status: 200,
-        headers: {
-          'content-type': 'image/jpeg',
-          'content-length': '100000',
-        }
-      }));
-    });
-    
     // Create a context for JPEG to WebP conversion
     const context = {
       request: new Request('https://example.com/r2/images/image.jpg'),
@@ -488,52 +498,46 @@ describe('CDN-CGI Pattern Tests', () => {
         isEnabled: false,
       },
     };
-    
+
+    // Get the mock dependencies
+    const deps = createCommandDependencies();
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
+
     // Verify the conversion
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('image/webp');
-    
-    // Verify the CDN-CGI URL used correct format parameter
-    const fetchCalls = vi.mocked(fetch).mock.calls;
-    const cdnCgiCall = fetchCalls.find(call => {
-      const url = typeof call[0] === 'string' ? call[0] : call[0]?.url;
-      return typeof url === 'string' && url.includes('/cdn-cgi/image/');
-    });
-    
-    const url = typeof cdnCgiCall?.[0] === 'string' ? cdnCgiCall?.[0] : cdnCgiCall?.[0]?.url;
-    expect(url).toContain('format=webp');
+
+    // Verify the R2 processor was called with the correct format parameter
+    expect(deps.r2Processor.processR2Image).toHaveBeenCalledWith(
+      'image.jpg',
+      mockR2Bucket,
+      expect.objectContaining({
+        width: 800,
+        format: 'webp',
+      }),
+      expect.anything(),
+      expect.anything(),
+      'https://example.com'
+    );
   });
 
   test('should handle non-image files correctly with CDN-CGI pattern', async () => {
-    // Custom fetch implementation for this test to ensure PDF handling is correct
-    vi.mocked(fetch).mockImplementation((url, options) => {
-      const urlString = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url;
-      
-      // PDF specific response - don't transform regardless of URL pattern
-      if (urlString.includes('document.pdf')) {
-        return Promise.resolve(new Response('PDF Content', { 
+    // Create a custom mock R2 processor for PDFs
+    const pdfProcessor = {
+      processR2Image: vi.fn(async () => {
+        return new Response('PDF Content', {
           status: 200,
           headers: {
             'content-type': 'application/pdf',
             'content-length': '2000000',
-          }
-        }));
-      }
-      
-      // Default response
-      return Promise.resolve(new Response('Content', { 
-        status: 200,
-        headers: {
-          'content-type': 'image/jpeg',
-          'content-length': '100000',
-        }
-      }));
-    });
-    
+          },
+        });
+      }),
+    };
+
     // Create a context with a PDF file
     const context = {
       request: new Request('https://example.com/r2/documents/document.pdf'),
@@ -552,14 +556,30 @@ describe('CDN-CGI Pattern Tests', () => {
         isEnabled: false,
       },
     };
-    
+
+    // Get the dependencies and override the r2Processor with our PDF-specific one
+    const deps = createCommandDependencies();
+    deps.r2Processor = pdfProcessor;
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
-    // Instead of checking fetch calls, just verify the response
+
+    // Verify the response has PDF content type
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/pdf');
+
+    // Verify the PDF processor was called with the right parameters
+    expect(pdfProcessor.processR2Image).toHaveBeenCalledWith(
+      'document.pdf',
+      mockR2Bucket,
+      expect.objectContaining({
+        width: 800,
+      }),
+      expect.anything(),
+      expect.anything(),
+      'https://example.com'
+    );
   });
 
   test('should set appropriate cache control headers with CDN-CGI pattern', async () => {
@@ -576,6 +596,7 @@ describe('CDN-CGI Pattern Tests', () => {
         isR2Fetch: true,
         r2Key: 'image.jpg',
         r2Bucket: mockR2Bucket,
+        fallbackBucket: 'https://example.com',
         cache: {
           method: 'cache-api',
           ttl: {
@@ -587,11 +608,14 @@ describe('CDN-CGI Pattern Tests', () => {
         isEnabled: false,
       },
     };
-    
+
+    // Get the mock dependencies
+    const deps = createCommandDependencies();
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
+
     // Verify proper cache headers
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toContain('public');
@@ -599,6 +623,22 @@ describe('CDN-CGI Pattern Tests', () => {
   });
 
   test('should attempt different transformation paths and use CDN-CGI as fallback', async () => {
+    // Create a mock R2Processor that simulates the fallback chain
+    const chainProcessor = {
+      processR2Image: vi.fn(async () => {
+        return new Response('Fallback Image', {
+          status: 200,
+          headers: {
+            'content-type': 'image/webp',
+            'content-length': '50000',
+            'cf-resized': 'internal=ok/- q=80 n=800',
+            'cache-control': 'public, max-age=86400',
+            'x-source': 'r2-cf-proxy-transform',
+          },
+        });
+      }),
+    };
+
     // Create a context with fallback URL specified
     const context = {
       request: new Request('https://example.com/r2/images/image.jpg'),
@@ -618,28 +658,37 @@ describe('CDN-CGI Pattern Tests', () => {
         isEnabled: false,
       },
     };
-    
+
+    // Get the dependencies and override the r2Processor
+    const deps = createCommandDependencies();
+    deps.r2Processor = chainProcessor;
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
-    // Verify success with CDN-CGI pattern
+
+    // Verify success with CDN-CGI pattern indicated by source header
     expect(response.status).toBe(200);
-    
-    // Verify a CDN-CGI URL was used
-    const fetchCalls = vi.mocked(fetch).mock.calls;
-    const cdnCgiCall = fetchCalls.find(call => {
-      const url = typeof call[0] === 'string' ? call[0] : call[0]?.url;
-      return typeof url === 'string' && url.includes('/cdn-cgi/image/');
-    });
-    
-    expect(cdnCgiCall).toBeTruthy();
+    expect(response.headers.get('x-source')).toBe('r2-cf-proxy-transform');
+
+    // Verify the processor was called with the right parameters
+    expect(chainProcessor.processR2Image).toHaveBeenCalledWith(
+      'image.jpg',
+      mockR2Bucket,
+      expect.objectContaining({
+        width: 800,
+        format: 'webp',
+      }),
+      expect.anything(),
+      expect.anything(),
+      'https://example.com'
+    );
   });
 
   test('should include fit parameter in CDN-CGI URL construction', async () => {
     // We'll test just one fit parameter to make the test simpler
     const fit = 'cover';
-      
+
     // Create a context with the fit parameter
     const context = {
       request: new Request('https://example.com/r2/images/image.jpg'),
@@ -660,24 +709,30 @@ describe('CDN-CGI Pattern Tests', () => {
         isEnabled: false,
       },
     };
-    
+
+    // Get the mock dependencies
+    const deps = createCommandDependencies();
+
     // Create and execute the transform command
-    const command = createTransformImageCommand(context, createCommandDependencies());
+    const command = createTransformImageCommand(context, deps);
     const response = await command.execute();
-    
+
     // Verify the response
     expect(response.status).toBe(200);
-    
-    // Verify the CDN-CGI URL used correct fit parameter
-    const fetchCalls = vi.mocked(fetch).mock.calls;
-    const cdnCgiCall = fetchCalls.find(call => {
-      const url = typeof call[0] === 'string' ? call[0] : call[0]?.url;
-      return typeof url === 'string' && url.includes('/cdn-cgi/image/');
-    });
-    
-    // Get the URL from the call
-    const url = typeof cdnCgiCall?.[0] === 'string' ? cdnCgiCall?.[0] : cdnCgiCall?.[0]?.url;
-    expect(url).toContain(`fit=${fit}`);
+
+    // Verify the R2 processor was called with the fit parameter
+    expect(deps.r2Processor.processR2Image).toHaveBeenCalledWith(
+      'image.jpg',
+      mockR2Bucket,
+      expect.objectContaining({
+        width: 800,
+        height: 600,
+        fit: 'cover',
+      }),
+      expect.anything(),
+      expect.anything(),
+      'https://example.com'
+    );
   });
 
   test('should decrease content length when resizing large images with CDN-CGI pattern', async () => {
@@ -699,23 +754,23 @@ describe('CDN-CGI Pattern Tests', () => {
         isEnabled: false,
       },
     };
-    
+
     // Get the original size from the bucket
     const originalObject = await mockR2Bucket.get('large-image.jpg');
     const originalSize = originalObject?.size || 0;
-    
+
     // Create and execute the transform command
     const command = createTransformImageCommand(context, createCommandDependencies());
     const response = await command.execute();
-    
+
     // Verify successful transformation
     expect(response.status).toBe(200);
-    
+
     // Check that the content length was reduced
     const resizedLength = parseInt(response.headers.get('content-length') || '0', 10);
     expect(resizedLength).toBeGreaterThan(0);
     expect(resizedLength).toBeLessThan(originalSize);
-    
+
     // The reduction should be substantial for a resize operation
     expect(resizedLength / originalSize).toBeLessThan(0.5);
   });
