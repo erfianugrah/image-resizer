@@ -614,7 +614,7 @@ describe('StreamingTransformationService', () => {
       mockR2Bucket.get.mockResolvedValue(mockR2Object);
     });
 
-    test('should skip interceptor strategy for workers.dev domains', async () => {
+    test('should use workers-dev strategy for workers.dev domains', async () => {
       // Arrange
       const serviceWithEnv = createStreamingTransformationService({
         logger: mockLogger,
@@ -622,17 +622,18 @@ describe('StreamingTransformationService', () => {
         environmentService,
       });
 
-      // Mock fetch response
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        body: 'mock-transformed-body',
-        headers: new Headers({
-          'Content-Type': 'image/jpeg',
-          'CF-Resized': 'true'
-        }),
-        url: 'https://dev-resizer.anugrah.workers.dev/image.jpg',
+      // Mock environmentService to identify workers.dev domain
+      environmentService.isWorkersDevDomain.mockReturnValue(true);
+      environmentService.getDomain.mockReturnValue('dev-resizer.anugrah.workers.dev');
+      
+      // Enable workers-dev strategy and disable interceptor for workers.dev domains
+      environmentService.isStrategyEnabledForUrl.mockImplementation((strategy, url) => {
+        if (strategy === 'interceptor') return false;
+        return true;
       });
+
+      // Reset the fetch spy
+      global.fetch = vi.fn();
 
       // Create a request with debug header and workers.dev URL
       const request = new Request('https://dev-resizer.anugrah.workers.dev/image.jpg', {
@@ -653,16 +654,12 @@ describe('StreamingTransformationService', () => {
 
       // Assert
       expect(environmentService.isStrategyEnabledForUrl).toHaveBeenCalledWith('interceptor', expect.any(String));
+      expect(environmentService.isStrategyEnabledForUrl).toHaveBeenCalledWith('workers-dev', expect.any(String));
       
-      // If isStrategyEnabledForUrl is called with interceptor, it should return false for workers.dev
-      const calls = environmentService.isStrategyEnabledForUrl.mock.calls;
-      const interceptorCall = calls.find(call => call[0] === 'interceptor');
-      if (interceptorCall) {
-        expect(environmentService.isStrategyEnabledForUrl(interceptorCall[0], interceptorCall[1])).toBe(false);
-      }
-      
-      // We should now be calling fetch with direct-url strategy
-      expect(global.fetch).toHaveBeenCalled();
+      // Workers-dev strategy should be used directly without fetch
+      // Since we don't have a way to check if WorkersDevStrategy was actually used,
+      // we just check that fetch wasn't called (since that strategy doesn't call fetch)
+      expect(global.fetch).not.toHaveBeenCalled();
       
       // We can't easily check the debug headers due to our Response mock implementation,
       // but we can verify the environment service was used properly

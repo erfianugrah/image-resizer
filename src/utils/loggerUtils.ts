@@ -1,7 +1,8 @@
 /**
  * Utility functions for logging
+ * Provides centralized logging with configurable debug headers
  */
-import { isLevelEnabled } from './loggingManager';
+import { isLevelEnabled, getLoggingConfig, areDebugHeadersEnabled, getDebugHeadersConfig } from './loggingManager';
 
 export type LogLevel = 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE';
 export type LogData = Record<
@@ -13,31 +14,6 @@ import { DebugInfo, DiagnosticsInfo } from '../types/utils/debug';
 
 // Re-export types for backward compatibility
 export type { DebugInfo, DiagnosticsInfo };
-
-/**
- * @deprecated Use DiagnosticsInfo from types/utils/debug.ts
- */
-interface _DiagnosticsInfo {
-  originalUrl?: string;
-  transformParams?: Record<string, string | number | boolean | null | undefined>;
-  pathMatch?: string;
-  errors?: string[];
-  warnings?: string[];
-  clientHints?: boolean;
-  deviceType?: string;
-  videoId?: string;
-  browserCapabilities?: Record<string, string | number | boolean | undefined>;
-  networkQuality?: string;
-  cacheability?: boolean;
-  cacheTtl?: number;
-  videoFormat?: string;
-  estimatedBitrate?: number;
-  processingTimeMs?: number;
-  transformSource?: string;
-  requestHeaders?: Record<string, string>;
-  cachingMethod?: string;
-  [key: string]: unknown;
-}
 
 /**
  * Log an error message
@@ -154,7 +130,39 @@ export function logResponse(module: string, response: Response): void {
 }
 
 /**
+ * Check if debug is enabled based on config and request
+ * @param request - Request to check
+ * @param environment - Current environment
+ * @returns Debug configuration info
+ */
+export function getDebugInfoFromRequest(request: Request, environment?: string): DebugInfo {
+  // Override with request headers if present
+  const debugHeaderEnabled = request.headers.get('x-debug') === 'true';
+  const debugVerboseEnabled = request.headers.get('x-debug-verbose') === 'true';
+  
+  // Get config from centralized manager
+  const configEnabled = areDebugHeadersEnabled(environment);
+  const debugConfig = getDebugHeadersConfig();
+  
+  // Debug is enabled if either request header or config enables it
+  const isEnabled = debugHeaderEnabled || debugVerboseEnabled || configEnabled;
+  
+  // Use most verbose setting (request header takes precedence)
+  const isVerbose = debugVerboseEnabled || (debugConfig?.isVerbose || false);
+  
+  return {
+    isEnabled,
+    isVerbose,
+    includePerformance: true,
+    prefix: debugConfig?.prefix || 'debug-',
+    includeHeaders: debugConfig?.includeHeaders || [],
+    specialHeaders: debugConfig?.specialHeaders || {}
+  };
+}
+
+/**
  * Adds debug headers to a response based on diagnostic information
+ * Respects the wrangler.jsonc configuration and request override
  * @param response - The original response
  * @param debugInfo - Debug settings
  * @param diagnosticsInfo - Diagnostic information
@@ -174,53 +182,68 @@ export function addDebugHeaders(
     // Clone the response to make it mutable
     const enhancedResponse = new Response(response.body, response);
     const headers = enhancedResponse.headers;
+    
+    // Get prefix for debug headers
+    const prefix = debugInfo.prefix || 'debug-';
 
     // Add performance timing if enabled
     if (debugInfo.includePerformance && diagnosticsInfo.processingTimeMs) {
       headers.set('x-processing-time', `${diagnosticsInfo.processingTimeMs}ms`);
     }
 
+    // Get the list of headers to include
+    const includeHeaders = new Set(debugInfo.includeHeaders || []);
+    
     // Add debug headers for specific diagnostic information
-    if (diagnosticsInfo.transformParams) {
-      headers.set('debug-ir', JSON.stringify(diagnosticsInfo.transformParams));
+    // Only add if the header is included in the configuration
+    if (diagnosticsInfo.transformParams && (includeHeaders.size === 0 || includeHeaders.has('ir'))) {
+      headers.set(`${prefix}ir`, JSON.stringify(diagnosticsInfo.transformParams));
     }
 
-    if (diagnosticsInfo.pathMatch) {
-      headers.set('debug-path-match', diagnosticsInfo.pathMatch);
+    if (diagnosticsInfo.pathMatch && (includeHeaders.size === 0 || includeHeaders.has('path'))) {
+      headers.set(`${prefix}path-match`, diagnosticsInfo.pathMatch);
     }
 
-    if (diagnosticsInfo.transformSource) {
+    // Special headers are separate and controlled by the special headers config
+    const specialHeaders = debugInfo.specialHeaders || {};
+    
+    if (diagnosticsInfo.transformSource && 
+        (specialHeaders['x-size-source'] || includeHeaders.has('transform-source'))) {
       headers.set('x-size-source', diagnosticsInfo.transformSource);
     }
 
-    if (diagnosticsInfo.deviceType) {
-      headers.set('debug-device-type', diagnosticsInfo.deviceType);
+    if (diagnosticsInfo.deviceType && (includeHeaders.size === 0 || includeHeaders.has('device'))) {
+      headers.set(`${prefix}device-type`, diagnosticsInfo.deviceType);
     }
 
-    if (diagnosticsInfo.clientHints !== undefined) {
-      headers.set('debug-client-hints', String(diagnosticsInfo.clientHints));
+    if (diagnosticsInfo.clientHints !== undefined && 
+        (includeHeaders.size === 0 || includeHeaders.has('client-hints'))) {
+      headers.set(`${prefix}client-hints`, String(diagnosticsInfo.clientHints));
     }
 
-    // Always set the cache method header for debugging
-    // Use environment override for production
-    if (diagnosticsInfo.cachingMethod) {
-      const environment = (diagnosticsInfo.environment as string) || '';
-      const cacheMethod = environment === 'production' ? 'cf' : diagnosticsInfo.cachingMethod;
-      headers.set('debug-cache-method', cacheMethod);
-    }
+    // Cache related headers
+    if (includeHeaders.size === 0 || includeHeaders.has('cache')) {
+      // Always set the cache method header for debugging
+      // Use environment override for production
+      if (diagnosticsInfo.cachingMethod) {
+        const environment = (diagnosticsInfo.environment as string) || '';
+        const cacheMethod = environment === 'production' ? 'cf' : diagnosticsInfo.cachingMethod;
+        headers.set(`${prefix}cache-method`, cacheMethod);
+      }
 
-    if (diagnosticsInfo.cacheability !== undefined) {
-      headers.set('debug-cacheable', String(diagnosticsInfo.cacheability));
-    }
+      if (diagnosticsInfo.cacheability !== undefined) {
+        headers.set(`${prefix}cacheable`, String(diagnosticsInfo.cacheability));
+      }
 
-    if (diagnosticsInfo.cacheTtl !== undefined) {
-      headers.set('debug-cache-ttl', String(diagnosticsInfo.cacheTtl));
+      if (diagnosticsInfo.cacheTtl !== undefined) {
+        headers.set(`${prefix}cache-ttl`, String(diagnosticsInfo.cacheTtl));
+      }
     }
 
     // Add mode info if available
-    if (diagnosticsInfo.mode) {
+    if (diagnosticsInfo.mode && (includeHeaders.size === 0 || includeHeaders.has('mode'))) {
       headers.set(
-        'debug-mode',
+        `${prefix}mode`,
         JSON.stringify({
           mode: diagnosticsInfo.mode,
           ...(diagnosticsInfo.requestTransform || {}),
@@ -228,18 +251,21 @@ export function addDebugHeaders(
       );
     }
 
-    // Add responsive sizing info if available
-    if (diagnosticsInfo.responsiveSizing !== undefined) {
+    // Add responsive sizing info if special headers allow it
+    if (diagnosticsInfo.responsiveSizing !== undefined && 
+        (specialHeaders['x-responsive-sizing'] || includeHeaders.has('responsive-sizing'))) {
       headers.set('x-responsive-sizing', String(diagnosticsInfo.responsiveSizing));
     }
 
-    // Add actual width if available
-    if (diagnosticsInfo.actualWidth) {
+    // Add actual width if special headers allow it
+    if (diagnosticsInfo.actualWidth && 
+        (specialHeaders['x-actual-width'] || includeHeaders.has('actual-width'))) {
       headers.set('x-actual-width', String(diagnosticsInfo.actualWidth));
     }
 
-    // Add processing mode if available
-    if (diagnosticsInfo.processingMode) {
+    // Add processing mode if special headers allow it
+    if (diagnosticsInfo.processingMode && 
+        (specialHeaders['x-processing-mode'] || includeHeaders.has('processing-mode'))) {
       headers.set('x-processing-mode', String(diagnosticsInfo.processingMode));
     }
 
@@ -247,28 +273,48 @@ export function addDebugHeaders(
     if (debugInfo.isVerbose) {
       // Add browser capabilities if available
       if (diagnosticsInfo.browserCapabilities) {
-        headers.set('debug-browser', JSON.stringify(diagnosticsInfo.browserCapabilities));
+        headers.set(`${prefix}browser`, JSON.stringify(diagnosticsInfo.browserCapabilities));
       }
 
       // Add network quality info if available
       if (diagnosticsInfo.networkQuality) {
-        headers.set('debug-network', diagnosticsInfo.networkQuality);
+        headers.set(`${prefix}network`, diagnosticsInfo.networkQuality);
       }
 
       // Add errors if any
       if (diagnosticsInfo.errors && diagnosticsInfo.errors.length > 0) {
-        headers.set('debug-errors', JSON.stringify(diagnosticsInfo.errors));
+        headers.set(`${prefix}errors`, JSON.stringify(diagnosticsInfo.errors));
       }
 
       // Add warnings if any
       if (diagnosticsInfo.warnings && diagnosticsInfo.warnings.length > 0) {
-        headers.set('debug-warnings', JSON.stringify(diagnosticsInfo.warnings));
+        headers.set(`${prefix}warnings`, JSON.stringify(diagnosticsInfo.warnings));
+      }
+      
+      // Add strategy information if available (from enhanced debug)
+      if (diagnosticsInfo.attemptedStrategies) {
+        headers.set(`${prefix}strategy-attempts`, 
+          Array.isArray(diagnosticsInfo.attemptedStrategies) 
+            ? diagnosticsInfo.attemptedStrategies.join(',')
+            : String(diagnosticsInfo.attemptedStrategies));
+      }
+      
+      if (diagnosticsInfo.selectedStrategy) {
+        headers.set(`${prefix}strategy-selected`, String(diagnosticsInfo.selectedStrategy));
+      }
+      
+      if (diagnosticsInfo.domainType) {
+        headers.set(`${prefix}domain-type`, String(diagnosticsInfo.domainType));
+      }
+      
+      if (diagnosticsInfo.environmentType) {
+        headers.set(`${prefix}environment-type`, String(diagnosticsInfo.environmentType));
       }
     }
 
     debug('DebugHeaders', 'Added debug headers', {
       headers: [...headers.entries()].filter(
-        ([key]) => key.startsWith('debug-') || key.startsWith('x-')
+        ([key]) => key.startsWith(prefix) || key.startsWith('x-')
       ),
     });
 
@@ -354,6 +400,30 @@ export function createDebugReport(diagnosticsInfo: DiagnosticsInfo): string {
         <h2>Cache Information</h2>
         <table>
           ${cacheInfo.join('')}
+        </table>
+      </section>
+    `);
+  }
+
+  // Transformation strategy information (from enhanced debug)
+  const strategyInfo = [];
+  if (diagnosticsInfo.selectedStrategy)
+    strategyInfo.push(`<tr><th>Selected Strategy</th><td>${diagnosticsInfo.selectedStrategy}</td></tr>`);
+  if (diagnosticsInfo.attemptedStrategies)
+    strategyInfo.push(`<tr><th>Attempted Strategies</th><td>${Array.isArray(diagnosticsInfo.attemptedStrategies) 
+      ? diagnosticsInfo.attemptedStrategies.join(', ') 
+      : diagnosticsInfo.attemptedStrategies}</td></tr>`);
+  if (diagnosticsInfo.domainType)
+    strategyInfo.push(`<tr><th>Domain Type</th><td>${diagnosticsInfo.domainType}</td></tr>`);
+  if (diagnosticsInfo.environmentType)
+    strategyInfo.push(`<tr><th>Environment</th><td>${diagnosticsInfo.environmentType}</td></tr>`);
+  
+  if (strategyInfo.length > 0) {
+    sections.push(`
+      <section>
+        <h2>Transformation Strategy</h2>
+        <table>
+          ${strategyInfo.join('')}
         </table>
       </section>
     `);
@@ -503,16 +573,23 @@ export function createDebugReport(diagnosticsInfo: DiagnosticsInfo): string {
  * @param data Additional data
  */
 function log(level: LogLevel, module: string, message: string, data?: LogData): void {
-  const timestamp = new Date().toISOString();
-
   // Check if we should show this log based on configured level
   if (!isLevelEnabled(level)) {
     return;
   }
 
-  const formattedMessage = `[${timestamp}] [${level}] [${module}] ${message}`;
+  const config = getLoggingConfig();
+  const timestamp = config.includeTimestamp ? new Date().toISOString() : '';
+  
+  let formattedMessage = '';
+  
+  if (timestamp) {
+    formattedMessage += `[${timestamp}] `;
+  }
+  
+  formattedMessage += `[${level}] [${module}] ${message}`;
 
-  if (data) {
+  if (data && config.enableStructuredLogs) {
     console.log(formattedMessage, data);
   } else {
     console.log(formattedMessage);

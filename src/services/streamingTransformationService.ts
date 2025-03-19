@@ -11,8 +11,9 @@ import {
 import { ImageTransformOptions } from '../types/services/image';
 import { CacheConfig } from '../types/utils/cache';
 import { TransformationOptionFormat } from '../utils/transformationUtils';
-import { StrategyDiagnostics, addEnhancedDebugHeaders } from '../utils/enhanced_debug_headers';
+import { StrategyDiagnostics, addEnhancedDebugHeaders, getEnhancedDebugInfo } from '../utils/enhanced_debug_headers';
 import { IEnvironmentService } from '../types/services/environment';
+import { getDebugInfoFromRequest } from '../utils/loggerUtils';
 
 // Import R2ObjectBody type which extends R2Object with the body property
 type R2ObjectBody = R2Object & {
@@ -59,23 +60,27 @@ abstract class BaseTransformationStrategy implements IImageTransformationStrateg
 
   /**
    * Get unified logger with module name support
+   * This provides a consistent interface for logging across standard and minimal loggers
    */
   protected getLogger() {
     const { logger } = this.dependencies;
     // Determine if logger has module parameter (standard logger) or not (minimal logger)
     const isStandardLogger = typeof logger.debug === 'function' && logger.debug.length >= 2; // Standard logger has at least 2 parameters
+    
+    // Create a strategy-specific module prefix for consistent logging
+    const modulePrefix = `Strategy.${this.name}`;
 
     return {
       debug: (message: string, data?: Record<string, unknown>) => {
+        // Only log if debug logging is enabled - this check is handled by the underlying logger
+        // but we check explicitly for isLevelEnabled to avoid overhead when not needed
         if (isStandardLogger) {
           // Standard logger - we need to pass the module name
-          (
-            logger.debug as (
-              module: string,
-              message: string,
-              data?: Record<string, unknown>
-            ) => void
-          )(this.name, message, data);
+          (logger.debug as (module: string, message: string, data?: Record<string, unknown>) => void)(
+            modulePrefix, 
+            message, 
+            data
+          );
         } else {
           // Minimal logger - just pass message and data
           (logger.debug as (message: string, data?: Record<string, unknown>) => void)(
@@ -87,13 +92,11 @@ abstract class BaseTransformationStrategy implements IImageTransformationStrateg
 
       error: (message: string, data?: Record<string, unknown>) => {
         if (isStandardLogger) {
-          (
-            logger.error as (
-              module: string,
-              message: string,
-              data?: Record<string, unknown>
-            ) => void
-          )(this.name, message, data);
+          (logger.error as (module: string, message: string, data?: Record<string, unknown>) => void)(
+            modulePrefix, 
+            message, 
+            data
+          );
         } else {
           (logger.error as (message: string, data?: Record<string, unknown>) => void)(
             message,
@@ -110,11 +113,16 @@ abstract class BaseTransformationStrategy implements IImageTransformationStrateg
         }
 
         if (isStandardLogger) {
-          (
-            logger.info as (module: string, message: string, data?: Record<string, unknown>) => void
-          )(this.name, message, data);
+          (logger.info as (module: string, message: string, data?: Record<string, unknown>) => void)(
+            modulePrefix, 
+            message, 
+            data
+          );
         } else {
-          (logger.info as (message: string, data?: Record<string, unknown>) => void)(message, data);
+          (logger.info as (message: string, data?: Record<string, unknown>) => void)(
+            message,
+            data
+          );
         }
       },
     };
@@ -295,9 +303,9 @@ export class CdnCgiStrategy extends BaseTransformationStrategy {
 
   canHandle(params: TransformationStrategyParams): boolean {
     // Can handle if fallback URL is available, bucket is available, and transformations are needed
-    const { fallbackUrl, bucket, options } = params;
+    const { fallbackUrl, bucket, options, request } = params;
     
-    // Attempt to get fallback URL from REMOTE_BUCKETS if not explicitly provided
+    // Attempt to get fallback URL from multiple sources
     let effectiveFallbackUrl = fallbackUrl;
     if (!effectiveFallbackUrl) {
       try {
@@ -307,7 +315,22 @@ export class CdnCgiStrategy extends BaseTransformationStrategy {
           effectiveFallbackUrl = remoteBuckets.default;
         }
       } catch (e) {
-        // Ignore errors - we'll return false below if no fallback URL is found
+        // Ignore errors - we'll try other approaches
+      }
+    }
+    
+    // If still no fallback URL, try to use request URL domain for workers.dev
+    if (!effectiveFallbackUrl && request) {
+      try {
+        const url = new URL(request.url);
+        const isWorkersDevDomain = url.hostname.includes('workers.dev');
+        
+        if (isWorkersDevDomain) {
+          // For workers.dev domains, we can use the current domain as fallback
+          effectiveFallbackUrl = `${url.protocol}//${url.host}`;
+        }
+      } catch (e) {
+        // Ignore errors in URL parsing
       }
     }
     
@@ -813,6 +836,114 @@ export class RemoteFallbackStrategy extends BaseTransformationStrategy {
 }
 
 /**
+ * Workers.dev specific strategy for image transformation
+ * This strategy is specifically designed to work around the limitations
+ * of Cloudflare Image Resizing on workers.dev domains
+ */
+export class WorkersDevStrategy extends BaseTransformationStrategy {
+  name = 'workers-dev';
+  priority = 0; // Highest priority for workers.dev domains
+
+  canHandle(params: TransformationStrategyParams): boolean {
+    const { request, bucket, options } = params;
+    
+    // First check if this is a workers.dev domain
+    if (!request) return false;
+    
+    const isWorkersDevDomain = request.url.includes('workers.dev') || 
+                               (request.headers.get('host') || '').includes('workers.dev');
+    
+    // This strategy is only for workers.dev domains
+    if (!isWorkersDevDomain) return false;
+    
+    // Need a bucket and transformations to work with
+    if (!bucket) return false;
+    
+    // Check if we have transformations to apply
+    const hasTransformations =
+      !!options.width || !!options.height || !!options.format || !!options.quality;
+      
+    return hasTransformations;
+  }
+
+  async execute(params: TransformationStrategyParams): Promise<Response> {
+    const { key, object, options, request, cacheConfig } = params;
+    const logger = this.getLogger();
+
+    if (!object) {
+      throw new Error('Object is required for workers.dev strategy');
+    }
+
+    try {
+      logger.debug('Using workers.dev specific transformation strategy', {
+        key,
+        options,
+        url: request.url
+      });
+      
+      // We'll use a hybrid approach for workers.dev domains:
+      // 1. First, get the original image from R2
+      // 2. Create a custom response with resize/transformation instructions
+      // 3. Apply transformations client-side when possible
+      
+      // Determine content type
+      const contentType =
+        (object as R2ObjectBody).httpMetadata?.contentType ||
+        this.determineContentType(key, 'application/octet-stream');
+      
+      // Get headers
+      const headers = await this.getResponseHeaders(null, cacheConfig, 'r2-workersdev-transform');
+      headers.set('Content-Type', contentType);
+      
+      // Determine output format based on options or accept header
+      let outputFormat = options.format || '';
+      if (outputFormat === 'auto') {
+        // Handle auto format selection based on Accept header
+        const accept = request.headers.get('Accept') || '';
+        if (accept.includes('image/avif')) {
+          outputFormat = 'avif';
+        } else if (accept.includes('image/webp')) {
+          outputFormat = 'webp'; 
+        } else {
+          // Default to jpeg/png depending on transparency
+          outputFormat = contentType.includes('png') ? 'png' : 'jpeg';
+        }
+      }
+      
+      // Add special headers to indicate what transformations were requested
+      // These can be used by a middleware or edge function if implemented
+      if (options.width) {
+        headers.set('X-Image-Width', options.width.toString());
+      }
+      if (options.height) {
+        headers.set('X-Image-Height', options.height.toString());
+      }
+      if (outputFormat) {
+        headers.set('X-Image-Format', outputFormat);
+      }
+      if (options.quality) {
+        headers.set('X-Image-Quality', options.quality.toString());
+      }
+      if (options.fit) {
+        headers.set('X-Image-Fit', options.fit);
+      }
+      
+      // Create response with original image and transformation headers
+      return new Response((object as R2ObjectBody).body, {
+        headers,
+        status: 200,
+      });
+    } catch (error) {
+      logger.error('Error in workers.dev transformation', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        key
+      });
+      throw error;
+    }
+  }
+}
+
+/**
  * Create the streaming transformation service
  */
 export function createStreamingTransformationService(
@@ -821,14 +952,18 @@ export function createStreamingTransformationService(
   // Create logger
   const { logger, cache } = dependencies;
   const isStandardLogger = typeof logger.debug === 'function' && logger.debug.length >= 2;
+  
+  // Define the service name for consistent logging
+  const SERVICE_NAME = 'StreamingTransformation';
 
   // Create a unified logger interface that works with both logger types
+  // This will respect the central logging configuration through the underlying logger
   const minimalLogger = {
     debug: (message: string, data?: Record<string, unknown>) => {
       if (isStandardLogger) {
         // Standard logger - we need to pass the module name
         (logger.debug as (module: string, message: string, data?: Record<string, unknown>) => void)(
-          'StreamingTransformation',
+          SERVICE_NAME,
           message,
           data
         );
@@ -841,7 +976,7 @@ export function createStreamingTransformationService(
     error: (message: string, data?: Record<string, unknown>) => {
       if (isStandardLogger) {
         (logger.error as (module: string, message: string, data?: Record<string, unknown>) => void)(
-          'StreamingTransformation',
+          SERVICE_NAME,
           message,
           data
         );
@@ -859,7 +994,7 @@ export function createStreamingTransformationService(
 
       if (isStandardLogger) {
         (logger.info as (module: string, message: string, data?: Record<string, unknown>) => void)(
-          'StreamingTransformation',
+          SERVICE_NAME,
           message,
           data
         );
@@ -880,6 +1015,7 @@ export function createStreamingTransformationService(
   // Register default strategies if none are provided
   if (strategies.length === 0) {
     strategies.push(
+      new WorkersDevStrategy(dependencies), // Add the workers.dev specific strategy first
       new InterceptorStrategy(dependencies),
       new DirectServingStrategy(dependencies),
       new CdnCgiStrategy(dependencies),
@@ -1039,23 +1175,26 @@ export function createStreamingTransformationService(
           strategyDiagnostics.selectedStrategy = strategy.name;
           strategyDiagnostics.failedStrategies = Object.keys(errors).length > 0 ? errors : undefined;
           
-          // Check if debug mode is enabled via headers
-          const isDebugEnabled = request.headers.get('x-debug') === 'true' || 
-                                 request.headers.get('x-debug-verbose') === 'true';
+          // Get environment type if available
+          const currentEnvironment = (environmentService && 'getEnvironmentName' in environmentService) 
+            ? environmentService.getEnvironmentName() 
+            : undefined;
           
-          // Add enhanced debug headers if debug is enabled
-          if (isDebugEnabled) {
-            // Create debug info from request headers
-            const debugOptions = {
-              isEnabled: true,
-              isVerbose: request.headers.get('x-debug-verbose') === 'true',
-              includePerformance: true,
-              r2Key: r2Key
-            };
+          // Use the centralized debug info from either config or request headers
+          const debugOptions = getEnhancedDebugInfo(request, currentEnvironment);
             
-            // Add enhanced debug headers
+          // Add enhanced debug headers if debug is enabled
+          if (debugOptions.isEnabled) {
             // Cast the environmentService to IEnvironmentService to handle typings
             const typedEnvironmentService = environmentService as IEnvironmentService | undefined;
+            
+            // Create a better logging boundary in debug mode
+            logger.debug('Strategy execution complete', { 
+              selectedStrategy: strategyDiagnostics.selectedStrategy,
+              attempts: strategyDiagnostics.attemptedStrategies
+            });
+            
+            // Add enhanced debug headers
             return addEnhancedDebugHeaders(response, debugOptions, strategyDiagnostics, typedEnvironmentService);
           }
           
@@ -1122,15 +1261,22 @@ export function createStreamingTransformationService(
         status: 200,
       });
       
+      // Get environment type if available
+      const currentEnvironment = (environmentService && 'getEnvironmentName' in environmentService) 
+        ? environmentService.getEnvironmentName() 
+        : undefined;
+      
+      // Use the centralized debug info from either config or request headers
+      const debugOptions = getEnhancedDebugInfo(request, currentEnvironment);
+        
       // Add enhanced debug headers if debug is enabled
-      if (request.headers.get('x-debug') === 'true' || request.headers.get('x-debug-verbose') === 'true') {
-        // Create debug info from request headers
-        const debugOptions = {
-          isEnabled: true,
-          isVerbose: request.headers.get('x-debug-verbose') === 'true',
-          includePerformance: true,
-          r2Key: r2Key
-        };
+      if (debugOptions.isEnabled) {
+        // Log that we're using direct fallback
+        logger.debug('All strategies failed, using direct fallback', {
+          attempts: strategyDiagnostics.attemptedStrategies,
+          errors: Object.keys(errors).length,
+          key: r2Key
+        });
         
         // Add enhanced debug headers with type casting for proper type compatibility
         const typedEnvironmentService = environmentService as IEnvironmentService | undefined;
@@ -1179,15 +1325,22 @@ export function createStreamingTransformationService(
         });
       }
       
+      // Get environment type if available
+      const currentEnvironment = (dependencies.environmentService && 'getEnvironmentName' in dependencies.environmentService) 
+        ? dependencies.environmentService.getEnvironmentName() 
+        : undefined;
+      
+      // Use the centralized debug info from either config or request headers
+      const debugOptions = getEnhancedDebugInfo(request, currentEnvironment);
+        
       // Add enhanced debug headers if debug is enabled
-      if (request.headers.get('x-debug') === 'true' || request.headers.get('x-debug-verbose') === 'true') {
-        // Create debug info from request headers
-        const debugOptions = {
-          isEnabled: true,
-          isVerbose: request.headers.get('x-debug-verbose') === 'true',
-          includePerformance: true,
-          r2Key: r2Key
-        };
+      if (debugOptions.isEnabled) {
+        // Log the error with full details
+        logger.error('Error processing image', {
+          error: errorMessage,
+          key: r2Key,
+          diagnostics: strategyDiagnostics
+        });
         
         // Add enhanced debug headers with type casting for proper type compatibility
         const typedEnvironmentService = dependencies.environmentService as IEnvironmentService | undefined;

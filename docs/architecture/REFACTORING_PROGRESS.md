@@ -429,7 +429,8 @@ The refactoring has successfully implemented all planned optimizations:
 2. ✅ **Transformation Options Caching**: Eliminated redundant calculations in transformation chains with multi-format caching
 3. ✅ **Response Header Optimization**: Created a builder pattern utility to streamline header management
 4. ✅ **Interceptor Strategy**: Implemented the optimized InterceptorStrategy using Cloudflare's image-resizing via header detection
-5. 🔄 **Streaming Transformations**: Implementing support for streaming image processing for memory and performance optimization
+5. ✅ **Domain-Specific Strategy Selection**: Implemented a robust, domain-specific transformation strategy system
+6. 🔄 **Streaming Transformations**: Implementing support for streaming image processing for memory and performance optimization
 
 These optimizations collectively improve performance by:
 - Reducing CPU usage by caching expensive operations
@@ -438,5 +439,205 @@ These optimizations collectively improve performance by:
 - Applying intelligent caching strategies with proper TTL and LRU policies
 - Maintaining memory efficiency through size limits and eviction strategies
 - Optimizing memory usage with streaming transformation approaches
+- Using domain-specific strategies to maximize compatibility across environments
 
 All enhancements have been implemented with full type safety, comprehensive tests, and compatibility with the existing codebase.
+
+## Centralized Configuration Implementation
+
+We've successfully refactored the application to use a centralized configuration approach instead of directly accessing the global __WRANGLER_CONFIG__ variable. This major architectural improvement provides several benefits:
+
+### Overview of the Problem
+
+Previously, the application accessed the Cloudflare Worker configuration in multiple ways:
+
+1. Some services used `ConfigManager` to access configuration (following best practices)
+2. Some services directly accessed the global `__WRANGLER_CONFIG__` variable (an anti-pattern)
+3. Different parts of the code accessed different configuration locations
+4. Configuration wasn't properly typed, leading to potential runtime errors
+5. Configuration loading wasn't consistently handled across environments
+6. Debug, logging, and strategy configuration had inconsistent access patterns
+
+### Solution Implemented
+
+We addressed these issues with a comprehensive approach:
+
+1. **Enhanced ConfigManager**:
+   - Made ConfigManager the central source of truth for all configuration
+   - Created strongly-typed interfaces for all configuration objects
+   - Added proper parsing and validation of configuration values
+   - Implemented intelligent fallbacks for missing configuration
+
+2. **Removed Direct __WRANGLER_CONFIG__ Access**:
+   - Eliminated direct access to global __WRANGLER_CONFIG__ variable
+   - Updated all services to use the ConfigManager service
+   - Added proper dependency injection for configuration access
+   - Created clear warning logs for any legacy direct access
+
+3. **Centralized Logging Configuration**:
+   - Created a dedicated LoggingManager for centralized logging configuration
+   - Unified debug header configuration with logging settings
+   - Added environment-specific logging level control
+   - Implemented proper structured logging control
+
+4. **Enhanced Debug Headers**:
+   - Created a unified debug header system with centralized configuration
+   - Added the ability to enable/disable debug headers per environment
+   - Implemented a rich set of diagnostic headers for troubleshooting
+   - Ensured debug headers respect both configuration and request headers
+
+5. **Updated EnvironmentService**:
+   - Refactored to use the centralized ConfigManager
+   - Added robust strategy validation for domain-specific settings
+   - Implemented consistent logging for configuration decisions
+   - Created clear precedence rules for configuration sources
+
+### Configuration Precedence Model
+
+The system now follows a clear precedence model for configuration:
+
+1. **Route-specific configuration**: Highest priority, from route matching in configuration
+2. **Global strategy configuration**: From STRATEGIES_CONFIG in central config
+3. **Default strategy configuration**: From IMAGE_RESIZER_CONFIG.defaults
+4. **Domain-specific defaults**: Hardcoded defaults based on domain type
+5. **Fallback defaults**: Used when no other configuration is available
+
+This model ensures consistent behavior across environments while allowing domain-specific overrides.
+
+### Benefits
+
+The centralized configuration approach provides several key benefits:
+
+1. **Consistency**: Configuration access follows the same pattern throughout the codebase
+2. **Type Safety**: All configuration is properly typed, reducing runtime errors
+3. **Testability**: Services can be tested with mock configuration
+4. **Transparency**: Clear logging shows which configuration sources are being used
+5. **Maintainability**: Configuration changes only need to be made in one place
+6. **Performance**: Reduces duplicated parsing and validation of configuration
+7. **Reliability**: Consistent fallbacks when configuration is missing
+
+### Example: Strategy Selection with Centralized Config
+
+The strategy selection logic now follows a clean pattern:
+
+```typescript
+// First try route-specific configuration
+if (routeConfig.strategies?.priorityOrder) {
+  logger.debug('Using route-specific strategy priority', {
+    domain,
+    priority: routeConfig.strategies.priorityOrder.join(',')
+  });
+  return routeConfig.strategies.priorityOrder;
+}
+
+// Next try centralized config
+try {
+  const appConfig = configService.getConfig();
+  
+  // First check strategiesConfig
+  if (appConfig.strategiesConfig && appConfig.strategiesConfig.priorityOrder) {
+    logger.debug('Using STRATEGIES_CONFIG priority order', {
+      domain,
+      priority: appConfig.strategiesConfig.priorityOrder.join(',')
+    });
+    return appConfig.strategiesConfig.priorityOrder;
+  }
+  
+  // Next check imageResizerConfig defaults
+  if (appConfig.imageResizerConfig && 
+      appConfig.imageResizerConfig.defaults?.strategies?.priorityOrder) {
+    logger.debug('Using IMAGE_RESIZER_CONFIG defaults priority order', {
+      domain,
+      priority: appConfig.imageResizerConfig.defaults.strategies.priorityOrder.join(',')
+    });
+    return appConfig.imageResizerConfig.defaults.strategies.priorityOrder;
+  }
+} catch (error) {
+  logger.warn('Error accessing centralized config', { error });
+}
+
+// Fall back to domain-specific defaults
+// ...
+```
+
+## Domain-Specific Transformation Strategies Implementation
+
+We've successfully implemented a robust, domain-specific approach to image transformations that handles the differences between workers.dev domains and custom domains.
+
+### Overview of the Problem
+
+Cloudflare Image Resizing behaves differently on workers.dev domains compared to custom domains:
+
+1. On custom domains (like images.erfi.dev):
+   - The InterceptorStrategy works efficiently
+   - Both DirectUrlStrategy and CdnCgiStrategy work as fallbacks
+   - The worker can intercept image resizing subrequests properly
+
+2. On workers.dev domains:
+   - The InterceptorStrategy fails with 404 errors
+   - The DirectUrlStrategy also fails with 404 errors
+   - The CdnCgiStrategy had limitations with fallback URL handling
+   - There was inconsistent behavior between environments
+
+### Solution Implemented
+
+We addressed these issues with a comprehensive approach:
+
+1. **Created a WorkersDevStrategy**:
+   - A specialized strategy designed specifically for workers.dev domains
+   - Highest priority (0) when on workers.dev domains
+   - Returns original images from R2 with transformation metadata headers
+   - Workaround for Cloudflare limitations while still serving images
+
+2. **Enhanced CdnCgiStrategy**:
+   - Improved fallback URL resolution to work better with workers.dev domains
+   - Added support for using the current domain as a fallback URL
+   - More robust handling of different deployment environments
+
+3. **Updated Configuration**:
+   - Modified wrangler.jsonc for domain-specific strategy configuration
+   - Added the WorkersDevStrategy to all environments
+   - Made strategy selection fully configuration-driven
+   - Unified approach across environments (dev, staging, production)
+
+4. **Test Suite Updates**:
+   - Fixed tests to account for the new WorkersDevStrategy
+   - Added specific test for workers.dev domain behavior
+   - Improved test coverage for domain-specific behavior
+
+### Current Strategy Priority Order
+
+#### For workers.dev domains:
+1. WorkersDevStrategy (Priority: 0)
+2. DirectUrlStrategy (Priority: 2)
+3. CdnCgiStrategy (Priority: 1) 
+4. RemoteFallbackStrategy (Priority: 3)
+5. DirectServingStrategy (Priority: 10)
+
+The InterceptorStrategy is disabled for workers.dev domains.
+
+#### For custom domains:
+1. InterceptorStrategy (Priority: 0)
+2. DirectUrlStrategy (Priority: 2)
+3. CdnCgiStrategy (Priority: 1)
+4. RemoteFallbackStrategy (Priority: 3)
+5. DirectServingStrategy (Priority: 10)
+
+### Benefits
+
+The domain-specific approach provides several benefits:
+
+1. **Optimal Performance**: Each domain type uses the most efficient strategy for its environment
+2. **Reliability**: Images are always served, even when transformation fails
+3. **Configuration-Driven**: Changes can be made without code updates
+4. **Better Diagnostics**: Enhanced debug headers show exactly which strategies were attempted
+5. **Predictable Behavior**: Consistent strategy selection based on domain type
+
+### Future Work
+
+Potential future improvements include:
+
+1. **Client-Side Image Processing**: Implement JavaScript-based image processing for workers.dev
+2. **Responsive Image Support**: Add client-side responsive image generation for workers.dev
+3. **Advanced Caching**: Domain-specific caching strategies
+4. **Strategy Analytics**: Track which strategies are most successful in each environment

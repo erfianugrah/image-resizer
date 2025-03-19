@@ -64,6 +64,7 @@
               "environment": "development",
               "strategies": {
                 "priorityOrder": [
+                  "workers-dev",
                   "direct-url",
                   "cdn-cgi",
                   "remote-fallback",
@@ -285,13 +286,13 @@
               "environment": "development",
               "strategies": {
                 "priorityOrder": [
+                  "workers-dev",
                   "direct-url",
                   "remote-fallback",
                   "direct-serving"
                 ],
                 "disabled": [
-                  "interceptor",
-                  "cdn-cgi"
+                  "interceptor"
                 ]
               }
             },
@@ -521,13 +522,13 @@
               "environment": "development",
               "strategies": {
                 "priorityOrder": [
+                  "workers-dev",
                   "direct-url",
                   "remote-fallback",
                   "direct-serving"
                 ],
                 "disabled": [
-                  "interceptor",
-                  "cdn-cgi"
+                  "interceptor"
                 ]
               }
             },
@@ -561,16 +562,16 @@
         },
         // Logging configuration - minimal for production
         "LOGGING_CONFIG": {
-          "level": "DEBUG",
+          "level": "WARN",
           "includeTimestamp": true,
           "enableStructuredLogs": true
         },
         // Cache method configuration
         "CACHE_METHOD": "cf",
-        "CACHE_DEBUG": "true",
+        "CACHE_DEBUG": "false",
         // Debug headers disabled for production
         "DEBUG_HEADERS_CONFIG": {
-          "enabled": true
+          "enabled": false
         },
         // Origin priorities and configuration
         "ORIGIN_CONFIG": {

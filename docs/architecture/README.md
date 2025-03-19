@@ -1,51 +1,88 @@
-# Image Resizer Architecture Documentation
+# Architecture Documentation
 
-This directory contains comprehensive documentation about the architecture, design patterns, and implementation details of the Image Resizer service.
+This directory contains documentation about the architecture of the image-resizer system.
 
-## Core Architecture
+## Contents
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Overview of the system architecture, patterns, and components
-- [DEPENDENCY_INJECTION.md](DEPENDENCY_INJECTION.md) - Implementation of the dependency injection pattern
-- [TYPE_SYSTEM.md](TYPE_SYSTEM.md) - Details of the TypeScript type system organization
+- [DEPENDENCY_INJECTION.md](./DEPENDENCY_INJECTION.md): Details on the factory pattern and dependency injection approach
+- [R2_INTEGRATION.md](./R2_INTEGRATION.md): Documentation on the R2 storage integration and transformation strategies
+- [DOMAIN_SPECIFIC_STRATEGY.md](./DOMAIN_SPECIFIC_STRATEGY.md): Information about domain-specific transformation strategies
+- [REFACTORING_PROGRESS.md](./REFACTORING_PROGRESS.md): Status and details of ongoing refactoring work
 
-## Configuration and State Management
+## Overview of the Architecture
 
-- [SINGLE_SOURCE_OF_TRUTH.md](SINGLE_SOURCE_OF_TRUTH.md) - How wrangler.jsonc serves as the single source of truth
-- [CONFIGURATION.md](CONFIGURATION.md) - Comprehensive configuration system explanation
+The image-resizer is built with a modular, service-oriented architecture that emphasizes:
 
-## Image Processing and Transformation
+1. **Domain-Driven Design**: Core business logic is organized around domain concepts in the `domain` directory
+2. **Command Pattern**: Complex operations are encapsulated in command objects
+3. **Factory Pattern**: Services and components are created through factory functions
+4. **Strategy Pattern**: Image transformation uses a pluggable strategy pattern for flexibility
+5. **Dependency Injection**: Dependencies are explicitly passed to factories
+6. **Interface-Based Design**: Components depend on interfaces, not implementations
 
-- [R2_INTEGRATION.md](R2_INTEGRATION.md) - Integration with Cloudflare R2 for image storage
-- [INTERCEPTOR_STRATEGY.md](INTERCEPTOR_STRATEGY.md) - How the interceptor strategy works for optimal performance
+## Key Components
 
-## Infrastructure and Performance
+### Core Services
 
-- [CACHING.md](CACHING.md) - Comprehensive caching strategy
-- [ENHANCED_DEBUG_HEADERS.md](ENHANCED_DEBUG_HEADERS.md) - Debugging infrastructure with enhanced headers
+- **ServiceRegistry**: Central registry for all services with dependency resolution
+- **ConfigManager**: Manages configuration loading and access
+- **LoggerFactory**: Creates loggers with consistent formatting and levels
+
+### Domain Layer
+
+- **TransformImageCommand**: Implements the command pattern for image transformation
+- **ValidationService**: Handles validation of image transformation options
+
+### Service Layer
+
+- **StreamingTransformationService**: Manages transformation strategies with fallback chain
+- **R2ImageProcessorService**: Handles R2 bucket operations for image storage
+- **EnvironmentService**: Provides domain-specific configuration and strategy selection
+- **TransformationCacheService**: Caches transformation options for performance
+
+### Transformation Strategies
+
+The system uses a strategy pattern for image transformations:
+
+1. **WorkersDevStrategy**: Specialized strategy for workers.dev domains
+2. **InterceptorStrategy**: Uses Cloudflare's image resizing with subrequest interception
+3. **DirectUrlStrategy**: Uses direct URLs with cf.image properties
+4. **CdnCgiStrategy**: Uses the /cdn-cgi/image/ URL pattern
+5. **RemoteFallbackStrategy**: Falls back to a remote server for transformations
+6. **DirectServingStrategy**: Serves original images without transformation
+
+### Utility Layer
+
+- **TransformationUtils**: Standardized transformation option processing
+- **ResponseHeadersBuilder**: Builder pattern for HTTP headers
+- **EnhancedDebugHeaders**: Debug header generation for diagnostics
+- **CacheUtils**: Cache configuration and control
+- **ValidationUtils**: Validation utilities for image options
+
+## Domain-Specific Strategy Selection
+
+A key architectural feature is the dynamic selection of transformation strategies based on domain type:
+
+1. **Domain Detection**: The system identifies workers.dev versus custom domains
+2. **Configuration-Driven Selection**: Strategy prioritization is defined in wrangler.jsonc
+3. **Automatic Fallback**: If a higher-priority strategy fails, the system tries lower-priority options
+4. **Strategy Disabling**: Certain strategies can be explicitly disabled for specific domains
 
 ## Error Handling
 
-- [ERROR_HANDLING.md](ERROR_HANDLING.md) - Standardized error handling system
+The system uses a consistent error handling approach:
 
-## Project Status and Evolution
+1. **AppError Hierarchy**: Centralized error types defined in the core layer
+2. **ErrorFactory Pattern**: Errors are created through factory functions
+3. **Specialized Error Types**: Domain-specific errors (like R2Error) with additional diagnostics
+4. **HTTP Status Code Mapping**: Errors are mapped to appropriate HTTP status codes
 
-- [REFACTORING_PROGRESS.md](REFACTORING_PROGRESS.md) - Documentation of refactoring progress
-- [ARCHITECTURE_IMPROVEMENTS.md](ARCHITECTURE_IMPROVEMENTS.md) - Planned and implemented architecture improvements
+## Performance Optimizations
 
-## Architecture Diagrams
+Several performance optimizations have been implemented:
 
-- [diagrams/component.png](diagrams/component.png) - High-level component diagram
-- [diagrams/sequence.png](diagrams/sequence.png) - Request processing sequence diagram
-- [diagrams/class.png](diagrams/class.png) - Key classes and their relationships
-
-## Document Conventions
-
-Each architecture document follows a consistent structure:
-
-1. **Overview**: Brief explanation of the topic and its importance
-2. **Design Principles**: Key principles guiding the implementation
-3. **Implementation Details**: How the concept is implemented in code
-4. **Examples**: Code examples demonstrating the concept
-5. **Best Practices**: Guidelines for maintaining and extending the system
-
-For code examples, we use TypeScript syntax highlighting and include comments for clarity.
+1. **Validation Results Caching**: TTL-based caching for validation results
+2. **Transformation Options Caching**: Multi-format caching for transformation options
+3. **Response Header Optimization**: Centralized header management
+4. **Streaming Transformations**: Support for streaming image processing
+5. **Domain-Specific Strategy Selection**: Optimal strategy selection based on domain

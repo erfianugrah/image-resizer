@@ -1,235 +1,275 @@
 # Domain-Specific Transformation Strategies
 
-This document describes the domain-specific transformation strategy selection in the image-resizer project, which addresses differences in behavior between workers.dev domains and custom domains.
+This document explains how image transformation strategies are selected and applied based on domain type (workers.dev vs. custom domains).
 
-## Problem Statement
+## Overview
 
-Cloudflare Workers provides two types of domain endpoints:
-1. **workers.dev domains**: Default domains provided by Cloudflare (e.g., `my-worker.workers.dev`)
-2. **Custom domains**: Custom domains configured with Cloudflare (e.g., `images.example.com`)
+The image-resizer worker needs to handle image transformations differently depending on the domain it's running on. This is because Cloudflare Image Resizing has different behavior and capabilities on workers.dev domains compared to custom domains.
 
-We discovered that there are differences in how these domains handle certain transformation strategies:
+## Domain Types
 
-- The **interceptor strategy** (which uses CF image properties with subrequests) works optimally on custom domains but can fail on workers.dev domains.
-- The **direct-url strategy** (which uses direct URLs with CF image properties) works on both domain types but with different performance characteristics.
-- The **cdn-cgi strategy** (which uses /cdn-cgi/image/ URL pattern) is more reliable on workers.dev domains.
+1. **workers.dev Domains**: Default development domains provided by Cloudflare (e.g., `my-worker.workers.dev`)
+2. **Custom Domains**: Your own domains connected to Cloudflare (e.g., `images.mysite.com`)
 
-Without proper configuration, this inconsistency causes:
-1. Failed transformations on workers.dev domains when using the interceptor strategy
-2. Potential performance loss on custom domains when not using optimal strategies
-3. Inconsistent user experience across different domain types
+## Strategy Types
 
-## Solution Architecture
+The application supports several strategies for transforming images:
 
-Our solution uses a flexible, configuration-driven approach that:
+1. **WorkersDevStrategy**: Special strategy for workers.dev domains that bypasses Cloudflare's image resizing limitations
+2. **InterceptorStrategy**: Uses the interceptor pattern with CF image resizing (works best on custom domains)
+3. **DirectUrlStrategy**: Transforms images using direct URLs with CF image options
+4. **CdnCgiStrategy**: Uses the `/cdn-cgi/image/` URL pattern
+5. **RemoteFallbackStrategy**: Falls back to a remote server for transformations
+6. **DirectServingStrategy**: Serves the original image without transformations (last resort)
 
-1. Uses environment-specific configurations in wrangler.jsonc for each domain type
-2. Allows per-domain strategy prioritization and enabling/disabling specific strategies
-3. Dynamically selects the optimal transformation strategy for each request
-4. Provides detailed diagnostics through enhanced debug headers
-5. Falls back gracefully when a strategy fails
+## Strategy Selection Logic
 
-This approach avoids hardcoded domain detection logic and instead relies on configuration, making it more maintainable and adaptable to different deployment environments.
+The application selects which strategies to use based on the following:
 
-### Components
+1. **Domain Detection**: The `EnvironmentService` detects which type of domain the request is coming from
+2. **Configuration-Driven Priorities**: Strategy priorities are defined in `wrangler.jsonc` configuration
+3. **Fallback Mechanism**: If a higher-priority strategy fails, the system falls back to the next strategy
+4. **Domain-Specific Disabling**: Certain strategies can be explicitly disabled for specific domains
 
-1. **EnvironmentService**: Detects domain type and loads configuration
-2. **ConfigurationService**: Loads strategy configuration from wrangler.jsonc
-3. **StreamingTransformationService**: Uses the environment information to select strategies
-4. **Enhanced Debug Headers**: Provide diagnostic information about strategy selection
+## Configuration
 
-## Domain-Specific Configuration
+Strategy selection is configured in `wrangler.jsonc` under two main sections:
 
-The configuration in wrangler.jsonc provides domain-specific strategy settings:
+### 1. STRATEGIES_CONFIG
 
-### For workers.dev domains:
+General strategy configuration for the entire application:
+
 ```json
-{
-  "pattern": "*.workers.dev/*",
-  "environment": "development",
-  "strategies": {
-    "priorityOrder": ["direct-url", "remote-fallback", "direct-serving"],
-    "disabled": ["interceptor", "cdn-cgi"]
+"STRATEGIES_CONFIG": {
+  "priorityOrder": [
+    "interceptor",
+    "direct-url", 
+    "cdn-cgi",
+    "remote-fallback",
+    "direct-serving"
+  ],
+  "disabled": [],
+  "enabled": []
+}
+```
+
+### 2. IMAGE_RESIZER_CONFIG
+
+Domain-specific strategy configuration:
+
+```json
+"IMAGE_RESIZER_CONFIG": {
+  "routes": [
+    {
+      "pattern": "*.workers.dev/*",
+      "environment": "development",
+      "strategies": {
+        "priorityOrder": [
+          "workers-dev",
+          "direct-url",
+          "cdn-cgi", 
+          "remote-fallback",
+          "direct-serving"
+        ],
+        "disabled": [
+          "interceptor"
+        ]
+      }
+    },
+    {
+      "pattern": "images.erfi.dev/*",
+      "environment": "production",
+      "strategies": {
+        "priorityOrder": [
+          "interceptor",
+          "direct-url",
+          "cdn-cgi",
+          "remote-fallback",
+          "direct-serving"
+        ],
+        "disabled": []
+      }
+    }
+  ],
+  "defaults": {
+    "strategies": {
+      "priorityOrder": [
+        "interceptor",
+        "direct-url",
+        "cdn-cgi",
+        "remote-fallback",
+        "direct-serving"
+      ],
+      "disabled": []
+    }
   }
 }
 ```
 
-### For custom domains:
-```json
-{
-  "pattern": "images.erfi.dev/*",
-  "environment": "production",
-  "strategies": {
-    "priorityOrder": ["interceptor", "direct-url", "remote-fallback", "direct-serving"],
-    "disabled": ["cdn-cgi"]
-  }
-}
-```
+## Configuration Precedence
 
-## Strategy Selection Process
+The system follows this precedence order when determining strategy configuration:
 
-1. The `StreamingTransformationService` receives a request for image transformation
-2. It uses the `EnvironmentService` to:
-   - Determine configuration based on the request URL
-   - Load domain-specific strategy configuration from wrangler.jsonc
-   - Get the prioritized list of strategies for the domain
-   - Check which strategies are enabled/disabled for the domain
+1. **Route-specific configuration** (`IMAGE_RESIZER_CONFIG.routes[].strategies`)
+2. **Global strategy configuration** (`STRATEGIES_CONFIG`)
+3. **Default strategy configuration** (`IMAGE_RESIZER_CONFIG.defaults.strategies`)
+4. **Domain-specific defaults** (Hardcoded defaults based on domain type)
+5. **Fallback defaults** (Used when no other configuration is available)
 
-3. When attempting transformations, it:
-   - Skips strategies that are disabled in the configuration 
-   - Tries strategies in the configured priority order
-   - Runs each strategy's `canHandle` method to see if it can handle the request
-   - Falls back to the next strategy if one fails
-   - Collects diagnostic information about attempts and failures
+## Accessing Configuration
 
-4. Enhanced debug headers provide visibility into the selection process:
-   - Shows the attempted strategies
-   - Indicates which strategy was finally selected
-   - Shows any errors encountered during the process
-   - Provides domain and environment information
-
-## Implementation Details
-
-### Domain-Specific Configuration
-
-The `wrangler.jsonc` file contains domain-specific configuration for each environment:
-
-```json
-{
-  "pattern": "*.workers.dev/*",
-  "environment": "development",
-  "strategies": {
-    "priorityOrder": [
-      "direct-url",
-      "cdn-cgi",
-      "direct-serving",
-      "remote-fallback"
-    ],
-    "disabled": []
-  }
-}
-```
-
-For custom domains, a different strategy order is used:
-
-```json
-{
-  "pattern": "images.erfi.dev/*",
-  "environment": "production",
-  "strategies": {
-    "priorityOrder": [
-      "interceptor",
-      "direct-url",
-      "cdn-cgi",
-      "remote-fallback",
-      "direct-serving"
-    ],
-    "disabled": []
-  }
-}
-```
-
-### Strategy Enabling/Disabling Logic
-
-The system uses a configuration-based approach to determine which strategies are enabled or disabled for each domain:
+The application uses a centralized configuration approach through the `ConfigManager`:
 
 ```typescript
-const isStrategyEnabledForUrl = (strategyName: string, url: string | URL): boolean => {
+// Example of accessing configuration in EnvironmentService
+const getStrategyPriorityOrderForUrl = (url: string | URL): string[] => {
+  const domain = getDomain(url);
   const routeConfig = getRouteConfigForUrl(url);
   
-  // Check if explicitly disabled in route config
-  if (routeConfig.strategies?.disabled?.includes(strategyName)) {
-    return false;
+  // First check route-specific configuration
+  if (routeConfig.strategies?.priorityOrder) {
+    logger.debug('Using route-specific strategy priority', {
+      domain,
+      priority: routeConfig.strategies.priorityOrder.join(',')
+    });
+    return routeConfig.strategies.priorityOrder;
   }
   
-  // Check if only certain strategies are enabled in route config
-  if (routeConfig.strategies?.enabled?.length > 0) {
-    return routeConfig.strategies.enabled.includes(strategyName);
+  // Use centralized config via configService
+  try {
+    // Get the app config from the centralized configuration manager
+    const appConfig = configService.getConfig();
+    
+    // Check if we have strategy config
+    if (appConfig.strategiesConfig?.priorityOrder) {
+      logger.debug('Using STRATEGIES_CONFIG priority order', {
+        domain,
+        priority: appConfig.strategiesConfig.priorityOrder.join(',')
+      });
+      return appConfig.strategiesConfig.priorityOrder;
+    }
+    
+    // Check defaults in image resizer config
+    if (appConfig.imageResizerConfig?.defaults?.strategies?.priorityOrder) {
+      logger.debug('Using IMAGE_RESIZER_CONFIG defaults priority order', {
+        domain,
+        priority: appConfig.imageResizerConfig.defaults.strategies.priorityOrder.join(',')
+      });
+      return appConfig.imageResizerConfig.defaults.strategies.priorityOrder;
+    }
+  } catch (error) {
+    logger.warn('Error accessing centralized config', { error });
   }
   
-  // Check global defaults from IMAGE_RESIZER_CONFIG or fallback configuration
-  
-  // Default to enabled if not explicitly disabled
-  return true;
+  // Fall back to domain-specific defaults
+  // ...
 };
 ```
 
-### Strategy Selection in the Transformation Service
+## Strategy Implementation
+
+Each strategy implements the `IImageTransformationStrategy` interface with two key methods:
+
+1. **canHandle**: Determines if the strategy can handle a given request
+2. **execute**: Performs the transformation and returns a response
+
+The `StreamingTransformationService` manages strategy selection and execution:
 
 ```typescript
-// Try each strategy in order of priority
-for (const strategy of sortedStrategies()) {
-  try {
-    // Skip disabled strategies if environment service is available
-    if (environmentService) {
-      const isEnabled = environmentService.isStrategyEnabledForUrl(
-        strategy.name, 
-        request.url
-      );
-      
-      if (!isEnabled) {
-        logDebug(`Strategy ${strategy.name} is disabled for this domain, skipping`);
-        continue;
-      }
-    }
+// In streamingTransformationService.ts
+processR2Image() {
+  // Get environment info if available
+  let strategyDiagnostics: StrategyDiagnostics = {
+    attemptedStrategies: []
+  };
+  
+  // Get domain-specific info if environment service is available
+  if (environmentService) {
+    const domain = environmentService.getDomain(url);
+    const isWorkersDevDomain = environmentService.isWorkersDevDomain(domain);
+    const isCustomDomain = environmentService.isCustomDomain(domain);
+    const environmentType = environmentService.getEnvironmentForDomain(domain);
+    const priorityOrder = environmentService.getStrategyPriorityOrderForUrl(url);
     
-    // Check if strategy can handle the request
-    if (!strategy.canHandle(params)) {
-      logDebug(`Strategy ${strategy.name} cannot handle this request, skipping`);
-      continue;
-    }
+    // Store domain and environment info for debug headers
+    strategyDiagnostics = {
+      domainType: isWorkersDevDomain ? 'workers.dev' : (isCustomDomain ? 'custom' : 'other'),
+      environmentType,
+      isWorkersDevDomain,
+      isCustomDomain,
+      priorityOrder
+    };
+  }
 
-    // Execute strategy
-    const response = await strategy.execute(params);
+  // Try each strategy in order of priority
+  for (const strategy of sortedStrategies()) {
+    try {
+      // Skip disabled strategies if environment service is available
+      if (environmentService) {
+        const isEnabled = environmentService.isStrategyEnabledForUrl(strategy.name, request.url);
+        if (!isEnabled) {
+          logger.debug(`Strategy ${strategy.name} is disabled for this domain, skipping`);
+          continue;
+        }
+      }
+      
+      if (strategy.canHandle(params)) {
+        transformationAttempts.push(strategy.name);
+        const response = await strategy.execute(params);
+        return response;
+      }
+    } catch (error) {
+      // Record error and continue to next strategy
+      errors[strategy.name] = errorMessage;
+    }
+  }
+  
+  // If all strategies fail, serve directly from R2
+  // ...
+}
+```
+
+## WorkersDevStrategy Implementation
+
+The `WorkersDevStrategy` was created specifically to handle workers.dev domains where Cloudflare Image Resizing has limitations:
+
+```typescript
+export class WorkersDevStrategy extends BaseTransformationStrategy {
+  name = 'workers-dev';
+  priority = 0; // Highest priority for workers.dev domains
+
+  canHandle(params: TransformationStrategyParams): boolean {
+    const { request, bucket, options } = params;
     
-    // Success - return response
-    return response;
-  } catch (error) {
-    // Record error and continue to next strategy
-    logDebug(`${strategy.name} transformation failed, trying next method`);
+    // Only handle workers.dev domains with transformations
+    const isWorkersDevDomain = request.url.includes('workers.dev') || 
+                              (request.headers.get('host') || '').includes('workers.dev');
+    
+    if (!isWorkersDevDomain || !bucket) return false;
+    
+    const hasTransformations = !!options.width || !!options.height || 
+                              !!options.format || !!options.quality;
+      
+    return hasTransformations;
+  }
+
+  async execute(params: TransformationStrategyParams): Promise<Response> {
+    // Implementation details...
+    // Returns original image with transformation metadata headers
   }
 }
 ```
 
-## Strategy Enhancements for Workers.dev Domains
+## Debugging
 
-The DirectUrlStrategy has been enhanced to be more permissive for workers.dev domains:
+The system adds debug headers to help troubleshoot strategy selection:
 
-```typescript
-// On workers.dev domains, this strategy should be more permissive
-if (hasWorkersDevDomain && bucket && hasTransformations) {
-  return true;
-}
-```
+1. `x-debug-strategy-attempts`: Lists all strategies that were attempted
+2. `x-debug-strategy-selected`: Shows which strategy was ultimately used
+3. `x-debug-strategy-failures`: Shows which strategies failed and why
+4. `x-debug-domain-type`: Indicates whether the domain is workers.dev or custom
+5. `x-debug-is-workers-dev`: Boolean indicating if this is a workers.dev domain
 
-This ensures that workers.dev domains can successfully use the direct-url strategy even when some parameters might be missing.
+## Conclusion
 
-## Testing Domain-Specific Behavior
-
-To test domain-specific strategy selection:
-
-1. Make a request to a workers.dev domain with debug headers:
-```
-curl -H "x-debug: true" https://dev-resizer.workers.dev/image.jpg
-```
-
-2. Make a request to a custom domain with debug headers:
-```
-curl -H "x-debug: true" https://images.erfi.dev/image.jpg
-```
-
-3. Compare the debug headers to verify that different strategies are selected:
-   - Look for `x-debug-strategy-selected` header to see which strategy was used
-   - Check `x-debug-attempted-strategies` to see the fallback chain
-   - Verify that the correct transformations were applied based on content-type and content-length
-
-## Benefits of Domain-Specific Configuration
-
-This configuration-driven approach provides several advantages:
-
-1. **Reliability**: Each domain type uses the most reliable strategies for its environment
-2. **Performance**: Optimized strategy selection for each domain type and environment
-3. **Flexibility**: Easy updates via configuration without code changes
-4. **Fallback Resilience**: Multiple strategies provide reliable fallback options
-5. **Diagnostics**: Enhanced debug headers show exactly what happened during transformation
-6. **Adaptability**: The system can be configured for different environments without code changes
+This domain-specific strategy approach allows the image-resizer to work optimally on both workers.dev and custom domains, adapting its behavior based on the capabilities available in each environment.

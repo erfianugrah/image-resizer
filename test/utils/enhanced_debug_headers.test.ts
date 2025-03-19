@@ -32,7 +32,12 @@ describe('Enhanced Debug Headers Utilities', () => {
           'Content-Type': 'text/plain'
         }
       });
-      const debugInfo: DebugInfo = { isEnabled: true };
+      
+      const debugInfo: DebugInfo = { 
+        isEnabled: true, 
+        prefix: 'debug-' // Make sure we use the same prefix as in the implementation
+      };
+      
       const strategyDiagnostics: StrategyDiagnostics = {
         attemptedStrategies: ['strategy1', 'strategy2'],
         selectedStrategy: 'strategy2',
@@ -49,15 +54,15 @@ describe('Enhanced Debug Headers Utilities', () => {
       // Act
       const result = addEnhancedDebugHeaders(response, debugInfo, strategyDiagnostics);
 
-      // Assert
-      expect(result.headers.get('x-debug-strategy-attempts')).toBe('strategy1,strategy2');
-      expect(result.headers.get('x-debug-strategy-selected')).toBe('strategy2');
-      expect(result.headers.get('x-debug-strategy-failures')).toBe('strategy1:Error: test error');
-      expect(result.headers.get('x-debug-domain-type')).toBe('custom');
-      expect(result.headers.get('x-debug-environment')).toBe('production');
-      expect(result.headers.get('x-debug-strategy-order')).toBe('strategy1,strategy2,strategy3');
-      expect(result.headers.get('x-debug-is-workers-dev')).toBe('false');
-      expect(result.headers.get('x-debug-is-custom-domain')).toBe('true');
+      // Assert - using the debug- prefix to match the implementation
+      expect(result.headers.get('debug-strategy-attempts')).toBe('strategy1,strategy2');
+      expect(result.headers.get('debug-strategy-selected')).toBe('strategy2');
+      expect(result.headers.get('debug-strategy-failures')).toBe('strategy1:Error: test error');
+      expect(result.headers.get('debug-domain-type')).toBe('custom');
+      expect(result.headers.get('debug-environment')).toBe('production');
+      expect(result.headers.get('debug-strategy-order')).toBe('strategy1,strategy2,strategy3');
+      expect(result.headers.get('debug-is-workers-dev')).toBe('false');
+      expect(result.headers.get('debug-is-custom-domain')).toBe('true');
     });
 
     test('should add route config headers when environment service is provided', () => {
@@ -76,7 +81,10 @@ describe('Enhanced Debug Headers Utilities', () => {
       });
       
       const response = mockResponse;
-      const debugInfo: DebugInfo = { isEnabled: true };
+      const debugInfo: DebugInfo = { 
+        isEnabled: true,
+        prefix: 'debug-' // Make sure we use the same prefix as in the implementation
+      };
       const strategyDiagnostics: StrategyDiagnostics = {
         attemptedStrategies: ['strategy1'],
         selectedStrategy: 'strategy1'
@@ -101,13 +109,13 @@ describe('Enhanced Debug Headers Utilities', () => {
       // Act
       const result = addEnhancedDebugHeaders(response, debugInfo, strategyDiagnostics, environmentService);
 
-      // Assert
-      expect(result.headers.get('x-debug-route-config')).toBe(JSON.stringify({
+      // Assert - using the debug- prefix to match the implementation
+      expect(result.headers.get('debug-route-config')).toBe(JSON.stringify({
         pattern: 'images.erfi.dev/*',
         environment: 'production',
         hasStrategies: true
       }));
-      expect(result.headers.get('x-debug-route-strategy-order')).toBe('interceptor,direct-url,remote-fallback,direct-serving');
+      expect(result.headers.get('debug-route-strategy-order')).toBe('interceptor,direct-url,remote-fallback,direct-serving');
     });
 
     test('should handle errors gracefully', () => {

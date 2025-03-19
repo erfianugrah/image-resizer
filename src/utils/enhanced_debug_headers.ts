@@ -3,10 +3,14 @@
  * 
  * Provides specialized debug headers for strategy selection and transformation attempts
  * to help with diagnosing environment-specific behavior.
+ * 
+ * This module is integrated with the centralized logging configuration.
  */
 
 import { DiagnosticsInfo, DebugInfo } from '../types/utils/debug';
 import { IEnvironmentService } from '../types/services/environment';
+import { getDebugHeadersConfig, areDebugHeadersEnabled } from './loggingManager';
+import { debug } from './loggerUtils';
 
 export interface StrategyDiagnostics {
   attemptedStrategies: string[];
@@ -22,7 +26,44 @@ export interface StrategyDiagnostics {
 }
 
 /**
+ * Check if debug is enabled and get debug info from request or config
+ * @param request - The request to check for debug headers
+ * @param environment - Current environment name
+ * @returns Debug info configuration
+ */
+export function getEnhancedDebugInfo(request: Request, environment?: string): DebugInfo {
+  // Check for debug override in request headers
+  const debugHeaderEnabled = request.headers.get('x-debug') === 'true';
+  const debugVerboseEnabled = request.headers.get('x-debug-verbose') === 'true';
+  
+  // Get config from centralized logging manager
+  const configEnabled = areDebugHeadersEnabled(environment);
+  const debugConfig = getDebugHeadersConfig();
+  
+  // Debug is enabled if either request header or config enables it
+  const isEnabled = debugHeaderEnabled || debugVerboseEnabled || configEnabled;
+  
+  // Determine verbosity level - request headers take precedence
+  const isVerbose = debugVerboseEnabled || (debugConfig?.isVerbose || false);
+  
+  // Use prefix from config or default
+  const prefix = debugConfig?.prefix || 'debug-';
+  
+  // Create debug info object
+  return {
+    isEnabled,
+    isVerbose,
+    includePerformance: true,
+    prefix,
+    includeHeaders: debugConfig?.includeHeaders || [],
+    specialHeaders: debugConfig?.specialHeaders || {},
+    r2Key: request.url.split('/').pop() || ''
+  };
+}
+
+/**
  * Add enhanced debug headers related to strategy selection and environments
+ * Based on centralized configuration and request headers
  * @param response - The original response
  * @param debugInfo - Debug settings
  * @param strategyDiagnostics - Strategy diagnostic information
@@ -44,14 +85,24 @@ export function addEnhancedDebugHeaders(
     // Clone the response to make it mutable
     const enhancedResponse = new Response(response.body, response);
     const headers = enhancedResponse.headers;
+    
+    // Get prefix from debug info
+    const prefix = debugInfo.prefix || 'debug-';
+
+    debug('EnhancedDebug', 'Adding enhanced debug headers', {
+      isEnabled: debugInfo.isEnabled,
+      isVerbose: debugInfo.isVerbose,
+      prefix,
+      includeHeaders: debugInfo.includeHeaders
+    });
 
     // Add strategy diagnostics
     if (strategyDiagnostics.attemptedStrategies && strategyDiagnostics.attemptedStrategies.length > 0) {
-      headers.set('x-debug-strategy-attempts', strategyDiagnostics.attemptedStrategies.join(','));
+      headers.set(`${prefix}strategy-attempts`, strategyDiagnostics.attemptedStrategies.join(','));
     }
 
     if (strategyDiagnostics.selectedStrategy) {
-      headers.set('x-debug-strategy-selected', strategyDiagnostics.selectedStrategy);
+      headers.set(`${prefix}strategy-selected`, strategyDiagnostics.selectedStrategy);
     }
 
     if (strategyDiagnostics.failedStrategies) {
@@ -61,39 +112,39 @@ export function addEnhancedDebugHeaders(
         .join(';');
       
       if (failuresStr) {
-        headers.set('x-debug-strategy-failures', failuresStr);
+        headers.set(`${prefix}strategy-failures`, failuresStr);
       }
     }
 
     // Add environment and domain information
     if (strategyDiagnostics.domainType) {
-      headers.set('x-debug-domain-type', strategyDiagnostics.domainType);
+      headers.set(`${prefix}domain-type`, strategyDiagnostics.domainType);
     }
     
     if (strategyDiagnostics.environmentType) {
-      headers.set('x-debug-environment', strategyDiagnostics.environmentType);
+      headers.set(`${prefix}environment`, strategyDiagnostics.environmentType);
     }
     
     // Add domain detection flags
     if (strategyDiagnostics.isWorkersDevDomain !== undefined) {
-      headers.set('x-debug-is-workers-dev', String(strategyDiagnostics.isWorkersDevDomain));
+      headers.set(`${prefix}is-workers-dev`, String(strategyDiagnostics.isWorkersDevDomain));
     }
     
     if (strategyDiagnostics.isCustomDomain !== undefined) {
-      headers.set('x-debug-is-custom-domain', String(strategyDiagnostics.isCustomDomain));
+      headers.set(`${prefix}is-custom-domain`, String(strategyDiagnostics.isCustomDomain));
     }
 
     // Add strategy configuration info
     if (strategyDiagnostics.priorityOrder && strategyDiagnostics.priorityOrder.length > 0) {
-      headers.set('x-debug-strategy-order', strategyDiagnostics.priorityOrder.join(','));
+      headers.set(`${prefix}strategy-order`, strategyDiagnostics.priorityOrder.join(','));
     }
     
     if (strategyDiagnostics.disabledStrategies && strategyDiagnostics.disabledStrategies.length > 0) {
-      headers.set('x-debug-disabled-strategies', strategyDiagnostics.disabledStrategies.join(','));
+      headers.set(`${prefix}disabled-strategies`, strategyDiagnostics.disabledStrategies.join(','));
     }
     
     if (strategyDiagnostics.enabledStrategies && strategyDiagnostics.enabledStrategies.length > 0) {
-      headers.set('x-debug-enabled-strategies', strategyDiagnostics.enabledStrategies.join(','));
+      headers.set(`${prefix}enabled-strategies`, strategyDiagnostics.enabledStrategies.join(','));
     }
 
     // If environment service is available, add additional diagnostics
@@ -107,7 +158,7 @@ export function addEnhancedDebugHeaders(
           const config = environmentService.getRouteConfigForUrl(url);
           if (config) {
             // Add route configuration as a debug header
-            headers.set('x-debug-route-config', JSON.stringify({
+            headers.set(`${prefix}route-config`, JSON.stringify({
               pattern: config.pattern,
               environment: config.environment,
               hasStrategies: !!config.strategies
@@ -115,7 +166,7 @@ export function addEnhancedDebugHeaders(
             
             // Add strategy priority if available
             if (config.strategies?.priorityOrder) {
-              headers.set('x-debug-route-strategy-order', config.strategies.priorityOrder.join(','));
+              headers.set(`${prefix}route-strategy-order`, config.strategies.priorityOrder.join(','));
             }
           }
         }
@@ -124,8 +175,19 @@ export function addEnhancedDebugHeaders(
       }
     }
 
+    // Log what we've added at debug level
+    debug('EnhancedDebugHeaders', 'Added enhanced debug headers', {
+      headerCount: [...headers.entries()].filter(([key]) => key.startsWith(prefix)).length,
+      strategies: strategyDiagnostics.attemptedStrategies
+    });
+
     return enhancedResponse;
   } catch (err) {
+    // Log error but don't crash
+    debug('EnhancedDebugHeaders', 'Error adding enhanced debug headers', {
+      error: err instanceof Error ? err.message : String(err)
+    });
+    
     // On error, return the original response
     return response;
   }

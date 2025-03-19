@@ -10,7 +10,17 @@ The Image Resizer now supports R2 storage as an image source through a modular t
 
 The system uses a prioritized list of transformation strategies:
 
-### 1. Interceptor Strategy (Priority: 0)
+### 1. WorkersDevStrategy (Priority: 0 for workers.dev domains)
+
+The WorkersDevStrategy is specialized for workers.dev domains where Cloudflare Image Resizing has limitations. When a request comes from a workers.dev domain, this strategy:
+
+1. Retrieves the original image from R2
+2. Adds transformation information as headers (e.g., `X-Image-Width`, `X-Image-Format`)
+3. Returns the untransformed image with these headers
+
+This strategy was created specifically for workers.dev domains because both the Interceptor and DirectUrl strategies have known limitations on these domains, resulting in 404 errors. It preserves transformation metadata while ensuring the image is still served correctly.
+
+### 2. Interceptor Strategy (Priority: 0 for custom domains)
 
 The interceptor strategy uses the Cloudflare Worker's ability to intercept image resizing subrequests. When Cloudflare processes an image with `cf.image` properties, it makes a subrequest that can be identified by its `via` header containing `image-resizing`. The worker intercepts this subrequest and serves the R2 image directly.
 
@@ -19,6 +29,7 @@ This approach is the most efficient because:
 - The original image is served directly from R2 to Cloudflare's transformation service
 - No external requests are made to CDNs or origin servers
 - It works with any type of R2 stored image (JPEG, PNG, WebP, AVIF, etc.)
+- **Note**: This strategy works best on custom domains (not workers.dev domains)
 
 **Key Implementation Detail**: When the worker receives a subrequest (identified by the `via` header), it extracts the image key from the URL path. The URL path structure `/path/to/image.jpg` is preserved when making the initial request with `cf.image` properties, which allows the worker to determine which image to serve from R2 when the subrequest comes back.
 

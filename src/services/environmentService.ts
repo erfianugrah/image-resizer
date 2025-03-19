@@ -80,25 +80,40 @@ export function createEnvironmentService(
   };
   
   /**
-   * Load route configurations from wrangler.jsonc
+   * Load route configurations from centralized app config
    */
   const loadRouteConfigurations = (): RouteConfig[] => {
     try {
-      // Try to get the configuration from the global object
-      const globalConfig = (global as any).__WRANGLER_CONFIG__;
+      // Use the configService to get the image resizer configuration
+      const config = configService.getConfig();
       
-      // First check the new "vars.IMAGE_RESIZER_CONFIG" location
-      if (globalConfig?.vars?.IMAGE_RESIZER_CONFIG?.routes) {
-        return globalConfig.vars.IMAGE_RESIZER_CONFIG.routes;
+      // Check for our new property first
+      if (config.imageResizerConfig && (config.imageResizerConfig as any).routes) {
+        return (config.imageResizerConfig as any).routes;
       }
       
-      // For backward compatibility, check the old location
-      if (globalConfig?.imageResizer?.routes) {
-        return globalConfig.imageResizer.routes;
+      // For backward compatibility, try global config if needed
+      // But this approach should be considered deprecated
+      try {
+        const globalConfig = (global as any).__WRANGLER_CONFIG__;
+        
+        // First check the "vars.IMAGE_RESIZER_CONFIG" location
+        if (globalConfig?.vars?.IMAGE_RESIZER_CONFIG?.routes) {
+          logger.warn('EnvironmentService', 'Using deprecated __WRANGLER_CONFIG__ direct access');
+          return globalConfig.vars.IMAGE_RESIZER_CONFIG.routes;
+        }
+        
+        // For backward compatibility, check the old location
+        if (globalConfig?.imageResizer?.routes) {
+          logger.warn('EnvironmentService', 'Using deprecated __WRANGLER_CONFIG__ direct access');
+          return globalConfig.imageResizer.routes;
+        }
+      } catch (err) {
+        // Ignore errors from global config access, it's a fallback approach
       }
       
       // If not available, log and return empty array
-      logger.debug('EnvironmentService', 'No route configurations found in wrangler.jsonc');
+      logger.debug('EnvironmentService', 'No route configurations found');
       return [];
     } catch (error) {
       logger.error('EnvironmentService', 'Error loading route configurations', { error });
@@ -170,114 +185,220 @@ export function createEnvironmentService(
    * Get strategy priority order for a URL
    */
   const getStrategyPriorityOrderForUrl = (url: string | URL): string[] => {
+    const domain = getDomain(url);
     const routeConfig = getRouteConfigForUrl(url);
     
     // If route has specified priority order, use it
     if (routeConfig.strategies?.priorityOrder && routeConfig.strategies.priorityOrder.length > 0) {
+      logger.debug('EnvironmentService', 'Using route-specific strategy priority', {
+        domain,
+        priority: routeConfig.strategies.priorityOrder.join(',')
+      });
       return routeConfig.strategies.priorityOrder;
     }
     
-    // Try to get the defaults from the IMAGE_RESIZER_CONFIG
+    // Use centralized config via configService
+    // First try to get the config from our centralized configuration manager
     try {
-      const globalConfig = (global as any).__WRANGLER_CONFIG__;
+      // Get the app config from the centralized config manager
+      const appConfig = configService.getConfig();
       
-      // First check the new location for defaults
-      if (globalConfig?.vars?.IMAGE_RESIZER_CONFIG?.defaults?.strategies?.priorityOrder) {
-        return globalConfig.vars.IMAGE_RESIZER_CONFIG.defaults.strategies.priorityOrder;
+      // First check our newly added strategiesConfig
+      if (appConfig.strategiesConfig && (appConfig.strategiesConfig as any).priorityOrder) {
+        const priorities = (appConfig.strategiesConfig as any).priorityOrder;
+        logger.debug('EnvironmentService', 'Using STRATEGIES_CONFIG priority order', {
+          domain,
+          priority: priorities.join(',')
+        });
+        return priorities;
       }
       
-      // Then check the old location for defaults
-      if (globalConfig?.imageResizer?.defaults?.strategies?.priorityOrder) {
-        return globalConfig.imageResizer.defaults.strategies.priorityOrder;
+      // Next check imageResizerConfig.defaults.strategies if available
+      if (appConfig.imageResizerConfig && 
+          (appConfig.imageResizerConfig as any).defaults?.strategies?.priorityOrder) {
+        const priorities = (appConfig.imageResizerConfig as any).defaults.strategies.priorityOrder;
+        logger.debug('EnvironmentService', 'Using IMAGE_RESIZER_CONFIG defaults priority order', {
+          domain,
+          priority: priorities.join(',')
+        });
+        return priorities;
       }
     } catch (error) {
-      // If there's an error, continue with special handling and defaults
-      logger.debug('EnvironmentService', 'Error getting default strategy config', { error });
+      logger.warn('EnvironmentService', 'Error accessing centralized config', { 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
     
-    // Fall back to config service if available
-    if (configService) {
-      return configService.getStrategyConfig().priorityOrder;
+    // Fall back to config service's getStrategyConfig method if available
+    if (configService && typeof configService.getStrategyConfig === 'function') {
+      try {
+        const strategyConfig = configService.getStrategyConfig();
+        if (strategyConfig?.priorityOrder) {
+          logger.debug('EnvironmentService', 'Using configService.getStrategyConfig() priority order', {
+            domain,
+            priority: strategyConfig.priorityOrder.join(',')
+          });
+          return strategyConfig.priorityOrder;
+        }
+      } catch (error) {
+        logger.debug('EnvironmentService', 'Error using configService.getStrategyConfig()', { error });
+      }
     }
     
-    // Default priority depends on domain type (but only as last resort)
-    const domain = getDomain(url);
+    // As a last resort, use domain-specific default priorities
     if (isWorkersDevDomain(domain)) {
-      return ['direct-url', 'cdn-cgi', 'remote-fallback', 'direct-serving'];
+      const workersPriority = ['direct-url', 'cdn-cgi', 'remote-fallback', 'direct-serving'];
+      logger.debug('EnvironmentService', 'Using workers.dev default priority order', {
+        domain,
+        priority: workersPriority.join(',')
+      });
+      return workersPriority;
     }
     
-    // Default priority order
-    return ['interceptor', 'direct-url', 'remote-fallback', 'direct-serving'];
+    // Default priority order for all other domains
+    const defaultPriority = ['interceptor', 'direct-url', 'remote-fallback', 'direct-serving'];
+    logger.debug('EnvironmentService', 'Using default priority order (last resort)', {
+      domain,
+      priority: defaultPriority.join(',')
+    });
+    return defaultPriority;
   };
   
   /**
    * Check if a strategy is enabled for a URL
    */
   const isStrategyEnabledForUrl = (strategyName: string, url: string | URL): boolean => {
+    const domain = getDomain(url);
     const routeConfig = getRouteConfigForUrl(url);
     
     // Check if strategy is explicitly disabled in route config
     if (routeConfig.strategies?.disabled && routeConfig.strategies.disabled.includes(strategyName)) {
+      logger.debug('EnvironmentService', `Strategy ${strategyName} explicitly disabled in route config`, {
+        domain,
+        routePattern: routeConfig.pattern
+      });
       return false;
     }
     
     // Check if only certain strategies are enabled in route config
     if (routeConfig.strategies?.enabled && routeConfig.strategies.enabled.length > 0) {
-      return routeConfig.strategies.enabled.includes(strategyName);
+      const isEnabled = routeConfig.strategies.enabled.includes(strategyName);
+      logger.debug('EnvironmentService', `Strategy ${strategyName} ${isEnabled ? 'enabled' : 'not enabled'} in route config's explicit enabled list`, {
+        domain,
+        routePattern: routeConfig.pattern,
+        enabled: routeConfig.strategies.enabled
+      });
+      return isEnabled;
     }
     
-    // Look for global defaults if no route-specific settings
+    // Use centralized config via configService
+    // First try to get the config from our centralized configuration manager
     try {
-      const globalConfig = (global as any).__WRANGLER_CONFIG__;
+      // Get the app config from the centralized config manager
+      const appConfig = configService.getConfig();
       
-      // Check disabled strategies in new defaults location
-      if (globalConfig?.vars?.IMAGE_RESIZER_CONFIG?.defaults?.strategies?.disabled) {
-        const disabled = globalConfig.vars.IMAGE_RESIZER_CONFIG.defaults.strategies.disabled;
-        if (disabled.includes(strategyName)) {
+      // First check our newly added strategiesConfig
+      if (appConfig.strategiesConfig) {
+        // Check for disabled strategies
+        if ((appConfig.strategiesConfig as any).disabled && 
+            (appConfig.strategiesConfig as any).disabled.includes(strategyName)) {
+          logger.debug('EnvironmentService', `Strategy ${strategyName} disabled in STRATEGIES_CONFIG`, {
+            domain
+          });
           return false;
         }
-      }
-      
-      // Check enabled strategies in new defaults location
-      if (globalConfig?.vars?.IMAGE_RESIZER_CONFIG?.defaults?.strategies?.enabled) {
-        const enabled = globalConfig.vars.IMAGE_RESIZER_CONFIG.defaults.strategies.enabled;
-        if (enabled.length > 0) {
-          return enabled.includes(strategyName);
+        
+        // Check for enabled strategies
+        if ((appConfig.strategiesConfig as any).enabled && 
+            (appConfig.strategiesConfig as any).enabled.length > 0) {
+          const isEnabled = (appConfig.strategiesConfig as any).enabled.includes(strategyName);
+          logger.debug('EnvironmentService', `Strategy ${strategyName} ${isEnabled ? 'enabled' : 'not enabled'} in STRATEGIES_CONFIG's explicit enabled list`, {
+            domain,
+            enabled: (appConfig.strategiesConfig as any).enabled
+          });
+          return isEnabled;
         }
       }
       
-      // Check disabled strategies in old defaults location
-      if (globalConfig?.imageResizer?.defaults?.strategies?.disabled) {
-        const disabled = globalConfig.imageResizer.defaults.strategies.disabled;
-        if (disabled.includes(strategyName)) {
+      // Next check imageResizerConfig.defaults.strategies if available
+      if (appConfig.imageResizerConfig && 
+          (appConfig.imageResizerConfig as any).defaults?.strategies) {
+        
+        // Check for disabled strategies
+        if ((appConfig.imageResizerConfig as any).defaults.strategies.disabled && 
+            (appConfig.imageResizerConfig as any).defaults.strategies.disabled.includes(strategyName)) {
+          logger.debug('EnvironmentService', `Strategy ${strategyName} disabled in IMAGE_RESIZER_CONFIG.defaults.strategies`, {
+            domain
+          });
           return false;
         }
-      }
-      
-      // Check enabled strategies in old defaults location
-      if (globalConfig?.imageResizer?.defaults?.strategies?.enabled) {
-        const enabled = globalConfig.imageResizer.defaults.strategies.enabled;
-        if (enabled.length > 0) {
-          return enabled.includes(strategyName);
+        
+        // Check for enabled strategies
+        if ((appConfig.imageResizerConfig as any).defaults.strategies.enabled && 
+            (appConfig.imageResizerConfig as any).defaults.strategies.enabled.length > 0) {
+          const isEnabled = (appConfig.imageResizerConfig as any).defaults.strategies.enabled.includes(strategyName);
+          logger.debug('EnvironmentService', `Strategy ${strategyName} ${isEnabled ? 'enabled' : 'not enabled'} in IMAGE_RESIZER_CONFIG.defaults.strategies explicit enabled list`, {
+            domain,
+            enabled: (appConfig.imageResizerConfig as any).defaults.strategies.enabled
+          });
+          return isEnabled;
         }
       }
     } catch (error) {
-      // If there's an error, continue with special handling and defaults
-      logger.debug('EnvironmentService', 'Error checking default strategy enabled/disabled', { error });
+      logger.warn('EnvironmentService', 'Error accessing centralized config for strategy enabled check', { 
+        error: error instanceof Error ? error.message : String(error),
+        strategy: strategyName,
+        domain
+      });
     }
     
-    // Fall back to config service if available
-    if (configService) {
-      const strategyConfig = configService.getStrategyConfig();
-      if (strategyConfig.disabled && strategyConfig.disabled.includes(strategyName)) {
-        return false;
+    // Fall back to config service's getStrategyConfig method if available
+    if (configService && typeof configService.getStrategyConfig === 'function') {
+      try {
+        const strategyConfig = configService.getStrategyConfig();
+        
+        // Check for disabled strategies
+        if (strategyConfig.disabled && strategyConfig.disabled.includes(strategyName)) {
+          logger.debug('EnvironmentService', `Strategy ${strategyName} disabled in configService.getStrategyConfig()`, {
+            domain
+          });
+          return false;
+        }
+        
+        // Check for enabled strategies
+        if (strategyConfig.enabled && strategyConfig.enabled.length > 0) {
+          const isEnabled = strategyConfig.enabled.includes(strategyName);
+          logger.debug('EnvironmentService', `Strategy ${strategyName} ${isEnabled ? 'enabled' : 'not enabled'} in configService.getStrategyConfig() explicit enabled list`, {
+            domain,
+            enabled: strategyConfig.enabled
+          });
+          return isEnabled;
+        }
+      } catch (error) {
+        logger.debug('EnvironmentService', 'Error using configService.getStrategyConfig() for strategy enabled check', { 
+          error: error instanceof Error ? error.message : String(error),
+          strategy: strategyName,
+          domain
+        });
       }
-      if (strategyConfig.enabled && strategyConfig.enabled.length > 0) {
-        return strategyConfig.enabled.includes(strategyName);
+    }
+    
+    // As a last resort, use domain-specific rules for certain strategies
+    // This provides sensible defaults even when no explicit configuration exists
+    if (isWorkersDevDomain(domain)) {
+      // Special handling for workers.dev domains
+      if (strategyName === 'interceptor') {
+        logger.debug('EnvironmentService', `Strategy ${strategyName} disabled by default for workers.dev domains`, {
+          domain
+        });
+        return false;
       }
     }
     
     // Default to enabled
+    logger.debug('EnvironmentService', `Strategy ${strategyName} enabled by default (no explicit configuration found)`, {
+      domain
+    });
     return true;
   };
   
@@ -285,12 +406,41 @@ export function createEnvironmentService(
    * Get the current environment name
    */
   const getEnvironmentName = (): string => {
-    // Use configService if available
-    if (configService && configService.get) {
-      return configService.get('ENVIRONMENT', 'development');
+    try {
+      // First try getting from centralized config
+      if (configService) {
+        // Try using the getConfig method first (preferred)
+        try {
+          const appConfig = configService.getConfig();
+          if (appConfig && appConfig.environment) {
+            logger.debug('EnvironmentService', 'Using environment from centralized config', {
+              environment: appConfig.environment
+            });
+            return appConfig.environment;
+          }
+        } catch (err) {
+          // Ignore errors, will try alternative methods
+        }
+        
+        // Try using the get method if available (legacy approach)
+        if (configService.get) {
+          const env = configService.get('ENVIRONMENT', 'development');
+          logger.debug('EnvironmentService', 'Using environment from configService.get()', {
+            environment: env
+          });
+          return env;
+        }
+      }
+    } catch (err) {
+      logger.warn('EnvironmentService', 'Error getting environment name from configService', {
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
     
     // Default to development
+    logger.debug('EnvironmentService', 'Using default environment name', {
+      environment: 'development'
+    });
     return 'development';
   };
   
@@ -298,14 +448,16 @@ export function createEnvironmentService(
    * Check if the current environment is development
    */
   const isDevelopment = (): boolean => {
-    return getEnvironmentName() === 'development';
+    const env = getEnvironmentName();
+    return env === 'development';
   };
   
   /**
    * Check if the current environment is production
    */
   const isProduction = (): boolean => {
-    return getEnvironmentName() === 'production';
+    const env = getEnvironmentName();
+    return env === 'production';
   };
 
   // Return the public interface

@@ -290,12 +290,39 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
   return {
     initialize: (env: Record<string, unknown>): void => {
       try {
+        // Parse Origin Configuration - this is crucial for R2 and fallback settings
+        const originConfig = env.ORIGIN_CONFIG ? 
+          (typeof env.ORIGIN_CONFIG === 'string' ? JSON.parse(env.ORIGIN_CONFIG) : env.ORIGIN_CONFIG) : 
+          undefined;
+        
+        // Parse strategies configuration - used for strategy selection
+        const strategiesConfig = env.STRATEGIES_CONFIG ? 
+          (typeof env.STRATEGIES_CONFIG === 'string' ? JSON.parse(env.STRATEGIES_CONFIG) : env.STRATEGIES_CONFIG) : 
+          undefined;
+          
+        // Parse the image resizer config (routes and domain-specific settings)
+        const imageResizerConfig = env.IMAGE_RESIZER_CONFIG ? 
+          (typeof env.IMAGE_RESIZER_CONFIG === 'string' ? JSON.parse(env.IMAGE_RESIZER_CONFIG) : env.IMAGE_RESIZER_CONFIG) : 
+          undefined;
+        
         // Basic configuration
         config = {
           environment: parseEnvVar(env.ENVIRONMENT) || 'development',
           mode: parseEnvVar(env.DEPLOYMENT_MODE) || 'direct',
           version: parseEnvVar(env.VERSION) || '1.0.0',
+          
+          // IMPORTANT: Mark fallbackBucket as deprecated, but keep for backward compatibility
+          // We'll now prefer the ORIGIN_CONFIG.fallback settings
           fallbackBucket: parseEnvVar(env.FALLBACK_BUCKET),
+          
+          // Store origin configuration directly for more consistent access
+          originConfig: originConfig as Record<string, unknown>,
+          
+          // Store strategy configuration for consistent access
+          strategiesConfig: strategiesConfig as Record<string, unknown>,
+          
+          // Store image resizer config (domain-specific routes)
+          imageResizerConfig: imageResizerConfig as Record<string, unknown>,
 
           // Debug configuration
           debug: parseDebugConfig(env.DEBUG_HEADERS_CONFIG),
@@ -391,6 +418,23 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           environment: 'development',
           mode: 'direct',
           version: '1.0.0',
+          
+          // Empty but defined configuration objects for consistency
+          originConfig: {},
+          strategiesConfig: {
+            priorityOrder: ['direct-url', 'cdn-cgi', 'direct-serving', 'remote-fallback'],
+            disabled: []
+          },
+          imageResizerConfig: {
+            routes: [],
+            defaults: {
+              strategies: {
+                priorityOrder: ['direct-url', 'cdn-cgi', 'direct-serving', 'remote-fallback'],
+                disabled: []
+              }
+            }
+          },
+          
           debug: { enabled: false },
           logging: {
             level: 'INFO',
@@ -433,6 +477,12 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
             format: ['auto', 'webp', 'avif', 'json', 'jpeg', 'png', 'gif'],
             metadata: ['keep', 'copyright', 'none'],
             gravity: ['auto', 'center', 'top', 'bottom', 'left', 'right', 'face'],
+            minWidth: 10,
+            maxWidth: 8192,
+            minHeight: 10,
+            maxHeight: 8192,
+            minQuality: 1,
+            maxQuality: 100,
           },
           defaults: {
             quality: 85,
@@ -442,6 +492,12 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           },
           pathTemplates: {},
         };
+        
+        // Log that we're using fallback configuration
+        logger.warn('ConfigurationManager', 'Using fallback configuration due to initialization error', {
+          environment: config.environment,
+          mode: config.mode,
+        });
       }
     },
 
