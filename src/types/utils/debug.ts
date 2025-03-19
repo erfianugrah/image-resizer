@@ -19,6 +19,8 @@ export interface DebugInfo {
   // New fields to support centralized configuration
   prefix?: string;
   specialHeaders?: Record<string, boolean>;
+  // Override to force debug headers even in production
+  forceDebugHeaders?: boolean;
 }
 
 /**

@@ -37,8 +37,18 @@ export interface R2OriginConfig {
  * Origin priority configuration
  */
 export interface OriginPriorityConfig {
-  default_priority: Array<'r2' | 'remote' | 'direct' | 'fallback'>;
-  r2?: R2OriginConfig;
+  default_priority?: Array<'r2' | 'remote' | 'direct' | 'fallback'> | string[];
+  r2?: {
+    enabled: boolean;
+    binding_name: string;
+  };
+  remote?: {
+    enabled: boolean;
+  };
+  fallback?: {
+    enabled: boolean;
+    url: string;
+  };
 }
 
 /**

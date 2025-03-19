@@ -105,6 +105,10 @@ const debugHeadersConfigSchema = z.object({
     'x-actual-width': true,
     'x-responsive-sizing': true
   }),
+  // This property is used in loggingManager.ts but was missing from the schema
+  allowedEnvironments: z.array(z.string()).optional().default([]),
+  // This property is used in getDebugInfoFromRequest but was missing from the schema
+  isVerbose: z.boolean().optional().default(false),
 });
 
 // Logging Configuration Schema

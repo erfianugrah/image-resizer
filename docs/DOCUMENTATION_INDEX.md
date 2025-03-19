@@ -24,8 +24,8 @@ This index provides a comprehensive overview of all documentation available for 
 
 ### Configuration System
 
-- [Single Source of Truth](architecture/SINGLE_SOURCE_OF_TRUTH.md) - wrangler.jsonc as configuration source
-- [Configuration System](architecture/CONFIGURATION.md) - How configuration works
+- [Centralized Configuration](architecture/SINGLE_SOURCE_OF_TRUTH.md) - wrangler.jsonc as the single source of truth
+- [Configuration System](architecture/CONFIGURATION.md) - Comprehensive configuration structure
 
 ### Image Processing
 
@@ -41,11 +41,6 @@ This index provides a comprehensive overview of all documentation available for 
 ### Error Handling
 
 - [Error Handling](architecture/ERROR_HANDLING.md) - Standardized error handling system
-
-### Project Status
-
-- [Refactoring Progress](architecture/REFACTORING_PROGRESS.md) - Status of refactoring efforts
-- [Architecture Improvements](architecture/ARCHITECTURE_IMPROVEMENTS.md) - Planned improvements
 
 ## Architecture Diagrams
 
@@ -74,13 +69,3 @@ All documentation follows these conventions:
 3. Diagrams created with Mermaid
 4. Examples include both successful and error scenarios
 5. Configuration examples match wrangler.jsonc structure
-
-## Documentation Roadmap
-
-Future documentation improvements planned:
-
-1. Complete API reference with OpenAPI specification
-2. Performance benchmarks and optimization guide
-3. Advanced configuration scenarios
-4. Integration examples with popular frameworks
-5. Video tutorials for common operations

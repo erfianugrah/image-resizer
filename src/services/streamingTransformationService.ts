@@ -1176,7 +1176,8 @@ export function createStreamingTransformationService(
           strategyDiagnostics.failedStrategies = Object.keys(errors).length > 0 ? errors : undefined;
           
           // Get environment type if available
-          const currentEnvironment = (environmentService && 'getEnvironmentName' in environmentService) 
+          const currentEnvironment = (environmentService && typeof environmentService === 'object' && 'getEnvironmentName' in environmentService && 
+            typeof environmentService.getEnvironmentName === 'function') 
             ? environmentService.getEnvironmentName() 
             : undefined;
           
@@ -1189,10 +1190,22 @@ export function createStreamingTransformationService(
             const typedEnvironmentService = environmentService as IEnvironmentService | undefined;
             
             // Create a better logging boundary in debug mode
-            logger.debug('Strategy execution complete', { 
-              selectedStrategy: strategyDiagnostics.selectedStrategy,
-              attempts: strategyDiagnostics.attemptedStrategies
-            });
+            if (typeof logger.debug === 'function') {
+              if (logger.debug.length >= 2) {
+                // Standard logger with module parameter
+                (logger.debug as (module: string, message: string, data?: Record<string, unknown>) => void)(
+                  'StreamingTransformationService',
+                  'Strategy execution complete',
+                  { selectedStrategy: strategyDiagnostics.selectedStrategy }
+                );
+              } else {
+                // Minimal logger without module parameter
+                (logger.debug as (message: string, data?: Record<string, unknown>) => void)(
+                  'Strategy execution complete',
+                  { selectedStrategy: strategyDiagnostics.selectedStrategy }
+                );
+              }
+            }
             
             // Add enhanced debug headers
             return addEnhancedDebugHeaders(response, debugOptions, strategyDiagnostics, typedEnvironmentService);
@@ -1262,7 +1275,8 @@ export function createStreamingTransformationService(
       });
       
       // Get environment type if available
-      const currentEnvironment = (environmentService && 'getEnvironmentName' in environmentService) 
+      const currentEnvironment = (environmentService && typeof environmentService === 'object' && 'getEnvironmentName' in environmentService && 
+        typeof environmentService.getEnvironmentName === 'function') 
         ? environmentService.getEnvironmentName() 
         : undefined;
       
@@ -1272,11 +1286,22 @@ export function createStreamingTransformationService(
       // Add enhanced debug headers if debug is enabled
       if (debugOptions.isEnabled) {
         // Log that we're using direct fallback
-        logger.debug('All strategies failed, using direct fallback', {
-          attempts: strategyDiagnostics.attemptedStrategies,
-          errors: Object.keys(errors).length,
-          key: r2Key
-        });
+        if (typeof logger.debug === 'function') {
+          if (logger.debug.length >= 2) {
+            // Standard logger with module parameter
+            (logger.debug as (module: string, message: string, data?: Record<string, unknown>) => void)(
+              'StreamingTransformationService',
+              'All strategies failed, using direct fallback',
+              { attempts: strategyDiagnostics.attemptedStrategies }
+            );
+          } else {
+            // Minimal logger without module parameter
+            (logger.debug as (message: string, data?: Record<string, unknown>) => void)(
+              'All strategies failed, using direct fallback',
+              { attempts: strategyDiagnostics.attemptedStrategies }
+            );
+          }
+        }
         
         // Add enhanced debug headers with type casting for proper type compatibility
         const typedEnvironmentService = environmentService as IEnvironmentService | undefined;
@@ -1326,7 +1351,9 @@ export function createStreamingTransformationService(
       }
       
       // Get environment type if available
-      const currentEnvironment = (dependencies.environmentService && 'getEnvironmentName' in dependencies.environmentService) 
+      const currentEnvironment = (dependencies.environmentService && typeof dependencies.environmentService === 'object' && 
+        'getEnvironmentName' in dependencies.environmentService && 
+        typeof dependencies.environmentService.getEnvironmentName === 'function') 
         ? dependencies.environmentService.getEnvironmentName() 
         : undefined;
       
@@ -1336,11 +1363,22 @@ export function createStreamingTransformationService(
       // Add enhanced debug headers if debug is enabled
       if (debugOptions.isEnabled) {
         // Log the error with full details
-        logger.error('Error processing image', {
-          error: errorMessage,
-          key: r2Key,
-          diagnostics: strategyDiagnostics
-        });
+        if (typeof logger.error === 'function') {
+          if (logger.error.length >= 2) {
+            // Standard logger with module parameter
+            (logger.error as (module: string, message: string, data?: Record<string, unknown>) => void)(
+              'StreamingTransformationService',
+              'Error processing image',
+              { error: errorMessage, key: r2Key }
+            );
+          } else {
+            // Minimal logger without module parameter
+            (logger.error as (message: string, data?: Record<string, unknown>) => void)(
+              'Error processing image',
+              { error: errorMessage, key: r2Key }
+            );
+          }
+        }
         
         // Add enhanced debug headers with type casting for proper type compatibility
         const typedEnvironmentService = dependencies.environmentService as IEnvironmentService | undefined;

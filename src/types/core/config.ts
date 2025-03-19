@@ -18,7 +18,8 @@ import { ILogger } from './logger';
  */
 export interface DebugConfig {
   enabled: boolean;
-  verbose?: boolean;
+  verbose?: boolean;  // Kept for backward compatibility
+  isVerbose?: boolean; // New property that aligns with the schema
   includeHeaders?: string[];
   prefix?: string;
   specialHeaders?: Record<string, boolean>;
@@ -43,6 +44,38 @@ export interface PathTransformConfig {
 }
 
 /**
+ * Strategy configuration interface
+ */
+export interface StrategyConfig {
+  priorityOrder: string[];
+  disabled: string[];
+  enabled: string[];
+}
+
+/**
+ * Route configuration interface
+ */
+export interface RouteConfig {
+  pattern: string;
+  environment?: 'development' | 'staging' | 'production' | 'test';
+  strategies?: StrategyConfig;
+  cache?: {
+    ttl?: number;
+    enabled?: boolean;
+  };
+}
+
+/**
+ * Image resizer configuration interface
+ */
+export interface ImageResizerConfig {
+  routes: RouteConfig[];
+  defaults: {
+    strategies?: StrategyConfig;
+  };
+}
+
+/**
  * Application configuration interface
  */
 export interface AppConfig {
@@ -52,6 +85,24 @@ export interface AppConfig {
   version: string;
   fallbackBucket?: string;
   [key: string]: unknown;
+
+  // Additional structured configuration from wrangler.jsonc
+  strategiesConfig?: StrategyConfig;
+  imageResizerConfig?: ImageResizerConfig;
+  originConfig?: {
+    default_priority?: string[];
+    r2?: {
+      enabled: boolean;
+      binding_name: string;
+    };
+    remote?: {
+      enabled: boolean;
+    };
+    fallback?: {
+      enabled: boolean;
+      url: string;
+    };
+  };
 
   // Debug settings
   debug: DebugConfig;

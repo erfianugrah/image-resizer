@@ -133,6 +133,7 @@ export interface EnvironmentServiceDependencies {
   logger: {
     debug: (module: string, message: string, data?: Record<string, unknown>) => void;
     error: (module: string, message: string, data?: Record<string, unknown>) => void;
+    warn: (module: string, message: string, data?: Record<string, unknown>) => void;
   };
   configService?: {
     getStrategyConfig: () => {
@@ -140,6 +141,7 @@ export interface EnvironmentServiceDependencies {
       enabled?: string[];
       disabled?: string[];
     };
+    getConfig: () => any;
     get?: (path: string, defaultValue?: any) => any;
   };
 }

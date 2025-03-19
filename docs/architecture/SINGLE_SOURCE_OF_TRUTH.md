@@ -1,56 +1,69 @@
-# Single Source of Truth in Configuration
+# Centralized Configuration System
 
 This document explains how `wrangler.jsonc` serves as the single source of truth for all configuration in the Image Resizer application.
 
 ## Configuration Philosophy
 
-We follow these principles:
+The application follows these key principles:
 
-1. **Single Source of Truth**: `wrangler.jsonc` is the definitive place for all configuration.
-2. **Schema Validation**: All configuration is validated against a defined schema.
-3. **Type Safety**: TypeScript types are generated from schema definitions.
-4. **Default Values**: Sensible defaults are defined in the schema, not in code.
-5. **Environment-Specific Settings**: Different environments use the same structure with different values.
-6. **Domain-Specific Overrides**: Route-based configurations allow for domain-specific behavior.
+1. **Single Source of Truth**: `wrangler.jsonc` is the definitive location for all configuration
+2. **Environment-Specific Settings**: Different environments use the same structure with different values
+3. **Domain-Specific Behavior**: Route-based configuration enables domain-specific transformations
+4. **Default Values**: Sensible defaults are defined in schema, not in code
+5. **Type Safety**: TypeScript types ensure configuration correctness
+6. **Schema Validation**: All configuration is validated against defined schemas
 
 ## Configuration Structure
 
-The `wrangler.jsonc` file contains:
+The `wrangler.jsonc` file contains several key sections:
 
-1. **Global Settings**: Worker name, compatibility date, etc.
-2. **Environment-Specific Settings**: Contained in the `env` section.
-3. **Domain-Specific Settings**: Contained in the `imageResizer.routes` section.
+1. **Global Settings**: Worker name, compatibility date, resource limits, etc.
+2. **Environment Settings**: Environment-specific configuration in the `env` section
+3. **Domain Settings**: Domain-specific behavior in `imageResizer.routes`
+4. **Debug Configuration**: Control of debug headers and logging
 
-## How Configuration Is Loaded
+### Example Configuration
 
-1. The Cloudflare Workers runtime loads `wrangler.jsonc` at deploy time
-2. The configuration is made available via global variable `__WRANGLER_CONFIG__`
-3. Our `ConfigurationService` accesses and validates this global configuration
-4. `ServiceRegistry` registers other services with validated configuration
-
-This pattern ensures:
-- Runtime errors if configuration is invalid
-- Type safety throughout the application
-- Consistent configuration format
-
-## Configuration Schema
-
-The schema is defined in `src/config/configSchema.ts` and includes:
-
-```typescript
-export const wranglerConfigSchema = z.object({
-  name: z.string(),
-  compatibility_date: z.string(),
-  main: z.string(),
-  env: z.record(environmentConfigSchema),
-  imageResizer: imageResizerConfigSchema.optional(),
-});
+```jsonc
+{
+  "name": "image-resizer",
+  "compatibility_date": "2023-12-01",
+  
+  "vars": {
+    "DEBUG_CONFIG": {
+      "enabled": true,
+      "allowedEnvironments": ["development", "staging"],
+      "isVerbose": false
+    },
+    "STRATEGIES_CONFIG": {
+      "priorityOrder": ["interceptor", "direct-url", "cdn-cgi"],
+      "disabled": [],
+      "enabled": []
+    }
+  },
+  
+  "env": {
+    "production": {
+      "vars": {
+        "DEBUG_CONFIG": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  
+  "imageResizer": {
+    "routes": [
+      {
+        "pattern": "*.workers.dev/*",
+        "strategies": {
+          "disabled": ["interceptor"]
+        }
+      }
+    ]
+  }
+}
 ```
-
-This approach ensures:
-- Structural validation of all configuration values
-- Consistent types across the application
-- Clear documentation of expected configuration format
 
 ## Domain-Specific Configuration
 
@@ -62,69 +75,60 @@ The `imageResizer.routes` section allows configuration to vary based on URL patt
     {
       "pattern": "*.workers.dev/*",
       "strategies": {
-        "priorityOrder": ["direct-url", "remote-fallback", "direct-serving"],
-        "disabled": ["interceptor", "cdn-cgi"]
+        "priorityOrder": ["direct-url", "cdn-cgi"],
+        "disabled": ["interceptor"]
       }
     },
     {
       "pattern": "images.example.com/*",
       "strategies": {
-        "priorityOrder": ["interceptor", "direct-url", "remote-fallback", "direct-serving"],
-        "disabled": ["cdn-cgi"]
+        "priorityOrder": ["interceptor", "direct-url"],
+        "disabled": []
       }
     }
   ]
 }
 ```
 
-This pattern allows:
+This approach provides:
 - Consistent behavior within each domain/environment
-- Clear, declarative configuration rather than imperative code
-- Easy visualization of domain-specific behavior
+- Clear separation of configuration from code
+- Adaptability to different domain requirements
 
-## Configuration Validation
+## Debug Configuration
 
-The `ConfigValidator` service ensures all configuration is valid according to the schema:
+Debug headers and logging can be controlled via configuration:
 
-```typescript
-const validateWranglerConfig = (config: unknown): WranglerConfig => {
-  try {
-    // Parse and validate the config
-    const validConfig = wranglerConfigSchema.parse(config);
-    
-    logger.debug('ConfigValidator', 'Wrangler config validated successfully');
-    
-    return validConfig;
-  } catch (error) {
-    logger.error('ConfigValidator', 'Invalid wrangler config', { error });
-    throw new Error('Invalid wrangler configuration');
-  }
-};
+```jsonc
+"DEBUG_CONFIG": {
+  "enabled": true,                // Master switch for debug
+  "allowedEnvironments": [        // Only enable in these environments
+    "development",
+    "staging"
+  ],
+  "isVerbose": false,             // Detailed debug information
+  "includeHeaders": [             // Specific header categories
+    "strategy", 
+    "cache", 
+    "domain"
+  ],
+  "prefix": "debug-"              // Prefix for debug headers
+}
 ```
 
-This pattern:
-- Catches configuration errors at startup
-- Provides detailed error messages for invalid configuration
-- Ensures runtime type safety
+Key features:
+- Environment-specific debug control
+- Granular header inclusion
+- Configurable verbosity
 
-## Avoiding Hardcoded Values
+## Configuration Best Practices
 
-All configuration values should come from `wrangler.jsonc` through the configuration system, not hardcoded in the application code. Default values should be specified in the schema, not scattered throughout the codebase.
+### Use Configuration Over Hardcoding
 
 ✅ Do:
 ```typescript
-// Define default in schema
-const cacheConfigSchema = z.object({
-  ttl: ttlSchema.default({
-    ok: 86400,
-    redirects: 86400,
-    clientError: 60,
-    serverError: 10
-  }),
-});
-
 // Use the configuration value
-const ttl = config.CACHE_CONFIG.image.ttl.ok;
+const ttl = config.cache.ttl.ok;
 ```
 
 ❌ Don't:
@@ -133,24 +137,22 @@ const ttl = config.CACHE_CONFIG.image.ttl.ok;
 const ttl = 86400;
 ```
 
-## Debugging Configuration
+### Leverage Configuration Precedence
 
-Enhanced debug headers provide insight into the active configuration:
-
-- `x-debug-is-workers-dev`: Whether the domain is a workers.dev domain
-- `x-debug-environment`: Environment type (development, production, etc.)
-- `x-debug-strategy-order`: Configured priority order of strategies
-- `x-debug-disabled-strategies`: Strategies disabled for this request
-
-To enable debug headers, add `x-debug: true` to your request headers.
+The system follows a clear precedence model:
+1. **Route-specific settings**: Highest priority (domain-specific)
+2. **Environment-specific settings**: Next priority (env-specific)
+3. **Global settings**: Baseline settings
+4. **Default values**: When no configuration is provided
 
 ## Conclusion
 
-By maintaining `wrangler.jsonc` as the single source of truth, we ensure:
+The centralized configuration approach provides:
 
-1. **Consistency**: All configuration follows the same format and validation
-2. **Clarity**: It's obvious what configuration values are available and their purpose
-3. **Reliability**: Type safety reduces runtime errors due to misconfigurations
-4. **Maintainability**: Changes to configuration are centralized and documented
+1. **Adaptability**: Easy changes across environments without code modifications
+2. **Consistency**: Unified configuration structure across the application
+3. **Reliability**: Type safety and validation prevent configuration errors
+4. **Maintainability**: Changes are centralized and well-documented
+5. **Security**: Environment-appropriate debug controls
 
-This approach provides a solid foundation for the application's configurability and adaptability across different environments and domains.
+This pattern forms the foundation for the application's flexibility and robustness across different deployment scenarios.

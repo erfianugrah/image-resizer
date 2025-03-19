@@ -85,7 +85,7 @@ export function createEnvironmentService(
   const loadRouteConfigurations = (): RouteConfig[] => {
     try {
       // Use the configService to get the image resizer configuration
-      const config = configService.getConfig();
+      const config = configService?.getConfig?.() || {};
       
       // Check for our new property first
       if (config.imageResizerConfig && (config.imageResizerConfig as any).routes) {
@@ -201,11 +201,11 @@ export function createEnvironmentService(
     // First try to get the config from our centralized configuration manager
     try {
       // Get the app config from the centralized config manager
-      const appConfig = configService.getConfig();
+      const appConfig = configService?.getConfig?.() || {};
       
       // First check our newly added strategiesConfig
-      if (appConfig.strategiesConfig && (appConfig.strategiesConfig as any).priorityOrder) {
-        const priorities = (appConfig.strategiesConfig as any).priorityOrder;
+      if (appConfig.strategiesConfig?.priorityOrder) {
+        const priorities = appConfig.strategiesConfig.priorityOrder;
         logger.debug('EnvironmentService', 'Using STRATEGIES_CONFIG priority order', {
           domain,
           priority: priorities.join(',')
@@ -214,9 +214,8 @@ export function createEnvironmentService(
       }
       
       // Next check imageResizerConfig.defaults.strategies if available
-      if (appConfig.imageResizerConfig && 
-          (appConfig.imageResizerConfig as any).defaults?.strategies?.priorityOrder) {
-        const priorities = (appConfig.imageResizerConfig as any).defaults.strategies.priorityOrder;
+      if (appConfig.imageResizerConfig?.defaults?.strategies?.priorityOrder) {
+        const priorities = appConfig.imageResizerConfig.defaults.strategies.priorityOrder;
         logger.debug('EnvironmentService', 'Using IMAGE_RESIZER_CONFIG defaults priority order', {
           domain,
           priority: priorities.join(',')
@@ -295,13 +294,13 @@ export function createEnvironmentService(
     // First try to get the config from our centralized configuration manager
     try {
       // Get the app config from the centralized config manager
-      const appConfig = configService.getConfig();
+      const appConfig = configService?.getConfig?.() || {};
       
       // First check our newly added strategiesConfig
       if (appConfig.strategiesConfig) {
         // Check for disabled strategies
-        if ((appConfig.strategiesConfig as any).disabled && 
-            (appConfig.strategiesConfig as any).disabled.includes(strategyName)) {
+        if (appConfig.strategiesConfig.disabled && 
+            appConfig.strategiesConfig.disabled.includes(strategyName)) {
           logger.debug('EnvironmentService', `Strategy ${strategyName} disabled in STRATEGIES_CONFIG`, {
             domain
           });
@@ -309,24 +308,23 @@ export function createEnvironmentService(
         }
         
         // Check for enabled strategies
-        if ((appConfig.strategiesConfig as any).enabled && 
-            (appConfig.strategiesConfig as any).enabled.length > 0) {
-          const isEnabled = (appConfig.strategiesConfig as any).enabled.includes(strategyName);
+        if (appConfig.strategiesConfig.enabled && 
+            appConfig.strategiesConfig.enabled.length > 0) {
+          const isEnabled = appConfig.strategiesConfig.enabled.includes(strategyName);
           logger.debug('EnvironmentService', `Strategy ${strategyName} ${isEnabled ? 'enabled' : 'not enabled'} in STRATEGIES_CONFIG's explicit enabled list`, {
             domain,
-            enabled: (appConfig.strategiesConfig as any).enabled
+            enabled: appConfig.strategiesConfig.enabled
           });
           return isEnabled;
         }
       }
       
       // Next check imageResizerConfig.defaults.strategies if available
-      if (appConfig.imageResizerConfig && 
-          (appConfig.imageResizerConfig as any).defaults?.strategies) {
+      if (appConfig.imageResizerConfig?.defaults?.strategies) {
         
         // Check for disabled strategies
-        if ((appConfig.imageResizerConfig as any).defaults.strategies.disabled && 
-            (appConfig.imageResizerConfig as any).defaults.strategies.disabled.includes(strategyName)) {
+        if (appConfig.imageResizerConfig.defaults.strategies.disabled && 
+            appConfig.imageResizerConfig.defaults.strategies.disabled.includes(strategyName)) {
           logger.debug('EnvironmentService', `Strategy ${strategyName} disabled in IMAGE_RESIZER_CONFIG.defaults.strategies`, {
             domain
           });
@@ -334,12 +332,12 @@ export function createEnvironmentService(
         }
         
         // Check for enabled strategies
-        if ((appConfig.imageResizerConfig as any).defaults.strategies.enabled && 
-            (appConfig.imageResizerConfig as any).defaults.strategies.enabled.length > 0) {
-          const isEnabled = (appConfig.imageResizerConfig as any).defaults.strategies.enabled.includes(strategyName);
+        if (appConfig.imageResizerConfig.defaults.strategies.enabled && 
+            appConfig.imageResizerConfig.defaults.strategies.enabled.length > 0) {
+          const isEnabled = appConfig.imageResizerConfig.defaults.strategies.enabled.includes(strategyName);
           logger.debug('EnvironmentService', `Strategy ${strategyName} ${isEnabled ? 'enabled' : 'not enabled'} in IMAGE_RESIZER_CONFIG.defaults.strategies explicit enabled list`, {
             domain,
-            enabled: (appConfig.imageResizerConfig as any).defaults.strategies.enabled
+            enabled: appConfig.imageResizerConfig.defaults.strategies.enabled
           });
           return isEnabled;
         }
@@ -411,7 +409,7 @@ export function createEnvironmentService(
       if (configService) {
         // Try using the getConfig method first (preferred)
         try {
-          const appConfig = configService.getConfig();
+          const appConfig = configService?.getConfig?.() || {};
           if (appConfig && appConfig.environment) {
             logger.debug('EnvironmentService', 'Using environment from centralized config', {
               environment: appConfig.environment

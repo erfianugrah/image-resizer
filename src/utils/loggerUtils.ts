@@ -136,20 +136,22 @@ export function logResponse(module: string, response: Response): void {
  * @returns Debug configuration info
  */
 export function getDebugInfoFromRequest(request: Request, environment?: string): DebugInfo {
-  // Override with request headers if present
-  const debugHeaderEnabled = request.headers.get('x-debug') === 'true';
-  const debugVerboseEnabled = request.headers.get('x-debug-verbose') === 'true';
-  
-  // Get config from centralized manager
+  // Get config from centralized manager first
   const configEnabled = areDebugHeadersEnabled(environment);
   const debugConfig = getDebugHeadersConfig();
   
-  // Debug is enabled if either request header or config enables it
-  const isEnabled = debugHeaderEnabled || debugVerboseEnabled || configEnabled;
+  // Check for request header overrides - these can enable debugging by request
+  // even when it's disabled in configuration
+  const debugHeaderEnabled = request.headers.get('x-debug') === 'true';
+  const debugVerboseEnabled = request.headers.get('x-debug-verbose') === 'true'; 
   
-  // Use most verbose setting (request header takes precedence)
+  // Final enabled state: either config enables it OR request headers override to enable
+  const isEnabled = configEnabled || debugHeaderEnabled || debugVerboseEnabled;
+  
+  // Verbosity level: request headers take precedence over config
   const isVerbose = debugVerboseEnabled || (debugConfig?.isVerbose || false);
   
+  // Return consistent debug info based on configuration and request headers
   return {
     isEnabled,
     isVerbose,
@@ -174,10 +176,13 @@ export function addDebugHeaders(
   diagnosticsInfo: DiagnosticsInfo
 ): Response {
   try {
-    // If debug is not enabled, return the original response
+    // If debug is not enabled by config or request headers, return the original response
     if (!debugInfo.isEnabled) {
       return response;
     }
+
+    // Strictly use the config with no special case for environment
+    // The isEnabled flag on debugInfo already incorporates environment restrictions
 
     // Clone the response to make it mutable
     const enhancedResponse = new Response(response.body, response);

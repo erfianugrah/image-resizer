@@ -10,7 +10,27 @@
 import { DiagnosticsInfo, DebugInfo } from '../types/utils/debug';
 import { IEnvironmentService } from '../types/services/environment';
 import { getDebugHeadersConfig, areDebugHeadersEnabled } from './loggingManager';
-import { debug } from './loggerUtils';
+
+// Import logger utilities - if this fails in tests, we'll use a fallback
+let loggerUtils: { 
+  debug: (module: string, message: string, data?: Record<string, unknown>) => void;
+  getDebugInfoFromRequest?: (request: Request, environment?: string) => DebugInfo;
+};
+
+try {
+  // dynamically import to avoid circular dependencies and for better testability
+  loggerUtils = require('./loggerUtils');
+} catch (e) {
+  // Provide a fallback for tests
+  loggerUtils = {
+    debug: (module: string, message: string, data?: Record<string, unknown>) => {
+      console.debug(`[${module}] ${message}`, data || '');
+    }
+  };
+}
+
+// Use the logger either from the import or the fallback
+const { debug } = loggerUtils;
 
 export interface StrategyDiagnostics {
   attemptedStrategies: string[];
@@ -32,31 +52,41 @@ export interface StrategyDiagnostics {
  * @returns Debug info configuration
  */
 export function getEnhancedDebugInfo(request: Request, environment?: string): DebugInfo {
-  // Check for debug override in request headers
-  const debugHeaderEnabled = request.headers.get('x-debug') === 'true';
-  const debugVerboseEnabled = request.headers.get('x-debug-verbose') === 'true';
+  // Use the centralized function if available
+  let baseDebugInfo: DebugInfo;
   
-  // Get config from centralized logging manager
-  const configEnabled = areDebugHeadersEnabled(environment);
-  const debugConfig = getDebugHeadersConfig();
+  try {
+    // Try to use the imported version
+    if (loggerUtils.getDebugInfoFromRequest) {
+      baseDebugInfo = loggerUtils.getDebugInfoFromRequest(request, environment);
+    } else {
+      // Fallback for testing environments
+      baseDebugInfo = {
+        isEnabled: areDebugHeadersEnabled(environment),
+        isVerbose: false,
+        includeHeaders: [],
+        prefix: 'debug-'
+      };
+      
+      // Check request headers for X-Debug overrides (simplified)
+      if (request.headers && request.headers.get('x-debug') === 'true') {
+        baseDebugInfo.isEnabled = true;
+      }
+    }
+  } catch (err) {
+    // Fallback if imports fail or there's an error
+    debug('EnhancedDebug', 'Error getting debug info', { error: String(err) });
+    baseDebugInfo = {
+      isEnabled: false,
+      isVerbose: false,
+      includeHeaders: [],
+      prefix: 'debug-'
+    };
+  }
   
-  // Debug is enabled if either request header or config enables it
-  const isEnabled = debugHeaderEnabled || debugVerboseEnabled || configEnabled;
-  
-  // Determine verbosity level - request headers take precedence
-  const isVerbose = debugVerboseEnabled || (debugConfig?.isVerbose || false);
-  
-  // Use prefix from config or default
-  const prefix = debugConfig?.prefix || 'debug-';
-  
-  // Create debug info object
+  // Add enhanced-specific fields
   return {
-    isEnabled,
-    isVerbose,
-    includePerformance: true,
-    prefix,
-    includeHeaders: debugConfig?.includeHeaders || [],
-    specialHeaders: debugConfig?.specialHeaders || {},
+    ...baseDebugInfo,
     r2Key: request.url.split('/').pop() || ''
   };
 }
@@ -77,10 +107,13 @@ export function addEnhancedDebugHeaders(
   environmentService?: IEnvironmentService
 ): Response {
   try {
-    // If debug is not enabled, return the original response
+    // If debug is not enabled by wrangler.jsonc or request headers, return the original response
     if (!debugInfo.isEnabled) {
       return response;
     }
+
+    // Strictly use the config with no special case for environment
+    // The isEnabled flag on debugInfo already checked environment restrictions
 
     // Clone the response to make it mutable
     const enhancedResponse = new Response(response.body, response);

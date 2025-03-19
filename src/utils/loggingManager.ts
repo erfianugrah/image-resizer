@@ -126,26 +126,24 @@ export function isLevelEnabled(level: string): boolean {
 
 /**
  * Check if debug headers are enabled for a given environment
+ * Based strictly on the configuration in wrangler.jsonc
  * @param environment Current environment name
  * @returns Whether debug headers are enabled
  */
 export function areDebugHeadersEnabled(environment?: string): boolean {
   const debugConfig = loggingConfig.debugHeaders;
   
-  // If debug headers are not enabled at all, return false
+  // If debug headers are not enabled at all in config, return false
   if (!debugConfig || !debugConfig.enabled) {
     return false;
   }
   
-  // If no environment restrictions, return true
-  if (!debugConfig.allowedEnvironments || debugConfig.allowedEnvironments.length === 0) {
-    return true;
+  // If allowedEnvironments is specified, honor it strictly
+  if (debugConfig.allowedEnvironments && debugConfig.allowedEnvironments.length > 0) {
+    // Only enable debug headers for environments explicitly listed
+    return environment !== undefined && debugConfig.allowedEnvironments.includes(environment);
   }
   
-  // If environment is specified, check if it's allowed
-  if (environment && debugConfig.allowedEnvironments.includes(environment)) {
-    return true;
-  }
-  
-  return false;
+  // If no environment restrictions but config is enabled, allow for all environments
+  return true;
 }

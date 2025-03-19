@@ -18,6 +18,9 @@ import {
   DebugConfig,
   LoggingConfig,
   PathTransformConfig,
+  StrategyConfig,
+  ImageResizerConfig,
+  RouteConfig,
 } from '../types/core/config';
 
 /**
@@ -52,8 +55,14 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
    * Parse debug configuration
    */
   const parseDebugConfig = (value: unknown): DebugConfig => {
+    // Create default config that matches the schema
     const defaultConfig: DebugConfig = {
       enabled: false,
+      prefix: 'debug-',
+      includeHeaders: [],
+      specialHeaders: {},
+      allowedEnvironments: [],
+      isVerbose: false
     };
 
     try {
@@ -61,13 +70,15 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
 
       const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
 
+      // Return object with proper defaults for missing values
       return {
-        enabled: parsedValue.enabled || false,
-        verbose: parsedValue.verbose,
-        includeHeaders: parsedValue.includeHeaders,
-        prefix: parsedValue.prefix,
-        specialHeaders: parsedValue.specialHeaders,
-        allowedEnvironments: parsedValue.allowedEnvironments,
+        enabled: parsedValue.enabled ?? defaultConfig.enabled,
+        verbose: parsedValue.verbose ?? defaultConfig.verbose,
+        isVerbose: parsedValue.isVerbose ?? parsedValue.verbose ?? defaultConfig.isVerbose,
+        includeHeaders: parsedValue.includeHeaders ?? defaultConfig.includeHeaders,
+        prefix: parsedValue.prefix ?? defaultConfig.prefix,
+        specialHeaders: parsedValue.specialHeaders ?? defaultConfig.specialHeaders,
+        allowedEnvironments: parsedValue.allowedEnvironments ?? defaultConfig.allowedEnvironments,
       };
     } catch (err) {
       logger.debug('ConfigurationManager', 'Error parsing debug config', {
@@ -196,6 +207,79 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
   };
 
   /**
+   * Parse strategy configuration
+   */
+  const parseStrategyConfig = (value: unknown): StrategyConfig => {
+    const defaultConfig: StrategyConfig = {
+      priorityOrder: ['interceptor', 'direct-url', 'cdn-cgi', 'remote-fallback', 'direct-serving'],
+      disabled: [],
+      enabled: []
+    };
+
+    try {
+      if (!value) return defaultConfig;
+
+      const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+
+      return {
+        priorityOrder: parsedValue.priorityOrder || defaultConfig.priorityOrder,
+        disabled: parsedValue.disabled || defaultConfig.disabled,
+        enabled: parsedValue.enabled || defaultConfig.enabled
+      };
+    } catch (err) {
+      logger.debug('ConfigurationManager', 'Error parsing strategy config', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+      return defaultConfig;
+    }
+  };
+
+  /**
+   * Parse image resizer configuration
+   */
+  const parseImageResizerConfig = (value: unknown): ImageResizerConfig => {
+    const defaultConfig: ImageResizerConfig = {
+      routes: [],
+      defaults: {
+        strategies: {
+          priorityOrder: ['interceptor', 'direct-url', 'cdn-cgi', 'remote-fallback', 'direct-serving'],
+          disabled: [],
+          enabled: []
+        }
+      }
+    };
+
+    try {
+      if (!value) return defaultConfig;
+
+      const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+
+      // Ensure we have valid default strategies
+      const defaultStrategies = defaultConfig.defaults?.strategies || {
+        priorityOrder: ['interceptor', 'direct-url', 'cdn-cgi', 'remote-fallback', 'direct-serving'],
+        disabled: [],
+        enabled: []
+      };
+      
+      return {
+        routes: parsedValue.routes || defaultConfig.routes,
+        defaults: {
+          strategies: parsedValue.defaults?.strategies ? {
+            priorityOrder: parsedValue.defaults.strategies.priorityOrder || defaultStrategies.priorityOrder,
+            disabled: parsedValue.defaults.strategies.disabled || defaultStrategies.disabled,
+            enabled: parsedValue.defaults.strategies.enabled || defaultStrategies.enabled
+          } : defaultStrategies
+        }
+      };
+    } catch (err) {
+      logger.debug('ConfigurationManager', 'Error parsing image resizer config', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
+      return defaultConfig;
+    }
+  };
+
+  /**
    * Parse responsive configuration
    */
   const parseResponsiveConfig = (value: unknown): ResponsiveConfig => {
@@ -319,10 +403,10 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           originConfig: originConfig as Record<string, unknown>,
           
           // Store strategy configuration for consistent access
-          strategiesConfig: strategiesConfig as Record<string, unknown>,
+          strategiesConfig: parseStrategyConfig(strategiesConfig),
           
           // Store image resizer config (domain-specific routes)
-          imageResizerConfig: imageResizerConfig as Record<string, unknown>,
+          imageResizerConfig: parseImageResizerConfig(imageResizerConfig),
 
           // Debug configuration
           debug: parseDebugConfig(env.DEBUG_HEADERS_CONFIG),
@@ -423,14 +507,16 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
           originConfig: {},
           strategiesConfig: {
             priorityOrder: ['direct-url', 'cdn-cgi', 'direct-serving', 'remote-fallback'],
-            disabled: []
+            disabled: [],
+            enabled: []
           },
           imageResizerConfig: {
             routes: [],
             defaults: {
               strategies: {
                 priorityOrder: ['direct-url', 'cdn-cgi', 'direct-serving', 'remote-fallback'],
-                disabled: []
+                disabled: [],
+                enabled: []
               }
             }
           },
@@ -495,8 +581,8 @@ export function createConfigManager(dependencies: ConfigManagerDependencies): IC
         
         // Log that we're using fallback configuration
         logger.warn('ConfigurationManager', 'Using fallback configuration due to initialization error', {
-          environment: config.environment,
-          mode: config.mode,
+          environment: config?.environment || 'unknown',
+          mode: config?.mode || 'unknown',
         });
       }
     },
